@@ -1,6 +1,6 @@
-# AegisWAF v0.7 — Authentication & RBAC
+# AegisWAF — Multi-Site WAF / Reverse Proxy
 
-Experimental self-hosted WAF / reverse proxy (ASP.NET Core .NET 10, YARP, PostgreSQL). **Not production-ready** — see [docs/SECURITY.md](docs/SECURITY.md).
+Self-hosted multi-site WAF / reverse proxy (ASP.NET Core .NET 10, YARP, PostgreSQL). The repository includes production guardrails and local security evidence, but it is **not production-certified** until the external gates listed in [docs/PRODUCTION_READINESS.md](docs/PRODUCTION_READINESS.md) are completed.
 
 Docs: [ARCHITECTURE](docs/ARCHITECTURE.md) · [SECURITY](docs/SECURITY.md) · [ROADMAP](docs/DEVELOPMENT_ROADMAP.md) · [PROGRESS](docs/PROGRESS.md)
 
@@ -25,10 +25,10 @@ The login window has only username + password; the protection starts in the back
 
 The in-app gateway listens on `127.0.0.1` only (admin API and proxy share that port). Build with `dotnet publish src/AegisWAF.Desktop -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true` (about 160 MB).
 
-The standalone gateway and browser console below still work and are unchanged.
+The standalone gateway and browser console remain available for deployments that do not use the desktop host.
 
 ## What the system protects against
-Signature + normalisation filter (v0.7.1). Before matching, each field is percent-decoded (including double-encoding), `+`→space, HTML-entity-decoded, SQL-comment-stripped and lowercased, so URL-borne attacks that browsers encode as `%20`/`%3C` are now caught. It inspects the URL, query, **headers, cookies and bodies of every textual type** (JSON, form, text, XML, multipart, chunked) against 13 rule groups — **partial** coverage for SQL injection, XSS, path traversal, LFI/RFI, command injection, SSRF and header attacks; plus IP block/allow and a 300 req/min/IP limit. Not covered: response inspection, NoSQL/XXE, full bot management, DDoS. Tuned for maximum detection, so expect some false positives — every rule is individually toggleable.
+The inspection pipeline is parser-aware and bounded: it normalises URL/query/header/cookie values, inspects JSON, form, XML and multipart fields, applies decompression and parser budgets, and can inspect upstream responses (including bounded binary content). The rule catalog covers SQL injection, XSS, path traversal/LFI/RFI, command injection, SSRF, protocol upgrades, scanner detection, NoSQL, XXE and SSTI, with optional anomaly scoring and OWASP Top 10:2021 mapping. Production mode additionally enables explicit per-site HTTPS egress allowlists, DNS-aware connection checks, active/passive upstream health, PostgreSQL-backed shared rate limiting/auth throttling, structured audit events and fail-closed readiness checks. Detection is intentionally conservative and may produce false positives; rules and site policies are reviewable and testable.
 The full, honest list with real examples is in [docs/PROTECTION.md](docs/PROTECTION.md) and in the app under **ระบบป้องกันอะไรได้บ้าง** (with "ลองทดสอบ" buttons that run each example on your own gateway). Every example is executed against a real gateway by `CatalogVerificationTests`, so the list cannot drift from the code.
 
 ## Running AegisWAF.Gateway.exe by double-click
@@ -82,4 +82,4 @@ Each run creates and drops its own throw-away database. `AEGISWAF_TEST_PG` forma
 The admin console includes an A01-A10 coverage view and scoped defense metadata. See [docs/OWASP_DEFENSE.md](docs/OWASP_DEFENSE.md). OWASP badges are coverage mapping, not certification.
 
 ## Still limited (selected)
-Dashboard and admin API share the proxy listener, so protected apps cannot use `/`, `/assets` or `/api` paths; rate limiting and counters are per-process; no TLS management, MFA, or load testing. The detection engine (v0.9) normalises each field (decode / HTML-entity / `/**/` strip / NFKC Unicode fold), runs 16 signature groups + an optional anomaly scorer across URL, headers, cookies and all request bodies, and inspects upstream responses for leaks — but it is a signature/normalisation layer, not a full WAF, with documented bypasses and false positives (see [docs/PROTECTION.md](docs/PROTECTION.md)) and no independent pen-test or OWASP CRS benchmark ([docs/OWASP_CRS_COMPATIBILITY.md](docs/OWASP_CRS_COMPATIBILITY.md)). Full list: [docs/SECURITY.md](docs/SECURITY.md).
+Management paths (`/`, `/assets` and `/api`) share the gateway listener and are reserved; use explicit Site path prefixes for protected applications that need those paths. Production shared limits require PostgreSQL and the reviewed migrations. MFA is intentionally out of scope for this deployment. TLS certificate termination, network ACLs, secret management and service isolation remain infrastructure responsibilities. The engine is not OWASP CRS and has no certification; independent penetration testing, DNS-rebinding testing, multi-instance testing, continuous SAST/secret scanning, SBOM generation and external load-test review remain open gates (see [docs/PRODUCTION_READINESS.md](docs/PRODUCTION_READINESS.md), [docs/SECURITY.md](docs/SECURITY.md), and [docs/OWASP_CRS_COMPATIBILITY.md](docs/OWASP_CRS_COMPATIBILITY.md)).
