@@ -34,6 +34,7 @@
 - Expired per-IP and global limiter buckets are cleaned periodically, preventing long-running processes from retaining stale identity state indefinitely.
 - Production enforcement bounds inspection buffers to 16 MiB for request bodies and 32 MiB for responses, preventing unsafe memory settings from creating a configuration-driven exhaustion risk.
 - Structured request inspection now extracts bounded JSON, form-urlencoded, XML, and multipart fields/metadata before rule evaluation; ordinary HTML DOCTYPE is allowed while entity/external-DTD payloads are rejected.
+- Form-urlencoded inspection is bounded while parsing and rejects malformed percent-encoding with a stable parser reason, avoiding unbounded pair materialization before the member limit is applied.
 - Textual request bodies with malformed UTF-8 are rejected before parser/rule evaluation; the security/load-test harness supports explicit `Host` selection for multi-Site runs and uses the worker-scoped target URL.
 - The configured inspection timeout now covers request-body read, decoding, raw rule evaluation, structured parsing, and parsed-value evaluation; expiry fails closed with `Inspection Timeout`.
 - gzip, deflate, and Brotli request bodies are decompressed only within compressed-size, decompressed-size, expansion-ratio, and parser budgets; unknown encodings fail closed.

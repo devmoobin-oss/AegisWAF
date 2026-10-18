@@ -69,4 +69,22 @@ public sealed class StructuredPayloadParserTests
         Assert.False(members.Success);
         Assert.Equal("json_limit", members.ReasonCode);
     }
+
+    [Fact]
+    public void Form_parser_rejects_malformed_percent_encoding()
+    {
+        var result = StructuredPayloadParser.Parse("application/x-www-form-urlencoded", "q=%ZZ", Limits);
+
+        Assert.False(result.Success);
+        Assert.Equal("form_malformed", result.ReasonCode);
+    }
+
+    [Fact]
+    public void Form_parser_stops_at_member_limit_without_materializing_unbounded_pairs()
+    {
+        var result = StructuredPayloadParser.Parse("application/x-www-form-urlencoded", "a=1&b=2&c=3", Limits with { MaxMembers = 2 });
+
+        Assert.False(result.Success);
+        Assert.Equal("form_limit", result.ReasonCode);
+    }
 }

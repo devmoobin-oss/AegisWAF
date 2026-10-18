@@ -75,14 +75,26 @@ internal static class StructuredPayloadParser
     private static StructuredPayloadResult ParseForm(string body, InspectionLimits limits)
     {
         var values = new List<InspectionValue>();
-        foreach (var pair in body.Split('&', StringSplitOptions.RemoveEmptyEntries))
+        var start = 0;
+        var pairs = 0;
+        while (start <= body.Length)
         {
-            var separator = pair.IndexOf('=');
-            var key = DecodeForm(separator < 0 ? pair : pair[..separator]);
-            var value = DecodeForm(separator < 0 ? string.Empty : pair[(separator + 1)..]);
+            var end = body.IndexOf('&', start);
+            if (end < 0) end = body.Length;
+            if (end > start)
+            {
+                if (++pairs > limits.MaxMembers) return StructuredPayloadResult.Reject("form_limit");
+                var length = end - start;
+                var separator = body.IndexOf('=', start, length);
+                var keyText = separator < 0 ? body[start..end] : body[start..separator];
+                var valueText = separator < 0 ? string.Empty : body[(separator + 1)..end];
+                if (!TryDecodeForm(keyText, out var key) || !TryDecodeForm(valueText, out var value))
+                    return StructuredPayloadResult.Reject("form_malformed");
             values.Add(InspectionValue.Create("form." + key + ".key", key, 65_536));
             values.Add(InspectionValue.Create("form." + key, value, 65_536));
-            if (values.Count / 2 > limits.MaxMembers) return StructuredPayloadResult.Reject("form_limit");
+            }
+            if (end == body.Length) break;
+            start = end + 1;
         }
         return StructuredPayloadResult.Clean(values);
     }
@@ -147,7 +159,30 @@ internal static class StructuredPayloadParser
         return StructuredPayloadResult.Clean(values);
     }
 
-    private static string DecodeForm(string value) => Uri.UnescapeDataString(value.Replace('+', ' '));
+    private static bool TryDecodeForm(string value, out string decoded)
+    {
+        for (var i = 0; i < value.Length; i++)
+        {
+            if (value[i] != '%') continue;
+            if (i + 2 >= value.Length || !Uri.IsHexDigit(value[i + 1]) || !Uri.IsHexDigit(value[i + 2]))
+            {
+                decoded = string.Empty;
+                return false;
+            }
+            i += 2;
+        }
+
+        try
+        {
+            decoded = Uri.UnescapeDataString(value.Replace('+', ' '));
+            return true;
+        }
+        catch (UriFormatException)
+        {
+            decoded = string.Empty;
+            return false;
+        }
+    }
 
     private static string? ExtractBoundary(string contentType)
     {
