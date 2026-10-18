@@ -165,6 +165,22 @@ public static class GatewayApp
         code = x.Code, title = x.Title, coverage = x.Coverage.ToString(), description = x.Description,
         limitations = x.Limitations, ruleIds = OwaspCatalog.RuleIdsForCode(x.Code), officialUrl = OwaspCatalog.OfficialUrl
     }))).Require(Roles.Viewer);
+    app.MapGet("/api/sites", (SiteRegistry registry, SiteHealthRegistry health) => Results.Ok(registry.Current.Sites.Select(site => new
+    {
+        siteId = site.Id,
+        enabled = site.Enabled,
+        hostnames = site.Hostnames,
+        pathPrefixes = site.PathPrefixes,
+        wafPolicy = site.WafPolicy,
+        health = site.Upstreams.Count == 0 ? "invalid" : site.Upstreams.All(x => health.Get(site.Id, x.Id)?.Healthy == false) ? "unhealthy" : "healthy",
+        upstreams = site.Upstreams.Select(upstream => new
+        {
+            id = upstream.Id,
+            address = upstream.Address.ToString(),
+            weight = upstream.Weight,
+            health = health.Get(site.Id, upstream.Id)?.Healthy == false ? "unhealthy" : "healthy"
+        })
+    }))).Require(Roles.Viewer);
     app.MapAuth();
     app.MapGet("/api/ip-policies", (IpAccessPolicy policies) => Results.Ok(policies.List())).Require(Roles.Viewer);
     app.MapPut("/api/ip-policies", async (IpPolicyInput input, IpAccessPolicy policies, IConfiguration cfg, HttpContext ctx, CancellationToken ct) =>

@@ -1,0 +1,26 @@
+<UserControl x:Class="AegisWAF.Desktop.Views.SitesView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid>
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+        <StackPanel Orientation="Horizontal">
+            <TextBlock Text="Multi-Site Gateway" FontSize="20" FontWeight="SemiBold"/>
+            <Border Background="#0F4B3D" BorderBrush="#2AD4C0" BorderThickness="1" CornerRadius="10" Padding="10,6" Margin="12,0,0,0">
+                <TextBlock Text="OWASP policy per Site" Foreground="#6EF0C6" FontWeight="SemiBold"/>
+            </Border>
+        </StackPanel>
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,8,0,12">
+            <TextBlock x:Name="Msg" Text="Restart Gateway after configuration changes" Style="{StaticResource MutedText}" VerticalAlignment="Center"/>
+            <Button Content="Refresh" Margin="14,0,0,0" Click="OnRefresh"/>
+        </StackPanel>
+        <DataGrid x:Name="Grid" Grid.Row="2" AutoGenerateColumns="False" IsReadOnly="True">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="SiteId" Binding="{Binding SiteId}" Width="1.2*"/>
+                <DataGridTextColumn Header="Hostnames" Binding="{Binding HostnamesText}" Width="2*"/>
+                <DataGridTextColumn Header="Upstreams" Binding="{Binding UpstreamsText}" Width="2*"/>
+                <DataGridTextColumn Header="Health" Binding="{Binding Health}" Width="*"/>
+                <DataGridTextColumn Header="OWASP" Binding="{Binding WafPolicy}" Width="*"/>
+            </DataGrid.Columns>
+        </DataGrid>
+    </Grid>
+</UserControl>
