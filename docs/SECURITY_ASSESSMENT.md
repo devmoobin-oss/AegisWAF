@@ -2,7 +2,7 @@
 
 Automated tests and load tests are evidence of implementation behavior, not independent certification. Run external assessment only against a synthetic or explicitly authorized environment.
 
-Multi-Site `WafPolicy` labels are not yet independent rule stores: external testing must evaluate the global rule state and record per-Site policy isolation as an open gate until the policy storage/live-reload design is delivered.
+Multi-Site `WafPolicy` resolves to an immutable per-request snapshot when `Waf:Policies:<name>` is configured. External testing must verify per-Site deny-only rule isolation, while treating persistent policy storage and live reload as separate open gates.
 
 ## Automated gates
 
