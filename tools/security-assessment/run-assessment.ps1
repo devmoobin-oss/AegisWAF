@@ -67,7 +67,7 @@ function Get-ConfigurationFingerprint([string]$root) {
     }
 }
 
-function Run-External([string]$name, [string]$toolName, [string[]]$arguments, [string]$outputFile = '') {
+function Run-External([string]$name, [string]$toolName, [string[]]$arguments, [string]$outputFile = '', [switch]$ClassifyInfrastructureFailure) {
     $tool = Find-Tool $toolName
     $commandText = (($toolName) + ' ' + ($arguments -join ' ')).Trim()
     if (-not $tool) {
@@ -87,7 +87,10 @@ function Run-External([string]$name, [string]$toolName, [string[]]$arguments, [s
     }
     $watch.Stop()
     if ($outputFile) { Set-Content -LiteralPath $outputFile -Value $captured -Encoding UTF8 }
-    Add-Result $name $(if ($exitCode -eq 0) { 'pass' } else { 'fail' }) $toolName $commandText $exitCode $captured $watch.Elapsed.TotalSeconds
+    $status = if ($exitCode -eq 0) { 'pass' }
+        elseif ($ClassifyInfrastructureFailure -and $captured -match 'NU1301|SSL connection could not be established|No credentials are available in the security package') { 'unavailable' }
+        else { 'fail' }
+    Add-Result $name $status $toolName $commandText $exitCode $captured $watch.Elapsed.TotalSeconds
 }
 
 if ($SkipTests) {
@@ -99,7 +102,7 @@ if ($SkipTests) {
 if ($SkipDependencyScan) {
     Add-Result 'dependency vulnerabilities' 'not_run' 'dotnet' 'skipped by parameter' -1 'Skipped by -SkipDependencyScan.' 0
 } else {
-    Run-External 'dependency vulnerabilities' 'dotnet' @('list', (Join-Path $RepoRoot 'AegisWAF.slnx'), 'package', '--vulnerable', '--include-transitive')
+    Run-External 'dependency vulnerabilities' 'dotnet' @('list', (Join-Path $RepoRoot 'AegisWAF.slnx'), 'package', '--vulnerable', '--include-transitive') -ClassifyInfrastructureFailure
 }
 
 if ($SkipSecretScan) {
