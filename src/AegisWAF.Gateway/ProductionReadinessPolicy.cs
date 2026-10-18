@@ -41,14 +41,14 @@ public static class ProductionReadinessPolicy
             "Waf:InspectResponses must be true for response leak inspection", errors);
         Require(configuration.GetValue("Waf:InspectBinaryResponses", false),
             "Waf:InspectBinaryResponses must be true to detect content-type spoofing", errors);
-        Require(configuration.GetValue("Waf:RateLimit:Requests", 0) > 0,
-            "Waf:RateLimit:Requests must be greater than zero", errors);
-        Require(configuration.GetValue("Waf:RateLimit:WindowSeconds", 0) > 0,
-            "Waf:RateLimit:WindowSeconds must be greater than zero", errors);
-        Require(configuration.GetValue("Waf:RateLimit:MaxEntries", 0) > 0,
-            "Waf:RateLimit:MaxEntries must be greater than zero", errors);
-        Require(configuration.GetValue("Waf:RateLimit:GlobalRequests", 0) > 0,
-            "Waf:RateLimit:GlobalRequests must be greater than zero for botnet-wide protection", errors);
+        Require(configuration.GetValue("Waf:RateLimit:Requests", 0) is >= 1 and <= 1_000_000,
+            "Waf:RateLimit:Requests must be between 1 and 1000000", errors);
+        Require(configuration.GetValue("Waf:RateLimit:WindowSeconds", 0) is >= 1 and <= 3600,
+            "Waf:RateLimit:WindowSeconds must be between 1 and 3600 seconds", errors);
+        Require(configuration.GetValue("Waf:RateLimit:MaxEntries", 0) is >= 100 and <= 1_000_000,
+            "Waf:RateLimit:MaxEntries must be between 100 and 1000000", errors);
+        Require(configuration.GetValue("Waf:RateLimit:GlobalRequests", 0) is >= 1 and <= 10_000_000,
+            "Waf:RateLimit:GlobalRequests must be between 1 and 10000000 for botnet-wide protection", errors);
         Require(string.Equals(configuration["Waf:RateLimit:Store"], "postgres", StringComparison.OrdinalIgnoreCase),
             "Waf:RateLimit:Store must be postgres for multi-instance shared enforcement", errors);
         Require(string.Equals(configuration["Auth:Throttle:Store"], "postgres", StringComparison.OrdinalIgnoreCase),

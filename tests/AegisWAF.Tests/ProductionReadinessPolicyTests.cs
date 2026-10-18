@@ -168,6 +168,23 @@ public sealed class ProductionReadinessPolicyTests
     }
 
     [Fact]
+    public void Production_rejects_rate_limit_values_outside_runtime_bounds()
+    {
+        var values = SecureValues();
+        values["Waf:RateLimit:Requests"] = "1000001";
+        values["Waf:RateLimit:WindowSeconds"] = "3601";
+        values["Waf:RateLimit:MaxEntries"] = "1000001";
+        values["Waf:RateLimit:GlobalRequests"] = "10000001";
+
+        var errors = ProductionReadinessPolicy.Validate(Config(values));
+
+        Assert.Contains(errors, e => e.Contains("RateLimit:Requests", StringComparison.Ordinal));
+        Assert.Contains(errors, e => e.Contains("RateLimit:WindowSeconds", StringComparison.Ordinal));
+        Assert.Contains(errors, e => e.Contains("RateLimit:MaxEntries", StringComparison.Ordinal));
+        Assert.Contains(errors, e => e.Contains("RateLimit:GlobalRequests", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Production_rejects_disabled_structured_security_logging()
     {
         var values = SecureValues();
