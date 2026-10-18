@@ -1,6 +1,6 @@
 # Current Production WAF Progress Snapshot
 
-Updated against commit `35bd190` in the `feature/multi-site-gateway` worktree on 2026-10-19.
+Updated against commit `8b6f307` in the `feature/multi-site-gateway` worktree on 2026-10-19.
 
 ## Verified local evidence
 
