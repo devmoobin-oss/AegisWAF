@@ -53,8 +53,12 @@ public static class ProductionReadinessPolicy
             "Waf:RateLimit:Store must be postgres for multi-instance shared enforcement", errors);
         Require(string.Equals(configuration["Auth:Throttle:Store"], "postgres", StringComparison.OrdinalIgnoreCase),
             "Auth:Throttle:Store must be postgres for distributed login protection", errors);
-        Require(configuration.GetValue("Auth:Throttle:MaxEntries", 0) > 0,
-            "Auth:Throttle:MaxEntries must be greater than zero", errors);
+        Require(configuration.GetValue("Auth:Throttle:MaxFailures", 0) is >= 1 and <= 1_000,
+            "Auth:Throttle:MaxFailures must be between 1 and 1000", errors);
+        Require(configuration.GetValue("Auth:Throttle:WindowMinutes", 0) is >= 1 and <= 1_440,
+            "Auth:Throttle:WindowMinutes must be between 1 and 1440 minutes", errors);
+        Require(configuration.GetValue("Auth:Throttle:MaxEntries", 0) is >= 100 and <= 1_000_000,
+            "Auth:Throttle:MaxEntries must be between 100 and 1000000", errors);
         Require(!string.IsNullOrWhiteSpace(configuration.GetConnectionString("Postgres")),
             "ConnectionStrings:Postgres is required for the shared rate limiter", errors);
         Require(configuration.GetValue("Waf:Events:StructuredLogging", false),

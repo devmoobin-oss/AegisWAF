@@ -47,6 +47,7 @@
 - Production enforcement bounds `Waf:Limits:RequestHeadersTimeoutSeconds` to 1–120 seconds and `Waf:Limits:KeepAliveSeconds` to 5–600 seconds, preventing an unsafe timeout configuration from weakening slow-client protection.
 - Production enforcement bounds `Waf:Limits:MaxRequestLineBytes` to 1–64 KiB and `Waf:Limits:MaxRequestHeadersBytes` to 4–256 KiB, preventing oversized framing/header limits from becoming a configuration-driven memory/DoS risk.
 - Production enforcement rejects global rate-limit values outside the runtime bounds (`Requests` 1–1,000,000; `WindowSeconds` 1–3,600; `MaxEntries` 100–1,000,000; `GlobalRequests` 1–10,000,000) instead of silently clamping an operator's configuration.
+- Production enforcement also rejects distributed authentication throttle values outside their runtime bounds (`MaxFailures` 1–1,000; `WindowMinutes` 1–1,440; `MaxEntries` 100–1,000,000), keeping shared login-abuse protection explicit across instances.
 - Structured request inspection now extracts bounded JSON, form-urlencoded, XML, and multipart fields/metadata before rule evaluation; ordinary HTML DOCTYPE is allowed while entity/external-DTD payloads are rejected.
 - XML DTD/entity detection uses a bounded ordinal scan rather than an unbounded backtracking expression, while rejecting external `SYSTEM`/`PUBLIC` declarations before XML parsing.
 - JSON inspection rejects duplicate object keys before rule evaluation to prevent parser differentials where the WAF and upstream select different values for the same field.
