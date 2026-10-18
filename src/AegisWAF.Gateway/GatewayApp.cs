@@ -113,8 +113,11 @@ public static class GatewayApp
             handler.ConnectCallback = (socketContext, ct) => EgressConnectionGuard.ConnectAsync(policy, socketContext.DnsEndPoint, ct);
         });
     }
-    builder.Services.AddHealthChecks().AddCheck<PostgresHealthCheck>("postgres", tags: ["ready"])
+    var healthChecks = builder.Services.AddHealthChecks()
+        .AddCheck<PostgresHealthCheck>("postgres", tags: ["ready"])
         .AddCheck<SiteRoutingHealthCheck>("sites", tags: ["ready"]);
+    if (builder.Configuration.GetValue("Waf:Deployment:Enforce", false))
+        healthChecks.AddCheck<DataProtectionHealthCheck>("data-protection", tags: ["ready"]);
     builder.Services.AddSingleton<SecurityRules>();
     builder.Services.AddSingleton<SitePolicyResolver>();
     builder.Services.AddSingleton<ResponseInspector>();
