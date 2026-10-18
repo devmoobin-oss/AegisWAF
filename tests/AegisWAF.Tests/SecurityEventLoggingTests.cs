@@ -1,9 +1,23 @@
 using AegisWAF.Gateway;
+using System.Text.Json;
 
 namespace AegisWAF.Tests;
 
 public sealed class SecurityEventLoggingTests
 {
+    [Fact]
+    public void Audit_integrity_failure_is_emitted_as_a_structured_critical_event()
+    {
+        var json = SecurityEventLogFormatter.FormatAuditIntegrityFailure(42, 9001);
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+
+        Assert.Equal("aegiswaf.audit_integrity_failure", root.GetProperty("eventType").GetString());
+        Assert.Equal("critical", root.GetProperty("severity").GetString());
+        Assert.Equal(42, root.GetProperty("checkedEntries").GetInt64());
+        Assert.Equal(9001, root.GetProperty("firstInvalidId").GetInt64());
+    }
+
     [Fact]
     public void Formats_a_structured_event_with_owasp_mapping()
     {

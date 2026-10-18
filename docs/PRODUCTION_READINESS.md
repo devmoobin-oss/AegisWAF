@@ -27,6 +27,7 @@
 - Rate limiting supports both per-client and global rolling-window ceilings. Production uses the PostgreSQL shared store so multiple WAF instances enforce one common limit; run migration `008_rate_limit_buckets.sql` before enabling traffic.
 - `/ready` verifies the shared rate-limit table exists when `Store=postgres`; traffic should not be admitted until this migration check is healthy.
 - Security events are emitted as structured `aegiswaf.security_event` JSON logs with client, request, status and OWASP mapping fields, allowing a SIEM/agent to ingest events even when database persistence is temporarily unavailable.
+- If `/api/audit/integrity` detects a broken audit chain, the Gateway emits a structured `aegiswaf.audit_integrity_failure` event at critical level with the checked count and first invalid row ID, so SIEM alerting does not depend on an operator noticing the API response.
 - Structured events include the originating `requestId`, enabling correlation across WAF, SIEM and upstream traces without changing the existing database schema.
 - If the bounded event queue fills, the WAF emits a throttled `WAF_SECURITY_EVENT_DROPPED` alert with the event payload and counter so SIEM can detect observability loss.
 - Production-enforced sessions always set the cookie `Secure` flag, including deployments behind a TLS-terminating reverse proxy.
@@ -141,7 +142,7 @@ The Desktop Site Manager is read-only for the active runtime configuration and i
 - Independent multi-instance concurrency validation for distributed authentication and route-aware rate limiting.
 
 The PostgreSQL route limiter is fail-closed and bounded for long-running deployments: each transaction takes a database advisory lock for the shared capacity check, removes expired bucket rows, and rejects new bucket identities when `Waf:RateLimit:MaxEntries` would be exceeded. Existing identities can continue to be evaluated without allowing unbounded bucket growth. Validate the configured cap against expected Site × route × client cardinality before production rollout.
-- SIEM export and alerting when audit-chain verification fails.
+- SIEM routing and alert policy configuration for the `aegiswaf.audit_integrity_failure` event.
 - WebSocket/Upgrade regression tests and a full external DNS-rebinding assessment between validation and connection establishment.
 - Continuous SAST/secret scanning, independent load-test review and external penetration testing. Deterministic fuzz regression coverage and a local load-test harness are included; external evidence is still pending.
 - A least-privilege PostgreSQL deployment account instead of a superuser.

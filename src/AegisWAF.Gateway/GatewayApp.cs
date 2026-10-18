@@ -239,13 +239,18 @@ public static class GatewayApp
                 actor=reader.IsDBNull(3)?null:reader.GetString(3),clientIp=reader.IsDBNull(4)?null:reader.GetString(4),outcome=reader.GetString(5) });return Results.Ok(result);
         } catch(Exception) { return Results.Problem("Audit database unavailable",statusCode:503); }
     }).Require(Roles.Analyst);
-    app.MapGet("/api/audit/integrity", async (IConfiguration cfg, CancellationToken ct) =>
+    app.MapGet("/api/audit/integrity", async (IConfiguration cfg, ILoggerFactory loggerFactory, CancellationToken ct) =>
     {
         try
         {
             await using var db = new NpgsqlConnection(cfg.GetConnectionString("Postgres"));
             await db.OpenAsync(ct);
             var result = await Audit.VerifyAsync(db, ct);
+            if (!result.Valid && result.BadId is long badId)
+            {
+                var alert = SecurityEventLogFormatter.FormatAuditIntegrityFailure(result.Checked, badId);
+                loggerFactory.CreateLogger("AuditIntegrity").LogCritical("AEGISWAF_AUDIT_INTEGRITY_FAILURE {AuditIntegrityEvent}", alert);
+            }
             return Results.Ok(new { valid = result.Valid, checkedEntries = result.Checked, firstInvalidId = result.BadId });
         }
         catch (Exception) { return Results.Problem("Audit integrity check unavailable", statusCode: 503); }
