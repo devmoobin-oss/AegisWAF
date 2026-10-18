@@ -65,6 +65,10 @@ public static class SiteConfigurationValidator
                 if (allowedHosts.Length == 0 || allowedPorts.Length == 0 || allowedSchemes.Length == 0 ||
                     allowedSchemes.Any(x => !string.Equals(x, "https", StringComparison.OrdinalIgnoreCase)))
                     errors.Add($"Site {id} must define an explicit HTTPS egress allowlist");
+                if (allowedHosts.Any(x => x == "*" || NormalizeHostname(x).Length == 0))
+                    errors.Add($"Site {id} egress host entries must be explicit hostnames without wildcards");
+                if (allowedPorts.Any(x => x is < 1 or > 65535))
+                    errors.Add($"Site {id} egress port entries must be between 1 and 65535");
                 if (site.GetValue("Egress:AllowPrivateExceptions", false))
                     errors.Add($"Site {id} must not enable private egress exceptions in Production");
                 foreach (var upstream in upstreamSections)

@@ -185,4 +185,24 @@ public sealed class SiteConfigurationTests
         Assert.Contains(errors, error => error.Contains("rate window", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(errors, error => error.Contains("global rate", StringComparison.OrdinalIgnoreCase));
     }
+
+    [Fact]
+    public void Production_rejects_wildcard_or_invalid_per_site_egress_entries()
+    {
+        var config = Config(new Dictionary<string, string?>
+        {
+            ["Waf:Deployment:Enforce"] = "true",
+            ["Sites:site-a:Hostnames:0"] = "app.example.com",
+            ["Sites:site-a:Upstreams:0:Address"] = "https://origin.example.com/",
+            ["Sites:site-a:Egress:AllowedHosts:0"] = "*",
+            ["Sites:site-a:Egress:AllowedHosts:1"] = "not a host",
+            ["Sites:site-a:Egress:AllowedPorts:0"] = "70000",
+            ["Sites:site-a:Egress:AllowedSchemes:0"] = "https"
+        });
+
+        var errors = SiteConfigurationValidator.Validate(config);
+
+        Assert.Contains(errors, error => error.Contains("egress host", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(errors, error => error.Contains("egress port", StringComparison.OrdinalIgnoreCase));
+    }
 }

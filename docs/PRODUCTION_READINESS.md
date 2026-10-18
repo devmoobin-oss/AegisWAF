@@ -55,6 +55,7 @@
 - Multi-Site routing is configured under `Sites`; each Site has explicit hostnames, path prefixes, upstreams, rate limits and egress policy. Unknown hosts fail closed when Production enforcement is enabled.
 - Site-scoped rate-limit keys include SiteId and route, and structured security events include SiteId, hostname and upstream context. Run migration `010_site_event_context.sql` before enabling event persistence for Multi-Site.
 - Production rejects per-Site rate limits outside bounded ranges instead of silently clamping them: requests `1..1,000,000`, window `1..3,600` seconds, and global requests `1..10,000,000`.
+- Production Site egress allowlists reject wildcard or malformed host entries and ports outside `1..65,535`; upstream coverage must still match an explicit HTTPS host/port/scheme tuple.
 
 ## Required deployment configuration
 
