@@ -13,6 +13,10 @@ Automated tests and load tests are evidence of implementation behavior, not inde
 
 On 2026-10-18, the harness was run against a local raw-TCP synthetic upstream with `-Requests 40 -Concurrency 4 -AttackRatioPercent 25 -HostHeader site-a.example`. The run completed with 40/40 HTTP 200 responses, 0 transport errors, 0 blocked responses, 42.707 requests/second, p50 1.258 ms, p95 102.181 ms, and p99 285.565 ms. This verifies the runner, explicit Host propagation, and machine-readable output path; it does not replace a multi-instance, external, or independent security assessment.
 
+### Latest dependency/tooling evidence
+
+On 2026-10-18, `dotnet list AegisWAF.slnx package --vulnerable --include-transitive` completed against `https://api.nuget.org/v3/index.json`; AegisWAF.Client, Gateway, Desktop, and Tests reported no vulnerable packages from that source. `gitleaks`, `semgrep`, `syft`, and `trivy` were not installed in the local environment, so secret scanning, SAST, and SBOM generation remain unverified rather than being reported as clean.
+
 ## OWASP ZAP / WSTG scope
 
 Use an isolated deployment with a test database and non-production credentials. Cover:
