@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Sockets;
+using System.Net.Http;
 using AegisWAF.Gateway.Sites;
 
 namespace AegisWAF.Gateway;
@@ -69,6 +70,35 @@ internal sealed class UpstreamEgressPolicy(UpstreamEgressOptions options, IUpstr
     public Task<UpstreamEgressDecision> CheckAsync(Uri destination, SiteEgressPolicy sitePolicy, CancellationToken ct = default) =>
         new UpstreamEgressPolicy(UpstreamEgressOptions.From(sitePolicy), resolver).CheckAsync(destination, ct);
 
+    /// <summary>
+    /// Revalidates the exact host/port and current DNS answer immediately before an outbound socket is opened.
+    /// Scheme is validated at configuration time because the socket callback receives only the endpoint.
+    /// </summary>
+    public async Task<UpstreamEgressDecision> CheckConnectionAsync(string host, int port, CancellationToken ct = default)
+    {
+        if (!options.AllowedPorts.Contains(port)) return new(false, "port_not_allowed");
+        if (!options.AllowedHosts.Contains(host, StringComparer.OrdinalIgnoreCase)) return new(false, "host_not_allowed");
+        if (MetadataHosts.Contains(host) || host.EndsWith(".internal", StringComparison.OrdinalIgnoreCase))
+            return new(false, "metadata_host");
+
+        if (IPAddress.TryParse(host, out var direct)) return CheckAddress(direct, options.AllowPrivateExceptions);
+        try
+        {
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeout.CancelAfter(TimeSpan.FromMilliseconds(500));
+            var addresses = await resolver.ResolveAsync(host, timeout.Token).ConfigureAwait(false);
+            if (addresses.Length == 0) return new(false, "dns_no_address");
+            foreach (var address in addresses)
+            {
+                var decision = CheckAddress(address, options.AllowPrivateExceptions);
+                if (!decision.Allowed) return decision;
+            }
+            return new(true, "allowed", addresses[0].ToString());
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested) { return new(false, "dns_timeout"); }
+        catch (SocketException) { return new(false, "dns_failed"); }
+    }
+
     private static UpstreamEgressDecision CheckAddress(IPAddress address, bool allowPrivate)
     {
         if (address.IsIPv4MappedToIPv6) address = address.MapToIPv4();
@@ -89,5 +119,30 @@ internal sealed class UpstreamEgressPolicy(UpstreamEgressOptions options, IUpstr
             if (blocked && !allowPrivate) return new(false, "private_target", address.ToString());
         }
         return new(true, "allowed", address.ToString());
+    }
+}
+
+internal static class EgressConnectionGuard
+{
+    public static async ValueTask<Stream> ConnectAsync(UpstreamEgressPolicy policy, DnsEndPoint endpoint, CancellationToken ct)
+    {
+        var decision = await policy.CheckConnectionAsync(endpoint.Host, endpoint.Port, ct).ConfigureAwait(false);
+        if (!decision.Allowed || !IPAddress.TryParse(decision.ResolvedAddress, out var address))
+            throw new HttpRequestException("Upstream egress denied: " + decision.ReasonCode);
+
+        var socket = new Socket(address.AddressFamily, SocketType.Stream, ProtocolType.Tcp)
+        {
+            NoDelay = true
+        };
+        try
+        {
+            await socket.ConnectAsync(address, endpoint.Port, ct).ConfigureAwait(false);
+            return new NetworkStream(socket, ownsSocket: true);
+        }
+        catch
+        {
+            socket.Dispose();
+            throw;
+        }
     }
 }

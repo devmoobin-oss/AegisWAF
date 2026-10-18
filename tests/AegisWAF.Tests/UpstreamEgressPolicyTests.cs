@@ -61,9 +61,45 @@ public sealed class UpstreamEgressPolicyTests
         Assert.Equal("host_not_allowed", (await policy.CheckAsync(new Uri("https://other.example.test/"))).ReasonCode);
     }
 
+    [Fact]
+    public async Task Connection_boundary_rechecks_dns_answer_before_socket_creation()
+    {
+        var resolver = new FakeResolver(new Dictionary<string, IPAddress[]>
+        {
+            ["origin.example.test"] = [IPAddress.Parse("203.0.113.10")]
+        });
+        var policy = new UpstreamEgressPolicy(new UpstreamEgressOptions(["origin.example.test"], [443], ["https"], false), resolver);
+
+        Assert.True((await policy.CheckConnectionAsync("origin.example.test", 443)).Allowed);
+        resolver.Answers["origin.example.test"] = [IPAddress.Parse("169.254.169.254")];
+
+        var rebound = await policy.CheckConnectionAsync("origin.example.test", 443);
+
+        Assert.False(rebound.Allowed);
+        Assert.Equal("private_target", rebound.ReasonCode);
+    }
+
+    [Fact]
+    public async Task Connection_boundary_rejects_disallowed_port_before_dns_lookup()
+    {
+        var resolver = new FakeResolver([]);
+        var policy = new UpstreamEgressPolicy(new UpstreamEgressOptions(["origin.example.test"], [443], ["https"], false), resolver);
+
+        var result = await policy.CheckConnectionAsync("origin.example.test", 8443);
+
+        Assert.False(result.Allowed);
+        Assert.Equal("port_not_allowed", result.ReasonCode);
+        Assert.Empty(resolver.RequestedHosts);
+    }
+
     private sealed class FakeResolver(Dictionary<string, IPAddress[]> answers) : IUpstreamAddressResolver
     {
         public Dictionary<string, IPAddress[]> Answers { get; } = answers;
-        public Task<IPAddress[]> ResolveAsync(string host, CancellationToken ct) => Task.FromResult(Answers.TryGetValue(host, out var addresses) ? addresses : Array.Empty<IPAddress>());
+        public List<string> RequestedHosts { get; } = [];
+        public Task<IPAddress[]> ResolveAsync(string host, CancellationToken ct)
+        {
+            RequestedHosts.Add(host);
+            return Task.FromResult(Answers.TryGetValue(host, out var addresses) ? addresses : Array.Empty<IPAddress>());
+        }
     }
 }

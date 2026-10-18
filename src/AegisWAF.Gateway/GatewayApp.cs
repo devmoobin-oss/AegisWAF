@@ -76,7 +76,23 @@ public static class GatewayApp
     builder.Services.AddSingleton(sites);
     builder.Services.AddSingleton<SiteRegistry>();
     builder.Services.AddSingleton<SiteHealthRegistry>();
-    builder.Services.AddReverseProxy().LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
+    var reverseProxy = builder.Services.AddReverseProxy().LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
+    if (builder.Configuration.GetValue("Waf:Deployment:Enforce", false))
+    {
+        var globalEgress = UpstreamEgressOptions.From(builder.Configuration);
+        reverseProxy.ConfigureHttpClient((context, handler) =>
+        {
+            var metadata = context.NewMetadata;
+            var hosts = metadata is not null && metadata.TryGetValue("EgressHosts", out var hostText)
+                ? hostText.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) : globalEgress.AllowedHosts.ToArray();
+            var ports = metadata is not null && metadata.TryGetValue("EgressPorts", out var portText)
+                ? portText.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(int.Parse).ToArray() : globalEgress.AllowedPorts.ToArray();
+            var schemes = metadata is not null && metadata.TryGetValue("EgressSchemes", out var schemeText)
+                ? schemeText.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) : globalEgress.AllowedSchemes.ToArray();
+            var policy = new UpstreamEgressPolicy(new UpstreamEgressOptions(hosts, ports, schemes, false), new SystemUpstreamAddressResolver());
+            handler.ConnectCallback = (socketContext, ct) => EgressConnectionGuard.ConnectAsync(policy, socketContext.DnsEndPoint, ct);
+        });
+    }
     builder.Services.AddHealthChecks().AddCheck<PostgresHealthCheck>("postgres", tags: ["ready"]);
     builder.Services.AddSingleton<SecurityRules>();
     builder.Services.AddSingleton<ResponseInspector>();

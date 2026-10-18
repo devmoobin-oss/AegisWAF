@@ -54,6 +54,9 @@ public static class SiteProxyConfiguration
                 values[$"ReverseProxy:Clusters:{clusterId}:Destinations:{upstream.Id}:Address"] = upstream.Address.ToString();
                 values[$"ReverseProxy:Clusters:{clusterId}:Destinations:{upstream.Id}:Metadata:SiteId"] = site.Id;
             }
+            values[$"ReverseProxy:Clusters:{clusterId}:Metadata:EgressHosts"] = string.Join(",", site.Egress.AllowedHosts);
+            values[$"ReverseProxy:Clusters:{clusterId}:Metadata:EgressPorts"] = string.Join(",", site.Egress.AllowedPorts);
+            values[$"ReverseProxy:Clusters:{clusterId}:Metadata:EgressSchemes"] = string.Join(",", site.Egress.AllowedSchemes);
             // Let YARP own destination availability so active probes and passive failures
             // affect load balancing instead of remaining only in the UI registry.
             values[$"ReverseProxy:Clusters:{clusterId}:HealthCheck:Active:Enabled"] = "true";
