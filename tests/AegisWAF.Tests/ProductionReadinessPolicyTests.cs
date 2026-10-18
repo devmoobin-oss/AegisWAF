@@ -116,6 +116,17 @@ public sealed class ProductionReadinessPolicyTests
     }
 
     [Fact]
+    public void Production_rejects_disabled_response_inspection()
+    {
+        var values = SecureValues();
+        values["Waf:InspectResponses"] = "false";
+
+        var errors = ProductionReadinessPolicy.Validate(Config(values));
+
+        Assert.Contains(errors, e => e.Contains("InspectResponses", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Production_rejects_unbounded_or_unsafe_inspection_limits()
     {
         var values = SecureValues();

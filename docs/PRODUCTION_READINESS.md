@@ -18,6 +18,7 @@
 - An opt-in fail-closed deployment gate is available with `Waf:Deployment:Enforce=true`; it rejects auto-migration, superuser database roles, unsafe methods, unsafe upgrades, missing rate-limit bounds, and wildcard hosts for remote administration.
 - SSRF filtering blocks loopback, RFC1918/link-local, metadata hostnames, IPv4 CGNAT, IPv4 multicast/reserved ranges, IPv6 Unique Local and IPv6 multicast targets, including encoded and non-canonical IPv4 forms.
 - Response inspection can fail closed for oversized textual responses with `Waf:ResponseOverflowAction=block`; the default Desktop compatibility profile remains `stream` and must be changed for a strict Production deployment.
+- Production enforcement requires `Waf:InspectResponses=true`; disabling response inspection is permitted only in the non-production Desktop compatibility profile.
 - Textual upstream responses with malformed UTF-8 are rejected before response-leak rules run, preventing replacement-character decoding from changing the inspected representation.
 - Admin/control-plane responses send `no-store`, `X-Frame-Options: DENY`, COOP/CORP, `X-Permitted-Cross-Domain-Policies: none`, CSP and restrictive Permissions-Policy headers.
 - Rate limiting supports both per-client and global rolling-window ceilings. Production uses the PostgreSQL shared store so multiple WAF instances enforce one common limit; run migration `008_rate_limit_buckets.sql` before enabling traffic.
@@ -77,6 +78,7 @@
   "Security": { "TrustedProxies": ["10.0.0.0/8"] },
   "Waf": {
     "Deployment": { "Enforce": true },
+    "InspectResponses": true,
     "ResponseOverflowAction": "block",
     "RateLimit": { "Requests": 300, "GlobalRequests": 10000, "Store": "postgres", "WindowSeconds": 60, "MaxEntries": 10000 },
     "Limits": { "MaxRequestBodyBytes": 1048576 }
