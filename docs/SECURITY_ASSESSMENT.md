@@ -14,11 +14,11 @@ Multi-Site `WafPolicy` resolves to an immutable per-request snapshot when `Waf:P
 
 ### Latest local harness evidence
 
-On 2026-10-18, the harness was run against a local raw-TCP synthetic upstream with `-Requests 40 -Concurrency 4 -AttackRatioPercent 25 -HostHeader site-a.example`. The run completed with 40/40 HTTP 200 responses, 0 transport errors, 0 blocked responses, 42.707 requests/second, p50 1.258 ms, p95 102.181 ms, and p99 285.565 ms. This verifies the runner, explicit Host propagation, and machine-readable output path; it does not replace a multi-instance, external, or independent security assessment.
+On 2026-10-19, the harness was run against a local raw-TCP synthetic upstream at `http://127.0.0.1:5080`. The run completed with 82 requests, 78 blocked responses (403), 4 clean proxied responses (200), 0 transport errors, 15.6 requests/second, p50 0.982 ms, p95 153.162 ms, and p99 2147.144 ms. This verifies runtime blocking/proxy behavior and machine-readable output; it does not replace a multi-instance, external, or independent security assessment.
 
 ### Latest dependency/tooling evidence
 
-On 2026-10-18, `dotnet list AegisWAF.slnx package --vulnerable --include-transitive` completed against `https://api.nuget.org/v3/index.json`; AegisWAF.Client, Gateway, Desktop, and Tests reported no vulnerable packages from that source. `gitleaks`, `semgrep`, `syft`, and `trivy` were not installed in the local environment, so secret scanning, SAST, and SBOM generation remain unverified rather than being reported as clean.
+On 2026-10-19, `dotnet list AegisWAF.slnx package --vulnerable --include-transitive` completed against `https://api.nuget.org/v3/index.json`; AegisWAF.Client, Gateway, Desktop, and Tests reported no vulnerable packages from that source. The full suite reported 309 passed tests, and the Production-control filter reported 111 passed tests. `gitleaks`, `semgrep`, `syft`, and `trivy` are not installed in the local environment, so secret scanning, SAST, and SBOM generation remain unverified rather than being reported as clean.
 
 ## OWASP ZAP / WSTG scope
 
