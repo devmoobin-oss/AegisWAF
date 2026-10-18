@@ -75,6 +75,7 @@ public static class GatewayApp
     var sites = SiteConfigurationLoader.Load(builder.Configuration);
     builder.Services.AddSingleton(sites);
     builder.Services.AddSingleton<SiteRegistry>();
+    builder.Services.AddSingleton<SiteHealthRegistry>();
     builder.Services.AddReverseProxy().LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
     builder.Services.AddHealthChecks().AddCheck<PostgresHealthCheck>("postgres", tags: ["ready"]);
     builder.Services.AddSingleton<SecurityRules>();
