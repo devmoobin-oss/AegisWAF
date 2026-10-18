@@ -9,6 +9,10 @@ Automated tests and load tests are evidence of implementation behavior, not inde
 - Run dependency vulnerability scan, secret scan, SAST, and SBOM generation where the tools are available.
 - Preserve JSON/CSV outputs with commit/build hash and configuration checksum.
 
+### Latest local harness evidence
+
+On 2026-10-18, the harness was run against a local raw-TCP synthetic upstream with `-Requests 40 -Concurrency 4 -AttackRatioPercent 25 -HostHeader site-a.example`. The run completed with 40/40 HTTP 200 responses, 0 transport errors, 0 blocked responses, 42.707 requests/second, p50 1.258 ms, p95 102.181 ms, and p99 285.565 ms. This verifies the runner, explicit Host propagation, and machine-readable output path; it does not replace a multi-instance, external, or independent security assessment.
+
 ## OWASP ZAP / WSTG scope
 
 Use an isolated deployment with a test database and non-production credentials. Cover:
