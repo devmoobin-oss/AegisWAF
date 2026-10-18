@@ -77,6 +77,23 @@ public class EmbeddedGatewayTests(GatewayFixture fx)
     }
 
     [Fact]
+    public async Task Real_socket_rejects_duplicate_json_keys_before_proxying()
+    {
+        var url = FreeUrl();
+        await using var gw = new EmbeddedGateway();
+        await gw.StartAsync(new EmbeddedGatewayOptions(url, fx.ConnectionString, null, "http://127.0.0.1:9/"));
+
+        using var client = new HttpClient { BaseAddress = url };
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/payload")
+        {
+            Content = new StringContent("{\"role\":\"user\",\"role\":\"admin\"}", System.Text.Encoding.UTF8, "application/json")
+        };
+
+        using var response = await client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Real_socket_blocks_malformed_utf8_in_textual_upstream_response()
     {
         await using var upstream = await LoopbackUpstream.StartAsync([0xC3, 0x28]);
