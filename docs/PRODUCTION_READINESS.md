@@ -42,6 +42,7 @@
 - gzip, deflate, and Brotli request bodies are decompressed only within compressed-size, decompressed-size, expansion-ratio, and parser budgets; unknown encodings fail closed.
 - Production upstreams require explicit HTTPS host/port/scheme allowlists and are checked against DNS-resolved private, loopback, metadata, multicast, reserved, and link-local targets before proxying.
 - Generated Multi-Site YARP clusters enable active `/health` probes and passive failure tracking; destination selection uses `HealthyAndUnknown` so unhealthy upstreams are removed while unknown destinations remain eligible until the first probe completes.
+- Each Site may define a bounded `Health` policy (`Path`, `IntervalSeconds`, `TimeoutSeconds`, `PassiveReactivationSeconds`); invalid paths or timing relationships fail configuration validation instead of producing unsafe probes.
 - `/api/sites` projects runtime YARP destination health, so the Desktop view no longer treats an unprobed destination as healthy by default.
 - Generated Multi-Site clusters explicitly enable YARP load balancing with `PowerOfTwoChoices`; configured upstream weights remain part of the Site model, while YARP health state controls availability.
 - Real-socket integration coverage verifies two configured Sites route through the embedded gateway and an unknown Host is rejected with `421 Misdirected Request`; this complements, but does not replace, external multi-instance testing.
@@ -85,6 +86,7 @@ Never configure `0.0.0.0/0` as a trusted proxy. Only infrastructure proxies belo
       "Upstreams": [{ "Id": "primary", "Address": "https://origin-a.example.com/", "Weight": 100 }],
       "WafPolicy": "strict",
       "RateLimit": { "Requests": 300, "WindowSeconds": 60, "GlobalRequests": 10000 },
+      "Health": { "Path": "/health", "IntervalSeconds": 10, "TimeoutSeconds": 3, "PassiveReactivationSeconds": 30 },
       "Egress": { "AllowedHosts": ["origin-a.example.com"], "AllowedPorts": [443], "AllowedSchemes": ["https"], "AllowPrivateExceptions": false }
     },
     "site-b": {
@@ -93,6 +95,7 @@ Never configure `0.0.0.0/0` as a trusted proxy. Only infrastructure proxies belo
       "PathPrefixes": ["/"],
       "Upstreams": [{ "Id": "primary", "Address": "https://origin-b.example.com/", "Weight": 100 }],
       "WafPolicy": "standard",
+      "Health": { "Path": "/health", "IntervalSeconds": 10, "TimeoutSeconds": 3, "PassiveReactivationSeconds": 30 },
       "Egress": { "AllowedHosts": ["origin-b.example.com"], "AllowedPorts": [443], "AllowedSchemes": ["https"], "AllowPrivateExceptions": false }
     }
   }

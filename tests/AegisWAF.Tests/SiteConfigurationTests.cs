@@ -144,4 +144,22 @@ public sealed class SiteConfigurationTests
 
         Assert.Contains(errors, error => error.Contains("cover", StringComparison.OrdinalIgnoreCase));
     }
+
+    [Fact]
+    public void Rejects_invalid_per_site_health_policy_bounds()
+    {
+        var config = Config(new Dictionary<string, string?>
+        {
+            ["Sites:site-a:Hostnames:0"] = "app.example.com",
+            ["Sites:site-a:Upstreams:0:Address"] = "https://origin.example.com/",
+            ["Sites:site-a:Health:Path"] = "health?unsafe=true",
+            ["Sites:site-a:Health:IntervalSeconds"] = "2",
+            ["Sites:site-a:Health:TimeoutSeconds"] = "3"
+        });
+
+        var errors = SiteConfigurationValidator.Validate(config);
+
+        Assert.Contains(errors, error => error.Contains("health path", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(errors, error => error.Contains("health timeout", StringComparison.OrdinalIgnoreCase));
+    }
 }

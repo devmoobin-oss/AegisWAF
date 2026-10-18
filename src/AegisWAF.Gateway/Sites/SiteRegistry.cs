@@ -42,6 +42,7 @@ public static class SiteProxyConfiguration
         foreach (var site in snapshot.Sites.Where(x => x.Enabled))
         {
             var clusterId = "site-" + site.Id;
+            var health = site.Health ?? new SiteHealthPolicy();
             foreach (var hostname in site.Hostnames)
             {
                 foreach (var prefix in site.PathPrefixes)
@@ -67,11 +68,11 @@ public static class SiteProxyConfiguration
             // Let YARP own destination availability so active probes and passive failures
             // affect load balancing instead of remaining only in the UI registry.
             values[$"ReverseProxy:Clusters:{clusterId}:HealthCheck:Active:Enabled"] = "true";
-            values[$"ReverseProxy:Clusters:{clusterId}:HealthCheck:Active:Path"] = "/health";
-            values[$"ReverseProxy:Clusters:{clusterId}:HealthCheck:Active:Interval"] = "00:00:10";
-            values[$"ReverseProxy:Clusters:{clusterId}:HealthCheck:Active:Timeout"] = "00:00:03";
+            values[$"ReverseProxy:Clusters:{clusterId}:HealthCheck:Active:Path"] = health.Path;
+            values[$"ReverseProxy:Clusters:{clusterId}:HealthCheck:Active:Interval"] = TimeSpan.FromSeconds(health.IntervalSeconds).ToString("c");
+            values[$"ReverseProxy:Clusters:{clusterId}:HealthCheck:Active:Timeout"] = TimeSpan.FromSeconds(health.TimeoutSeconds).ToString("c");
             values[$"ReverseProxy:Clusters:{clusterId}:HealthCheck:Passive:Enabled"] = "true";
-            values[$"ReverseProxy:Clusters:{clusterId}:HealthCheck:Passive:ReactivationPeriod"] = "00:00:30";
+            values[$"ReverseProxy:Clusters:{clusterId}:HealthCheck:Passive:ReactivationPeriod"] = TimeSpan.FromSeconds(health.PassiveReactivationSeconds).ToString("c");
             values[$"ReverseProxy:Clusters:{clusterId}:HealthCheck:AvailableDestinationsPolicy"] = "HealthyAndUnknown";
             values[$"ReverseProxy:Clusters:{clusterId}:LoadBalancingPolicy"] = "PowerOfTwoChoices";
         }

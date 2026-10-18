@@ -245,7 +245,7 @@ sealed class SecurityRules
     private sealed record Rule(string Id, string Name, string Category, Regex Pattern) { public volatile bool Enabled = true; }
 
     // All patterns are NonBacktracking (linear time, no ReDoS) and run against the Normalizer's canonical forms.
-    private static Regex R(string pattern) => new(pattern, RegexOptions.NonBacktracking | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(50));
+    private static Regex R(string pattern) => new(pattern, RegexOptions.NonBacktracking | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
 
     private readonly List<Rule> _rules =
     [

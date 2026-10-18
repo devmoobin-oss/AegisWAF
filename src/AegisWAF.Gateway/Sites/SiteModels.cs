@@ -10,6 +10,12 @@ public sealed record SiteEgressPolicy(
     IReadOnlyList<string> AllowedSchemes,
     bool AllowPrivateExceptions = false);
 
+public sealed record SiteHealthPolicy(
+    string Path = "/health",
+    int IntervalSeconds = 10,
+    int TimeoutSeconds = 3,
+    int PassiveReactivationSeconds = 30);
+
 public sealed record GatewaySite(
     string Id,
     bool Enabled,
@@ -18,7 +24,8 @@ public sealed record GatewaySite(
     IReadOnlyList<SiteUpstream> Upstreams,
     string WafPolicy,
     SiteRateLimitPolicy RateLimit,
-    SiteEgressPolicy Egress);
+    SiteEgressPolicy Egress,
+    SiteHealthPolicy? Health = null);
 
 public sealed record SiteConfigurationSnapshot(
     IReadOnlyList<GatewaySite> Sites,

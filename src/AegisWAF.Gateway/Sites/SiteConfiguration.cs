@@ -77,6 +77,20 @@ public static class SiteConfigurationValidator
                         errors.Add($"Site {id} egress policy must cover upstream {upstream.Key}");
                 }
             }
+
+            var healthPath = site["Health:Path"] ?? "/health";
+            var healthInterval = site.GetValue("Health:IntervalSeconds", 10);
+            var healthTimeout = site.GetValue("Health:TimeoutSeconds", 3);
+            var reactivation = site.GetValue("Health:PassiveReactivationSeconds", 30);
+            if (healthPath.Length is < 1 or > 128 || !healthPath.StartsWith('/') ||
+                healthPath.Contains('?') || healthPath.Contains('#') || healthPath.Contains('\0'))
+                errors.Add($"Site {id} health path must be a relative path without query or fragment");
+            if (healthInterval is < 5 or > 300)
+                errors.Add($"Site {id} health interval must be between 5 and 300 seconds");
+            if (healthTimeout is < 1 or > 30 || healthTimeout >= healthInterval)
+                errors.Add($"Site {id} health timeout must be between 1 and 30 seconds and less than the health interval");
+            if (reactivation is < 5 or > 3600)
+                errors.Add($"Site {id} passive health reactivation must be between 5 and 3600 seconds");
         }
 
         if (enforcing && activeSites == 0)
@@ -143,7 +157,12 @@ public static class SiteConfigurationLoader
                 section.GetValue("RateLimit:Requests", 300),
                 section.GetValue("RateLimit:WindowSeconds", 60),
                 section.GetValue("RateLimit:GlobalRequests", 10_000)),
-            egress);
+            egress,
+            new SiteHealthPolicy(
+                section["Health:Path"] ?? "/health",
+                section.GetValue("Health:IntervalSeconds", 10),
+                section.GetValue("Health:TimeoutSeconds", 3),
+                section.GetValue("Health:PassiveReactivationSeconds", 30)));
     }
 
     private static GatewaySite LoadLegacySite(IConfiguration configuration)

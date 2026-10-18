@@ -81,6 +81,22 @@ public sealed class SiteProxyConfigurationTests
     }
 
     [Fact]
+    public void Uses_bounded_per_site_health_policy_in_generated_cluster()
+    {
+        var site = new GatewaySite("site-a", true, ["app-a.example.com"], ["/"],
+            [new SiteUpstream("primary", new Uri("https://origin.example.com/"))], "default",
+            new SiteRateLimitPolicy(), new SiteEgressPolicy(["origin.example.com"], [443], ["https"]),
+            new SiteHealthPolicy("/live", 15, 4, 45));
+
+        var values = SiteProxyConfiguration.Build(new SiteConfigurationSnapshot([site], false));
+
+        Assert.Equal("/live", values["ReverseProxy:Clusters:site-site-a:HealthCheck:Active:Path"]);
+        Assert.Equal("00:00:15", values["ReverseProxy:Clusters:site-site-a:HealthCheck:Active:Interval"]);
+        Assert.Equal("00:00:04", values["ReverseProxy:Clusters:site-site-a:HealthCheck:Active:Timeout"]);
+        Assert.Equal("00:00:45", values["ReverseProxy:Clusters:site-site-a:HealthCheck:Passive:ReactivationPeriod"]);
+    }
+
+    [Fact]
     public void Disables_every_host_entry_on_legacy_routes()
     {
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
