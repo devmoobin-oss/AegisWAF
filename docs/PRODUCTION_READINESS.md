@@ -35,6 +35,7 @@
 - Expired per-IP and global limiter buckets are cleaned periodically, preventing long-running processes from retaining stale identity state indefinitely.
 - Production enforcement bounds inspection buffers to 16 MiB for request bodies and 32 MiB for responses, preventing unsafe memory settings from creating a configuration-driven exhaustion risk.
 - Structured request inspection now extracts bounded JSON, form-urlencoded, XML, and multipart fields/metadata before rule evaluation; ordinary HTML DOCTYPE is allowed while entity/external-DTD payloads are rejected.
+- XML DTD/entity detection uses a bounded ordinal scan rather than an unbounded backtracking expression, while rejecting external `SYSTEM`/`PUBLIC` declarations before XML parsing.
 - Form-urlencoded inspection is bounded while parsing and rejects malformed percent-encoding with a stable parser reason, avoiding unbounded pair materialization before the member limit is applied.
 - Form-urlencoded percent escapes are decoded through a strict UTF-8 byte path; malformed encoded sequences such as `%C3%28` fail closed instead of being left partially decoded or normalized ambiguously.
 - Multipart inspection scans boundary markers incrementally and enforces the part limit before continuing, avoiding an all-parts allocation for oversized multipart requests.

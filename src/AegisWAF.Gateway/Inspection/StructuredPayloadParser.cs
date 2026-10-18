@@ -103,8 +103,7 @@ internal static class StructuredPayloadParser
 
     private static StructuredPayloadResult ParseXml(string body, InspectionLimits limits)
     {
-        if (body.Contains("<!ENTITY", StringComparison.OrdinalIgnoreCase) ||
-            System.Text.RegularExpressions.Regex.IsMatch(body, @"(?is)<!DOCTYPE\b[^>]*(?:SYSTEM|PUBLIC)\b"))
+        if (body.Contains("<!ENTITY", StringComparison.OrdinalIgnoreCase) || HasExternalDtd(body))
             return StructuredPayloadResult.Reject("xml_dtd_or_entity");
         var values = new List<InspectionValue>();
         using var reader = XmlReader.Create(new StringReader(body), new XmlReaderSettings
@@ -133,6 +132,22 @@ internal static class StructuredPayloadParser
                 depth--;
         }
         return StructuredPayloadResult.Clean(values);
+    }
+
+    private static bool HasExternalDtd(string body)
+    {
+        var cursor = 0;
+        while ((cursor = body.IndexOf("<!DOCTYPE", cursor, StringComparison.OrdinalIgnoreCase)) >= 0)
+        {
+            var end = body.IndexOf('>', cursor + 9);
+            if (end < 0) return true;
+            var declaration = body.AsSpan(cursor, end - cursor);
+            if (declaration.Contains("SYSTEM", StringComparison.OrdinalIgnoreCase) ||
+                declaration.Contains("PUBLIC", StringComparison.OrdinalIgnoreCase))
+                return true;
+            cursor = end + 1;
+        }
+        return false;
     }
 
     private static StructuredPayloadResult ParseMultipart(string contentType, string body, InspectionLimits limits)

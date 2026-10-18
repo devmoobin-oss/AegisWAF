@@ -46,6 +46,15 @@ public sealed class StructuredPayloadParserTests
     }
 
     [Fact]
+    public void Xml_external_public_dtd_is_rejected_without_regex_backtracking()
+    {
+        var result = StructuredPayloadParser.Parse("application/xml", "<!DOCTYPE root PUBLIC \"-//Example//DTD Root//EN\" \"https://evil.example/root.dtd\"><root/>", Limits);
+
+        Assert.False(result.Success);
+        Assert.Equal("xml_dtd_or_entity", result.ReasonCode);
+    }
+
+    [Fact]
     public void Multipart_parser_extracts_field_names_and_filenames_with_part_limit()
     {
         const string boundary = "----aegis";
