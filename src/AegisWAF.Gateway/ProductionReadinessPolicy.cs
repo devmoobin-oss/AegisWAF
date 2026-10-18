@@ -20,6 +20,9 @@ public static class ProductionReadinessPolicy
             "Database:AutoMigrate must be false; run reviewed migrations separately", errors);
         Require(configuration.GetValue("Admin:RequireHttps", true),
             "Admin:RequireHttps must be true", errors);
+        var keyRingPath = configuration["Security:DataProtection:KeyRingPath"];
+        Require(!string.IsNullOrWhiteSpace(keyRingPath) && Path.IsPathFullyQualified(keyRingPath),
+            "Security:DataProtection:KeyRingPath must be an absolute persistent path", errors);
         Require(!configuration.GetValue("Waf:AllowProtocolUpgrade", false),
             "Waf:AllowProtocolUpgrade must be false unless a dedicated inspected route is deployed", errors);
         Require(!configuration.GetValue("Waf:AllowUnsafeMethods", false),

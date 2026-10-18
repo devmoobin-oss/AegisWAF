@@ -11,6 +11,7 @@ using AegisWAF.Gateway.Infrastructure;
 using AegisWAF.Client;
 using Yarp.ReverseProxy;
 using AegisWAF.Gateway.Sites;
+using Microsoft.AspNetCore.DataProtection;
 
 namespace AegisWAF.Gateway;
 
@@ -63,6 +64,13 @@ public static class GatewayApp
         var siteSnapshot = SiteConfigurationLoader.Load(builder.Configuration);
         builder.Configuration.AddInMemoryCollection(SiteProxyConfiguration.Build(siteSnapshot, builder.Configuration));
         ProductionReadinessPolicy.ThrowIfInvalid(builder.Configuration);
+        var keyRingPath = builder.Configuration["Security:DataProtection:KeyRingPath"];
+        if (!string.IsNullOrWhiteSpace(keyRingPath))
+        {
+            var dataProtection = builder.Services.AddDataProtection()
+                .PersistKeysToFileSystem(new DirectoryInfo(Path.GetFullPath(keyRingPath)));
+            if (OperatingSystem.IsWindows()) dataProtection.ProtectKeysWithDpapi();
+        }
         builder.WebHost.ConfigureKestrel(server =>
         {
             server.Limits.MaxRequestLineSize = builder.Configuration.GetValue("Waf:Limits:MaxRequestLineBytes", 16 * 1024);

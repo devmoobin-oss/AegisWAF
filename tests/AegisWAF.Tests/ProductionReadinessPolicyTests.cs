@@ -32,6 +32,7 @@ public sealed class ProductionReadinessPolicyTests
         ["Auth:Throttle:Store"] = "postgres",
         ["Auth:Throttle:MaxEntries"] = "10000",
         ["ConnectionStrings:Postgres"] = "Host=db;Database=aegiswaf;Username=aegiswaf_runtime",
+        ["Security:DataProtection:KeyRingPath"] = "C:\\ProgramData\\AegisWAF\\keys",
         ["Waf:Inspection:MaxCompressedBytes"] = "131072",
         ["Waf:Inspection:MaxDecompressedBytes"] = "1048576",
         ["Waf:Inspection:MaxExpansionRatio"] = "100",
@@ -49,6 +50,17 @@ public sealed class ProductionReadinessPolicyTests
     public void Explicit_production_enforcement_accepts_secure_configuration()
     {
         Assert.Empty(ProductionReadinessPolicy.Validate(Config(SecureValues())));
+    }
+
+    [Fact]
+    public void Production_requires_an_absolute_data_protection_key_ring_path()
+    {
+        var values = SecureValues();
+        values.Remove("Security:DataProtection:KeyRingPath");
+
+        var errors = ProductionReadinessPolicy.Validate(Config(values));
+
+        Assert.Contains(errors, e => e.Contains("DataProtection:KeyRingPath", StringComparison.Ordinal));
     }
 
     [Fact]
