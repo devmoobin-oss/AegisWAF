@@ -114,6 +114,43 @@ public class EmbeddedGatewayTests(GatewayFixture fx)
     }
 
     [Fact]
+    public async Task Real_socket_applies_waf_policy_per_site_without_cross_site_leakage()
+    {
+        await using var upstream = await LoopbackUpstream.StartAsync();
+        var url = FreeUrl();
+        await using var gw = new EmbeddedGateway();
+        await gw.StartAsync(new EmbeddedGatewayOptions(url, fx.ConnectionString, null, upstream.Url.ToString(), null,
+            new Dictionary<string, string?>
+            {
+                ["AllowedHosts"] = "*",
+                ["Waf:Policies:lenient:DisabledRules:0"] = "xss-01",
+                ["Sites:alpha:Enabled"] = "true",
+                ["Sites:alpha:Hostnames:0"] = "alpha.test",
+                ["Sites:alpha:PathPrefixes:0"] = "/",
+                ["Sites:alpha:WafPolicy"] = "lenient",
+                ["Sites:alpha:Upstreams:one:Address"] = upstream.Url.ToString(),
+                ["Sites:beta:Enabled"] = "true",
+                ["Sites:beta:Hostnames:0"] = "beta.test",
+                ["Sites:beta:PathPrefixes:0"] = "/",
+                ["Sites:beta:WafPolicy"] = "default",
+                ["Sites:beta:Upstreams:one:Address"] = upstream.Url.ToString()
+            }));
+
+        using var client = new HttpClient { BaseAddress = url };
+        const string payload = "%3Cscript%3Ealert(1)%3C%2Fscript%3E";
+        using var alpha = new HttpRequestMessage(HttpMethod.Get, "/payload?probe=" + payload);
+        alpha.Headers.Host = "alpha.test";
+        using var beta = new HttpRequestMessage(HttpMethod.Get, "/payload?probe=" + payload);
+        beta.Headers.Host = "beta.test";
+
+        using var alphaResponse = await client.SendAsync(alpha);
+        using var betaResponse = await client.SendAsync(beta);
+
+        Assert.Equal(HttpStatusCode.OK, alphaResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, betaResponse.StatusCode);
+    }
+
+    [Fact]
     public async Task Real_socket_blocks_malformed_utf8_in_textual_upstream_response()
     {
         await using var upstream = await LoopbackUpstream.StartAsync([0xC3, 0x28]);
