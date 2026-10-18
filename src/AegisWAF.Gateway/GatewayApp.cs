@@ -349,9 +349,11 @@ public static class GatewayApp
                 { threat = await InspectValue(cookie.Key + "=" + cookie.Value); if (threat != null) break; }
             // 4) Body of any textual content type (json, form, text, xml, multipart), including chunked (no Content-Length).
             var hasBody = ctx.Request.ContentLength is > 0 || ctx.Request.Headers.ContainsKey("Transfer-Encoding");
-            if (threat is null && hasBody && IsInspectableBody(ctx.Request.ContentType))
+            var config = ctx.RequestServices.GetRequiredService<IConfiguration>();
+            var inspectBinaryRequests = config.GetValue("Waf:InspectBinaryRequests", false);
+            var textualBody = IsInspectableBody(ctx.Request.ContentType);
+            if (threat is null && hasBody && (textualBody || inspectBinaryRequests))
             {
-                    var config = ctx.RequestServices.GetRequiredService<IConfiguration>();
                     var maxBodyBytes = config.GetValue("Waf:MaxBodyInspectBytes", 131072);
                     var encoding = ctx.Request.Headers.ContentEncoding.ToString().Trim();
                     var limits = InspectionLimits.From(config) with { MaxDecompressedBytes = Math.Min(InspectionLimits.From(config).MaxDecompressedBytes, maxBodyBytes) };
@@ -378,12 +380,17 @@ public static class GatewayApp
                             else
                             {
                                 var body = string.Empty;
-                                try { body = InspectionTextDecoder.Decode(decoded.Bytes); }
+                                try
+                                {
+                                    body = !textualBody && inspectBinaryRequests
+                                        ? Encoding.Latin1.GetString(decoded.Bytes)
+                                        : InspectionTextDecoder.Decode(decoded.Bytes);
+                                }
                                 catch (DecoderFallbackException) { threat = "Malformed Structured Body"; }
                                 if (threat is null && budget.Expired) threat = "Inspection Timeout";
                                 if (threat is null) threat = await InspectValue(body, budget: budget);
                                 if (threat is null && budget.Expired) threat = "Inspection Timeout";
-                                if (threat is null)
+                                if (threat is null && textualBody)
                                 {
                                     var parsed = StructuredPayloadParser.Parse(ctx.Request.ContentType, body, limits);
                                     if (budget.Expired)

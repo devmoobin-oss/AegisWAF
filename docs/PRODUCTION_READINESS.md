@@ -20,6 +20,7 @@
 - Response inspection can fail closed for oversized textual responses with `Waf:ResponseOverflowAction=block`; the default Desktop compatibility profile remains `stream` and must be changed for a strict Production deployment.
 - If upstream headers were already committed when a fail-closed response exceeds the inspection cap, the gateway aborts the stream instead of returning an apparent success with a truncated body.
 - Production enforcement requires `Waf:InspectResponses=true`; disabling response inspection is permitted only in the non-production Desktop compatibility profile.
+- Production enforcement requires `Waf:InspectBinaryRequests=true`; binary-labeled request bodies receive bounded byte-safe raw inspection instead of bypassing the WAF.
 - Production enforcement requires `Waf:InspectBinaryResponses=true`; bounded binary responses are scanned through a byte-safe Latin-1 projection for high-signal leaks even when an upstream mislabels sensitive text as binary.
 - Textual upstream responses with malformed UTF-8 are rejected before response-leak rules run, preventing replacement-character decoding from changing the inspected representation.
 - Admin/control-plane responses send `no-store`, `X-Frame-Options: DENY`, COOP/CORP, `X-Permitted-Cross-Domain-Policies: none`, CSP and restrictive Permissions-Policy headers.
@@ -81,6 +82,7 @@
   "Waf": {
     "Deployment": { "Enforce": true },
     "InspectResponses": true,
+    "InspectBinaryRequests": true,
     "InspectBinaryResponses": true,
     "ResponseOverflowAction": "block",
     "RateLimit": { "Requests": 300, "GlobalRequests": 10000, "Store": "postgres", "WindowSeconds": 60, "MaxEntries": 10000 },

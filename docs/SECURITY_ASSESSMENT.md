@@ -28,6 +28,7 @@ Use an isolated deployment with a test database and non-production credentials. 
 - decompression limits and oversized request/response behavior;
 - structured parser differential cases, including duplicate JSON object keys;
 - binary/content-type spoofing cases with bounded byte-safe response leak inspection enabled;
+- binary-labeled request payloads with bounded byte-safe raw inspection enabled;
 - upstream timeout/failure and egress policy enforcement;
 - rate-limit behavior across multiple gateway instances;
 - audit integrity, structured events, secrets in logs, and management-plane headers.

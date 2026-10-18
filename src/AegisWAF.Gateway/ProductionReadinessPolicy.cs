@@ -24,6 +24,8 @@ public static class ProductionReadinessPolicy
             "Waf:AllowProtocolUpgrade must be false unless a dedicated inspected route is deployed", errors);
         Require(!configuration.GetValue("Waf:AllowUnsafeMethods", false),
             "Waf:AllowUnsafeMethods must be false", errors);
+        Require(configuration.GetValue("Waf:InspectBinaryRequests", false),
+            "Waf:InspectBinaryRequests must be true to inspect content-type spoofing", errors);
         Require(configuration.GetValue("Waf:InspectResponses", true),
             "Waf:InspectResponses must be true for response leak inspection", errors);
         Require(configuration.GetValue("Waf:InspectBinaryResponses", false),

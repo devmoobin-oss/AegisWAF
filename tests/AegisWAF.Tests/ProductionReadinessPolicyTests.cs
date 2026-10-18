@@ -17,6 +17,7 @@ public sealed class ProductionReadinessPolicyTests
         ["Admin:AllowRemote"] = "false",
         ["Waf:AllowProtocolUpgrade"] = "false",
         ["Waf:AllowUnsafeMethods"] = "false",
+        ["Waf:InspectBinaryRequests"] = "true",
         ["Waf:InspectBinaryResponses"] = "true",
         ["Waf:ResponseOverflowAction"] = "block",
         ["Waf:MaxBodyInspectBytes"] = "131072",
@@ -48,6 +49,17 @@ public sealed class ProductionReadinessPolicyTests
     public void Explicit_production_enforcement_accepts_secure_configuration()
     {
         Assert.Empty(ProductionReadinessPolicy.Validate(Config(SecureValues())));
+    }
+
+    [Fact]
+    public void Production_rejects_disabled_binary_request_inspection()
+    {
+        var values = SecureValues();
+        values["Waf:InspectBinaryRequests"] = "false";
+
+        var errors = ProductionReadinessPolicy.Validate(Config(values));
+
+        Assert.Contains(errors, e => e.Contains("InspectBinaryRequests", StringComparison.Ordinal));
     }
 
     [Fact]
