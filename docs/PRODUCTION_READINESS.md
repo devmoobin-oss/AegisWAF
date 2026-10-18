@@ -49,6 +49,7 @@
 - Production enforcement rejects global rate-limit values outside the runtime bounds (`Requests` 1–1,000,000; `WindowSeconds` 1–3,600; `MaxEntries` 100–1,000,000; `GlobalRequests` 1–10,000,000) instead of silently clamping an operator's configuration.
 - Production enforcement also rejects distributed authentication throttle values outside their runtime bounds (`MaxFailures` 1–1,000; `WindowMinutes` 1–1,440; `MaxEntries` 100–1,000,000), keeping shared login-abuse protection explicit across instances.
 - Production enforcement bounds administrative session idle/absolute lifetimes and account lockout settings (`SessionIdleMinutes` 1–1,440; `SessionAbsoluteHours` 1–168; `MaxFailedAttempts` 1–100; `LockoutMinutes` 1–1,440), preventing accidental indefinite sessions or disabled lockout.
+- When anomaly scoring is enabled, Production enforcement requires `Waf:AnomalyScoring:Threshold` to remain within the runtime range 3–100 instead of silently accepting a clamped value.
 - Structured request inspection now extracts bounded JSON, form-urlencoded, XML, and multipart fields/metadata before rule evaluation; ordinary HTML DOCTYPE is allowed while entity/external-DTD payloads are rejected.
 - XML DTD/entity detection uses a bounded ordinal scan rather than an unbounded backtracking expression, while rejecting external `SYSTEM`/`PUBLIC` declarations before XML parsing.
 - JSON inspection rejects duplicate object keys before rule evaluation to prevent parser differentials where the WAF and upstream select different values for the same field.

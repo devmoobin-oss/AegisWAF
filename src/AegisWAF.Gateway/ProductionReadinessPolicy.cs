@@ -49,6 +49,9 @@ public static class ProductionReadinessPolicy
             "Waf:InspectResponses must be true for response leak inspection", errors);
         Require(configuration.GetValue("Waf:InspectBinaryResponses", false),
             "Waf:InspectBinaryResponses must be true to detect content-type spoofing", errors);
+        if (configuration.GetValue("Waf:AnomalyScoring:Enabled", false))
+            Require(configuration.GetValue("Waf:AnomalyScoring:Threshold", 7) is >= 3 and <= 100,
+                "Waf:AnomalyScoring:Threshold must be between 3 and 100 when anomaly scoring is enabled", errors);
         Require(configuration.GetValue("Waf:RateLimit:Requests", 0) is >= 1 and <= 1_000_000,
             "Waf:RateLimit:Requests must be between 1 and 1000000", errors);
         Require(configuration.GetValue("Waf:RateLimit:WindowSeconds", 0) is >= 1 and <= 3600,

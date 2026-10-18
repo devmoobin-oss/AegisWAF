@@ -219,6 +219,18 @@ public sealed class ProductionReadinessPolicyTests
     }
 
     [Fact]
+    public void Production_rejects_anomaly_threshold_outside_runtime_bounds_when_enabled()
+    {
+        var values = SecureValues();
+        values["Waf:AnomalyScoring:Enabled"] = "true";
+        values["Waf:AnomalyScoring:Threshold"] = "101";
+
+        var errors = ProductionReadinessPolicy.Validate(Config(values));
+
+        Assert.Contains(errors, e => e.Contains("AnomalyScoring:Threshold", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Production_rejects_disabled_structured_security_logging()
     {
         var values = SecureValues();
