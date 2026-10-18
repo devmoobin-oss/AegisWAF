@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Sockets;
+using AegisWAF.Gateway.Sites;
 
 namespace AegisWAF.Gateway;
 
@@ -14,6 +15,9 @@ internal sealed record UpstreamEgressOptions(
         cfg.GetSection("Waf:Egress:AllowedPorts").Get<int[]>() ?? [],
         cfg.GetSection("Waf:Egress:AllowedSchemes").Get<string[]>() ?? [],
         cfg.GetValue("Waf:Egress:AllowPrivateExceptions", false));
+
+    public static UpstreamEgressOptions From(SiteEgressPolicy policy) => new(
+        policy.AllowedHosts, policy.AllowedPorts, policy.AllowedSchemes, policy.AllowPrivateExceptions);
 }
 
 internal sealed record UpstreamEgressDecision(bool Allowed, string ReasonCode, string? ResolvedAddress = null);
@@ -61,6 +65,9 @@ internal sealed class UpstreamEgressPolicy(UpstreamEgressOptions options, IUpstr
         catch (OperationCanceledException) when (!ct.IsCancellationRequested) { return new(false, "dns_timeout"); }
         catch (SocketException) { return new(false, "dns_failed"); }
     }
+
+    public Task<UpstreamEgressDecision> CheckAsync(Uri destination, SiteEgressPolicy sitePolicy, CancellationToken ct = default) =>
+        new UpstreamEgressPolicy(UpstreamEgressOptions.From(sitePolicy), resolver).CheckAsync(destination, ct);
 
     private static UpstreamEgressDecision CheckAddress(IPAddress address, bool allowPrivate)
     {

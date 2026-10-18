@@ -280,6 +280,7 @@ public static class GatewayApp
         var ip = ClientAddress.Resolve(ctx, ctx.RequestServices.GetRequiredService<IConfiguration>());
         var path = ctx.Request.Path.Value ?? "/";
         var method = ctx.Request.Method;
+        var siteContext = SiteContext.Get(ctx);
         var watch = Stopwatch.StartNew();
         string? threat = null;
         async Task<string?> InspectValue(string value, bool checkOversize = false)
@@ -290,7 +291,7 @@ public static class GatewayApp
             return ssrf.Blocked ? ssrf.Reason : rules.Match(value, checkOversize);
         }
         if (policies.Check(ip) == "block") threat = "IP Blocklist";
-        else if (!await limiter.AllowAsync(ip, ctx.Request.Path.Value ?? "/", ctx.RequestAborted)) threat = "Rate Limit";
+        else if (!await limiter.AllowAsync(SiteContext.Get(ctx)?.Site.Id ?? "legacy", ip, ctx.Request.Path.Value ?? "/", ctx.RequestAborted)) threat = "Rate Limit";
         else
         {
             // 1) Request line: decoded path + raw query (normalised inside Match to defeat %xx / double-encoding).
@@ -357,7 +358,8 @@ public static class GatewayApp
         if (threat != null)
         {
             stats.Record(method, ip, threat);
-            events.TryWrite(new SecurityEvent(DateTimeOffset.UtcNow, ip, method, path, threat, 403, ctx.TraceIdentifier));
+            events.TryWrite(new SecurityEvent(DateTimeOffset.UtcNow, ip, method, path, threat, 403, ctx.TraceIdentifier,
+                siteContext?.Site.Id, siteContext?.Hostname));
             ctx.Response.StatusCode = threat == "Rate Limit" ? 429 : 403;
             if (ctx.Response.StatusCode == 429) ctx.Response.Headers.RetryAfter = "60";
             await ctx.Response.WriteAsJsonAsync(new { title = "Request rejected", status = ctx.Response.StatusCode });
@@ -386,7 +388,8 @@ public static class GatewayApp
         if (capture.Overflowed && failClosedOverflow)
         {
             stats.Record(method, ip, "Response Oversize");
-            events.TryWrite(new SecurityEvent(DateTimeOffset.UtcNow, ip, method, path, "Response Oversize", 502, ctx.TraceIdentifier));
+            events.TryWrite(new SecurityEvent(DateTimeOffset.UtcNow, ip, method, path, "Response Oversize", 502, ctx.TraceIdentifier,
+                siteContext?.Site.Id, siteContext?.Hostname));
             if (!ctx.Response.HasStarted)
             {
                 ctx.Response.Clear();
@@ -400,7 +403,8 @@ public static class GatewayApp
         if (leak != null)
         {
             stats.Record(method, ip, leak);
-            events.TryWrite(new SecurityEvent(DateTimeOffset.UtcNow, ip, method, path, leak, 502, ctx.TraceIdentifier));
+            events.TryWrite(new SecurityEvent(DateTimeOffset.UtcNow, ip, method, path, leak, 502, ctx.TraceIdentifier,
+                siteContext?.Site.Id, siteContext?.Hostname));
             if (!ctx.Response.HasStarted)
             {
                 ctx.Response.Clear();
@@ -425,21 +429,24 @@ public static class GatewayApp
         }
 
         var policy = ctx.RequestServices.GetRequiredService<UpstreamEgressPolicy>();
-        foreach (var cluster in cfg.GetSection("ReverseProxy:Clusters").GetChildren())
-        foreach (var destination in cluster.GetSection("Destinations").GetChildren())
+        var siteContext = SiteContext.Get(ctx);
+        var destinations = siteContext is not null
+            ? siteContext.Site.Upstreams.Select(x => (x.Id, x.Address, (SiteEgressPolicy?)siteContext.Site.Egress))
+            : cfg.GetSection("ReverseProxy:Clusters").GetChildren()
+                .SelectMany(cluster => cluster.GetSection("Destinations").GetChildren())
+                .Where(destination => Uri.TryCreate(destination["Address"], UriKind.Absolute, out _))
+                .Select(destination => (destination.Key, new Uri(destination["Address"]!, UriKind.Absolute), (SiteEgressPolicy?)null));
+        foreach (var destination in destinations)
         {
-            if (!Uri.TryCreate(destination["Address"], UriKind.Absolute, out var uri))
-            {
-                ctx.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
-                await ctx.Response.WriteAsJsonAsync(new { title = "Upstream egress policy rejected the destination", status = 503 });
-                return;
-            }
-            var decision = await policy.CheckAsync(uri, ctx.RequestAborted);
+            var decision = destination.Item3 is null
+                ? await policy.CheckAsync(destination.Item2, ctx.RequestAborted)
+                : await policy.CheckAsync(destination.Item2, destination.Item3, ctx.RequestAborted);
             if (!decision.Allowed)
             {
                 ctx.RequestServices.GetRequiredService<SecurityEvents>().TryWrite(new SecurityEvent(
                     DateTimeOffset.UtcNow, ClientAddress.Resolve(ctx, cfg), ctx.Request.Method, ctx.Request.Path,
-                    "SSRF: upstream egress " + decision.ReasonCode, 503, ctx.TraceIdentifier));
+                    "SSRF: upstream egress " + decision.ReasonCode, 503, ctx.TraceIdentifier,
+                    siteContext?.Site.Id, siteContext?.Hostname, destination.Item1));
                 ctx.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
                 await ctx.Response.WriteAsJsonAsync(new { title = "Upstream egress policy rejected the destination", status = 503 });
                 return;

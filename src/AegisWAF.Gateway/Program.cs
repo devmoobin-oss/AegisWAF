@@ -498,7 +498,8 @@ sealed class TrafficCounters
     });
     public object TopIps() => _ips.OrderByDescending(x => x.Value).Take(10).Select(x => new { ip = x.Key, blocked = x.Value });
 }
-record SecurityEvent(DateTimeOffset Timestamp, string Ip, string Method, string Path, string Rule, int Status, string? RequestId = null);
+record SecurityEvent(DateTimeOffset Timestamp, string Ip, string Method, string Path, string Rule, int Status, string? RequestId = null,
+    string? SiteId = null, string? Hostname = null, string? UpstreamId = null);
 sealed class SecurityEvents(ILogger<SecurityEvents> logger)
 {
     private readonly Channel<SecurityEvent> _queue = Channel.CreateBounded<SecurityEvent>(new BoundedChannelOptions(10000)
@@ -533,13 +534,16 @@ sealed class EventWriter(SecurityEvents events, IConfiguration config, ILogger<E
             {
                 await using var db = new NpgsqlConnection(connection);
                 await db.OpenAsync(token);
-                await using var cmd = new NpgsqlCommand("INSERT INTO security_events (occurred_at,client_ip,http_method,request_path,rule_name,status_code) VALUES (@t,@ip,@m,@p,@r,@s)", db);
+                await using var cmd = new NpgsqlCommand("INSERT INTO security_events (occurred_at,client_ip,http_method,request_path,rule_name,status_code,site_id,hostname,upstream_id) VALUES (@t,@ip,@m,@p,@r,@s,@site,@host,@upstream)", db);
                 cmd.Parameters.AddWithValue("t", item.Timestamp);
                 cmd.Parameters.AddWithValue("ip", item.Ip);
                 cmd.Parameters.AddWithValue("m", item.Method);
                 cmd.Parameters.AddWithValue("p", item.Path);
                 cmd.Parameters.AddWithValue("r", item.Rule);
                 cmd.Parameters.AddWithValue("s", item.Status);
+                cmd.Parameters.AddWithValue("site", (object?)item.SiteId ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("host", (object?)item.Hostname ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("upstream", (object?)item.UpstreamId ?? DBNull.Value);
                 await cmd.ExecuteNonQueryAsync(token);
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested) { break; }

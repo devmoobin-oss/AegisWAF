@@ -75,18 +75,21 @@ sealed class SlidingRateLimiter : IDisposable
             null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
     }
 
-    public bool Allow(string ip)
+    public bool Allow(string ip) => Allow("global", ip, "/");
+
+    public bool Allow(string siteId, string ip, string route)
     {
         var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         var cutoff = now - (long)_window.TotalMilliseconds;
-        if (!_buckets.ContainsKey(ip) && _buckets.Count >= _maxEntries)
+        var key = RateLimitKey.Build(siteId, route, ip);
+        if (!_buckets.ContainsKey(key) && _buckets.Count >= _maxEntries)
         {
             PurgeExpired(cutoff);
             // A full table must fail closed for new identities. This prevents an attacker
             // from creating unbounded buckets or evicting active clients at random.
             if (_buckets.Count >= _maxEntries) return false;
         }
-        var bucket = _buckets.GetOrAdd(ip, _ => new Bucket());
+        var bucket = _buckets.GetOrAdd(key, _ => new Bucket());
         lock (bucket.Gate)
         {
             while (bucket.Hits.Count > 0 && bucket.Hits.Peek() <= cutoff) bucket.Hits.Dequeue();
@@ -105,10 +108,12 @@ sealed class SlidingRateLimiter : IDisposable
         return true;
     }
 
-    public Task<bool> AllowAsync(string ip, CancellationToken ct = default) => AllowAsync(ip, "/", ct);
+    public Task<bool> AllowAsync(string ip, CancellationToken ct = default) => AllowAsync("global", ip, "/", ct);
 
-    public Task<bool> AllowAsync(string ip, string route, CancellationToken ct = default) =>
-        _shared is null ? Task.FromResult(Allow(ip)) : _shared.AllowAsync(ip, route, ct);
+    public Task<bool> AllowAsync(string ip, string route, CancellationToken ct = default) => AllowAsync("global", ip, route, ct);
+
+    public Task<bool> AllowAsync(string siteId, string ip, string route, CancellationToken ct = default) =>
+        _shared is null ? Task.FromResult(Allow(siteId, ip, route)) : _shared.AllowAsync(siteId, ip, route, ct);
 
     private void PurgeExpired(long cutoff)
     {
@@ -133,9 +138,12 @@ sealed class PostgresRateLimiter(string connectionString, int perIpLimit, int gl
     private int _failures;
     private long _openUntilMs;
 
-    public Task<bool> AllowAsync(string ip, CancellationToken ct) => AllowAsync(ip, "/", ct);
+    public Task<bool> AllowAsync(string ip, CancellationToken ct) => AllowAsync("global", ip, "/", ct);
 
     public async Task<bool> AllowAsync(string ip, string route, CancellationToken ct)
+        => await AllowAsync("global", ip, route, ct);
+
+    public async Task<bool> AllowAsync(string siteId, string ip, string route, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(connectionString)) return false;
         if (DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() < Interlocked.Read(ref _openUntilMs)) return false;
@@ -145,9 +153,9 @@ sealed class PostgresRateLimiter(string connectionString, int perIpLimit, int gl
             await db.OpenAsync(ct);
             await using var tx = await db.BeginTransactionAsync(ct);
             if (globalLimit > 0 && !await ConsumeAsync(db, tx, "global", globalLimit, ct)) return false;
-            if (!await ConsumeAsync(db, tx, "ip:" + ip, perIpLimit, ct)) return false;
-            var boundedRoute = route.Length > 128 ? route[..128] : route;
-            if (!await ConsumeAsync(db, tx, "route:" + boundedRoute + ":ip:" + ip, perIpLimit, ct)) return false;
+            var siteKey = RateLimitKey.Site(siteId);
+            if (!await ConsumeAsync(db, tx, siteKey + ":ip:" + RateLimitKey.Bounded(ip, 128), perIpLimit, ct)) return false;
+            if (!await ConsumeAsync(db, tx, siteKey + ":route:" + RateLimitKey.Bounded(route, 128) + ":ip:" + RateLimitKey.Bounded(ip, 128), perIpLimit, ct)) return false;
             await tx.CommitAsync(ct);
             Interlocked.Exchange(ref _failures, 0);
             return true;
@@ -179,4 +187,15 @@ sealed class PostgresRateLimiter(string connectionString, int perIpLimit, int gl
         var count = (int)(await cmd.ExecuteScalarAsync(ct) ?? limit + 1);
         return count <= limit;
     }
+}
+
+internal static class RateLimitKey
+{
+    public static string Build(string siteId, string route, string ip) =>
+        Site(siteId) + ":route:" + Bounded(route, 128) + ":ip:" + Bounded(ip, 128);
+
+    public static string Site(string siteId) => "site:" + Bounded(siteId, 64);
+
+    public static string Bounded(string value, int max) =>
+        string.IsNullOrWhiteSpace(value) ? "unknown" : value.Length > max ? value[..max] : value;
 }
