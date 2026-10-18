@@ -281,5 +281,24 @@ public class EngineUpgradeTests
             Assert.Equal(200, status);
             Assert.Equal(payload.Length, body.Length);
         }
+
+        [Fact]
+        public async Task A_block_mode_does_not_return_success_after_response_headers_started_before_overflow()
+        {
+            using var up = new ScriptedUpstream("200 OK", "text/plain", new string('a', 300_000));
+            await using var run = await StartAsync(up, new Dictionary<string, string?>
+            {
+                ["Waf:ResponseOverflowAction"] = "block",
+                ["Waf:MaxResponseInspectBytes"] = "1024"
+            });
+
+            var status = 0;
+            Exception? failure = null;
+            try { (status, _) = await GetAsync(run.Url, "/big-block"); }
+            catch (Exception ex) { failure = ex; }
+
+            Assert.True(failure is not null || status != 200,
+                $"Fail-closed overflow returned an apparent success status: {status}");
+        }
     }
 }

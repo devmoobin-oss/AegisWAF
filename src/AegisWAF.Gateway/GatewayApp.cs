@@ -443,6 +443,13 @@ public static class GatewayApp
             stats.Record(method, ip, "Response Oversize");
             events.TryWrite(new SecurityEvent(DateTimeOffset.UtcNow, ip, method, path, "Response Oversize", 502, ctx.TraceIdentifier,
                 siteContext?.Site.Id, siteContext?.Hostname));
+            if (ctx.Response.HasStarted)
+            {
+                // Headers may already have been committed by the proxy before the body crosses the cap.
+                // Abort the stream rather than returning an apparent 2xx with a truncated response.
+                ctx.Abort();
+                return;
+            }
             if (!ctx.Response.HasStarted)
             {
                 ctx.Response.Clear();
@@ -470,6 +477,11 @@ public static class GatewayApp
             stats.Record(method, ip, leak);
             events.TryWrite(new SecurityEvent(DateTimeOffset.UtcNow, ip, method, path, leak, 502, ctx.TraceIdentifier,
                 siteContext?.Site.Id, siteContext?.Hostname));
+            if (ctx.Response.HasStarted)
+            {
+                ctx.Abort();
+                return;
+            }
             if (!ctx.Response.HasStarted)
             {
                 ctx.Response.Clear();

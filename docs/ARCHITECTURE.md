@@ -20,7 +20,7 @@ The v0.6 code base is one ASP.NET Core project (`src/AegisWAF.Gateway`). The mas
 2. `UseDefaultFiles` / `UseStaticFiles` — **must precede routing**: static files yield to any matched endpoint and the YARP catch-all matches everything. v0.6 had this wrong, so the dashboard was proxied upstream instead of served.
 3. `UseRouting`
 4. `AdminGuard` for `/api/*`: local-network check → unknown route 404 → route without `AdminAccess` metadata 403 (closes the catch-all bypass) → session → must-change-password gate → role level → CSRF (non-GET)
-5. WAF inspection middleware (skips `/api`, `/health`, GUI paths): inspects the request, then — for proxied paths — swaps `Response.Body` for a `ResponseBufferStream` so the upstream response can be scanned for leaks before the client sees it (large/binary responses overflow the buffer and stream through unmodified)
+5. WAF inspection middleware (skips `/api`, `/health`, GUI paths): inspects the request, then — for proxied paths — swaps `Response.Body` for a `ResponseBufferStream` so the upstream response can be scanned for leaks before the client sees it. Production enables bounded binary scanning and aborts fail-closed overflow after headers are committed; the Desktop compatibility profile may explicitly retain streaming behavior.
 6. Endpoints / YARP proxy
 
 ## Authentication & RBAC design

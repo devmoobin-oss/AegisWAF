@@ -18,6 +18,7 @@
 - An opt-in fail-closed deployment gate is available with `Waf:Deployment:Enforce=true`; it rejects auto-migration, superuser database roles, unsafe methods, unsafe upgrades, missing rate-limit bounds, and wildcard hosts for remote administration.
 - SSRF filtering blocks loopback, RFC1918/link-local, metadata hostnames, IPv4 CGNAT, IPv4 multicast/reserved ranges, IPv6 Unique Local and IPv6 multicast targets, including encoded and non-canonical IPv4 forms.
 - Response inspection can fail closed for oversized textual responses with `Waf:ResponseOverflowAction=block`; the default Desktop compatibility profile remains `stream` and must be changed for a strict Production deployment.
+- If upstream headers were already committed when a fail-closed response exceeds the inspection cap, the gateway aborts the stream instead of returning an apparent success with a truncated body.
 - Production enforcement requires `Waf:InspectResponses=true`; disabling response inspection is permitted only in the non-production Desktop compatibility profile.
 - Production enforcement requires `Waf:InspectBinaryResponses=true`; bounded binary responses are scanned through a byte-safe Latin-1 projection for high-signal leaks even when an upstream mislabels sensitive text as binary.
 - Textual upstream responses with malformed UTF-8 are rejected before response-leak rules run, preventing replacement-character decoding from changing the inspected representation.
