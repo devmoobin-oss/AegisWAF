@@ -55,6 +55,8 @@ public static class SiteConfigurationValidator
                     errors.Add($"Site {id} upstream {upstream.Key} must be an absolute HTTP(S) URL");
                 if (uri is not null && !string.IsNullOrEmpty(uri.UserInfo))
                     errors.Add($"Site {id} upstream {upstream.Key} must not contain credentials");
+                if (enforcing && upstream.GetValue("Weight", 100) is < 1 or > 10_000)
+                    errors.Add($"Site {id} upstream {upstream.Key} weight must be between 1 and 10000");
             }
 
             if (enforcing)

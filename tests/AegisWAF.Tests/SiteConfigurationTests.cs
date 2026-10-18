@@ -205,4 +205,23 @@ public sealed class SiteConfigurationTests
         Assert.Contains(errors, error => error.Contains("egress host", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(errors, error => error.Contains("egress port", StringComparison.OrdinalIgnoreCase));
     }
+
+    [Fact]
+    public void Production_rejects_upstream_weight_outside_bounded_range()
+    {
+        var config = Config(new Dictionary<string, string?>
+        {
+            ["Waf:Deployment:Enforce"] = "true",
+            ["Sites:site-a:Hostnames:0"] = "app.example.com",
+            ["Sites:site-a:Upstreams:primary:Address"] = "https://origin.example.com/",
+            ["Sites:site-a:Upstreams:primary:Weight"] = "0",
+            ["Sites:site-a:Egress:AllowedHosts:0"] = "origin.example.com",
+            ["Sites:site-a:Egress:AllowedPorts:0"] = "443",
+            ["Sites:site-a:Egress:AllowedSchemes:0"] = "https"
+        });
+
+        var errors = SiteConfigurationValidator.Validate(config);
+
+        Assert.Contains(errors, error => error.Contains("weight", StringComparison.OrdinalIgnoreCase));
+    }
 }
