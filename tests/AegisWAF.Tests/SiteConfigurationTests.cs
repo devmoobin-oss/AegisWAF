@@ -112,4 +112,36 @@ public sealed class SiteConfigurationTests
 
         Assert.Contains(errors, error => error.Contains("egress", StringComparison.OrdinalIgnoreCase));
     }
+
+    [Fact]
+    public void Rejects_malformed_hostname_instead_of_silently_dropping_it()
+    {
+        var config = Config(new Dictionary<string, string?>
+        {
+            ["Sites:site-a:Hostnames:0"] = "not a hostname",
+            ["Sites:site-a:Upstreams:0:Address"] = "https://origin.example.com/"
+        });
+
+        var errors = SiteConfigurationValidator.Validate(config);
+
+        Assert.Contains(errors, error => error.Contains("hostname", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Production_requires_each_upstream_to_be_covered_by_site_egress_policy()
+    {
+        var config = Config(new Dictionary<string, string?>
+        {
+            ["Waf:Deployment:Enforce"] = "true",
+            ["Sites:site-a:Hostnames:0"] = "app.example.com",
+            ["Sites:site-a:Upstreams:0:Address"] = "https://origin.example.com/",
+            ["Sites:site-a:Egress:AllowedHosts:0"] = "other.example.com",
+            ["Sites:site-a:Egress:AllowedPorts:0"] = "443",
+            ["Sites:site-a:Egress:AllowedSchemes:0"] = "https"
+        });
+
+        var errors = SiteConfigurationValidator.Validate(config);
+
+        Assert.Contains(errors, error => error.Contains("cover", StringComparison.OrdinalIgnoreCase));
+    }
 }

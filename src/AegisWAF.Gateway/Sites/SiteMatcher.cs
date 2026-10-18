@@ -39,7 +39,11 @@ public static class SiteMatcher
         else
         {
             var colon = host.LastIndexOf(':');
-            if (colon > 0 && int.TryParse(host[(colon + 1)..], out _)) host = host[..colon];
+            if (colon > 0 && int.TryParse(host[(colon + 1)..], out var port))
+            {
+                if (port is not (80 or 443)) return string.Empty;
+                host = host[..colon];
+            }
         }
         return SiteConfigurationValidator.NormalizeHostname(host);
     }

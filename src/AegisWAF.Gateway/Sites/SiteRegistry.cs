@@ -24,13 +24,14 @@ public sealed class SiteRegistry
 
 public static class SiteProxyConfiguration
 {
-    public static Dictionary<string, string?> Build(SiteConfigurationSnapshot snapshot)
+    public static Dictionary<string, string?> Build(SiteConfigurationSnapshot snapshot, IConfiguration? configuration = null)
     {
         var values = new Dictionary<string, string?>();
         if (snapshot.UsedLegacyConfiguration) return values;
 
-        // The legacy catch-all route from appsettings must not compete with explicit Site routes.
-        values["ReverseProxy:Routes:route1:Match:Hosts:0"] = "__aegiswaf_legacy_route_disabled__";
+        // No legacy route may compete with explicit Site routes, including custom routes beyond the default route.
+        foreach (var route in configuration?.GetSection("ReverseProxy:Routes").GetChildren() ?? [])
+            values[$"ReverseProxy:Routes:{route.Key}:Match:Hosts:0"] = "__aegiswaf_legacy_route_disabled__";
         foreach (var site in snapshot.Sites.Where(x => x.Enabled))
         {
             var clusterId = "site-" + site.Id;
@@ -38,7 +39,10 @@ public static class SiteProxyConfiguration
             {
                 foreach (var prefix in site.PathPrefixes)
                 {
-                    var routeId = prefix == "/" ? clusterId : clusterId + "-" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(prefix)))[..10].ToLowerInvariant();
+                    var routeKey = hostname + "\0" + prefix;
+                    var routeId = site.Hostnames.Count == 1 && prefix == "/"
+                        ? clusterId
+                        : clusterId + "-" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(routeKey)))[..10].ToLowerInvariant();
                     values[$"ReverseProxy:Routes:{routeId}:ClusterId"] = clusterId;
                     values[$"ReverseProxy:Routes:{routeId}:Match:Hosts:0"] = hostname;
                     values[$"ReverseProxy:Routes:{routeId}:Match:Path"] = prefix == "/" ? "{**catch-all}" : prefix + "/{**remainder}";

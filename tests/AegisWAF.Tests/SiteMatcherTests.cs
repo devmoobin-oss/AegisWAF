@@ -37,6 +37,7 @@ public sealed class SiteMatcherTests
 
         Assert.Null(SiteMatcher.Match(snapshot, "unknown.example.com", "/api"));
         Assert.Null(SiteMatcher.Match(snapshot, "app-a.example.com", "/apix"));
+        Assert.Null(SiteMatcher.Match(snapshot, "app-a.example.com:8443", "/api"));
     }
 
     [Fact]

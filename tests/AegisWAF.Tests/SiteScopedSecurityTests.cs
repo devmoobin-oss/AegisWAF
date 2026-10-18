@@ -23,6 +23,11 @@ public sealed class SiteScopedSecurityTests
         Assert.False(await limiter.AllowAsync("site-a", "198.51.100.7", "/login", CancellationToken.None));
         Assert.True(await limiter.AllowAsync("site-b", "198.51.100.7", "/login", CancellationToken.None));
         Assert.True(await limiter.AllowAsync("site-a", "198.51.100.7", "/health", CancellationToken.None));
+
+        using var policyLimiter = new SlidingRateLimiter(config);
+        var strict = new SiteRateLimitPolicy(Requests: 1, WindowSeconds: 60, GlobalRequests: 0);
+        Assert.True(await policyLimiter.AllowAsync("site-c", "198.51.100.8", "/login", strict, CancellationToken.None));
+        Assert.False(await policyLimiter.AllowAsync("site-c", "198.51.100.8", "/login", strict, CancellationToken.None));
     }
 
     [Fact]

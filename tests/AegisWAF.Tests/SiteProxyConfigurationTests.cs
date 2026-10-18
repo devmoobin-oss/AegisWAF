@@ -1,4 +1,5 @@
 using AegisWAF.Gateway.Sites;
+using Microsoft.Extensions.Configuration;
 
 namespace AegisWAF.Tests;
 
@@ -32,5 +33,35 @@ public sealed class SiteProxyConfigurationTests
         Assert.NotNull(match);
         Assert.Equal("site-a", match!.Site.Id);
         Assert.Null(registry.Resolve("unknown.example.com", "/"));
+    }
+
+    [Fact]
+    public void Disables_all_legacy_routes_when_explicit_sites_are_configured()
+    {
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["ReverseProxy:Routes:route1:Match:Path"] = "{**catch-all}",
+            ["ReverseProxy:Routes:custom:Match:Path"] = "/legacy/{**remainder}"
+        }).Build();
+        var snapshot = new SiteConfigurationSnapshot([], false);
+
+        var values = SiteProxyConfiguration.Build(snapshot, config);
+
+        Assert.Equal("__aegiswaf_legacy_route_disabled__", values["ReverseProxy:Routes:route1:Match:Hosts:0"]);
+        Assert.Equal("__aegiswaf_legacy_route_disabled__", values["ReverseProxy:Routes:custom:Match:Hosts:0"]);
+    }
+
+    [Fact]
+    public void Creates_distinct_routes_for_multiple_hostnames_on_one_site()
+    {
+        var site = new GatewaySite("site-a", true, ["app-a.example.com", "app-b.example.com"], ["/"],
+            [new SiteUpstream("primary", new Uri("https://origin.example.com/"))], "default",
+            new SiteRateLimitPolicy(), new SiteEgressPolicy(["origin.example.com"], [443], ["https"]));
+
+        var values = SiteProxyConfiguration.Build(new SiteConfigurationSnapshot([site], false));
+        var routeHosts = values.Where(x => x.Key.Contains("ReverseProxy:Routes:", StringComparison.Ordinal) && x.Key.EndsWith(":Match:Hosts:0", StringComparison.Ordinal)).Select(x => x.Value).ToArray();
+
+        Assert.Contains("app-a.example.com", routeHosts);
+        Assert.Contains("app-b.example.com", routeHosts);
     }
 }

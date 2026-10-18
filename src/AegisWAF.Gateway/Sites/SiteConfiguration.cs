@@ -30,6 +30,8 @@ public static class SiteConfigurationValidator
 
             var hostnames = site.GetSection("Hostnames").Get<string[]>() ?? [];
             var normalizedHosts = hostnames.Select(NormalizeHostname).Where(x => x.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            if (hostnames.Any(x => NormalizeHostname(x).Length == 0))
+                errors.Add($"Site {id} contains an invalid hostname");
             if (normalizedHosts.Length == 0)
                 errors.Add($"Site {id} must define at least one hostname");
 
@@ -65,6 +67,15 @@ public static class SiteConfigurationValidator
                     errors.Add($"Site {id} must define an explicit HTTPS egress allowlist");
                 if (site.GetValue("Egress:AllowPrivateExceptions", false))
                     errors.Add($"Site {id} must not enable private egress exceptions in Production");
+                foreach (var upstream in upstreamSections)
+                {
+                    if (!Uri.TryCreate(upstream["Address"], UriKind.Absolute, out var uri)) continue;
+                    if (!string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+                        errors.Add($"Site {id} upstream {upstream.Key} must use HTTPS in Production");
+                    if (!allowedHosts.Contains(uri.Host, StringComparer.OrdinalIgnoreCase) || !allowedPorts.Contains(uri.Port) ||
+                        !allowedSchemes.Contains(uri.Scheme, StringComparer.OrdinalIgnoreCase))
+                        errors.Add($"Site {id} egress policy must cover upstream {upstream.Key}");
+                }
             }
         }
 

@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Net;
 using Npgsql;
+using AegisWAF.Gateway.Sites;
 
 namespace AegisWAF.Gateway;
 
@@ -77,8 +78,10 @@ sealed class SlidingRateLimiter : IDisposable
 
     public bool Allow(string ip) => Allow("global", ip, "/");
 
-    public bool Allow(string siteId, string ip, string route)
+    public bool Allow(string siteId, string ip, string route, int? limitOverride = null, int? globalLimitOverride = null)
     {
+        var limit = Math.Clamp(limitOverride ?? _limit, 1, 1_000_000);
+        var globalLimit = Math.Clamp(globalLimitOverride ?? _globalLimit, 0, 10_000_000);
         var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         var cutoff = now - (long)_window.TotalMilliseconds;
         var key = RateLimitKey.Build(siteId, route, ip);
@@ -93,13 +96,13 @@ sealed class SlidingRateLimiter : IDisposable
         lock (bucket.Gate)
         {
             while (bucket.Hits.Count > 0 && bucket.Hits.Peek() <= cutoff) bucket.Hits.Dequeue();
-            if (bucket.Hits.Count >= _limit) return false;
-            if (_globalLimit > 0)
+            if (bucket.Hits.Count >= limit) return false;
+            if (globalLimit > 0)
             {
                 lock (_global.Gate)
                 {
                     while (_global.Hits.Count > 0 && _global.Hits.Peek() <= cutoff) _global.Hits.Dequeue();
-                    if (_global.Hits.Count >= _globalLimit) return false;
+                    if (_global.Hits.Count >= globalLimit) return false;
                     _global.Hits.Enqueue(now);
                 }
             }
@@ -114,6 +117,11 @@ sealed class SlidingRateLimiter : IDisposable
 
     public Task<bool> AllowAsync(string siteId, string ip, string route, CancellationToken ct = default) =>
         _shared is null ? Task.FromResult(Allow(siteId, ip, route)) : _shared.AllowAsync(siteId, ip, route, ct);
+
+    public Task<bool> AllowAsync(string siteId, string ip, string route, SiteRateLimitPolicy? policy, CancellationToken ct = default) =>
+        _shared is null
+            ? Task.FromResult(Allow(siteId, ip, route, policy?.Requests, policy?.GlobalRequests))
+            : _shared.AllowAsync(siteId, ip, route, policy?.Requests ?? _limit, policy?.GlobalRequests ?? _globalLimit, ct);
 
     private void PurgeExpired(long cutoff)
     {
@@ -141,9 +149,12 @@ sealed class PostgresRateLimiter(string connectionString, int perIpLimit, int gl
     public Task<bool> AllowAsync(string ip, CancellationToken ct) => AllowAsync("global", ip, "/", ct);
 
     public async Task<bool> AllowAsync(string ip, string route, CancellationToken ct)
-        => await AllowAsync("global", ip, route, ct);
+        => await AllowAsync("global", ip, route, perIpLimit, globalLimit, ct);
 
     public async Task<bool> AllowAsync(string siteId, string ip, string route, CancellationToken ct)
+        => await AllowAsync(siteId, ip, route, perIpLimit, globalLimit, ct);
+
+    public async Task<bool> AllowAsync(string siteId, string ip, string route, int siteLimit, int siteGlobalLimit, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(connectionString)) return false;
         if (DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() < Interlocked.Read(ref _openUntilMs)) return false;
@@ -152,10 +163,11 @@ sealed class PostgresRateLimiter(string connectionString, int perIpLimit, int gl
             await using var db = new NpgsqlConnection(connectionString);
             await db.OpenAsync(ct);
             await using var tx = await db.BeginTransactionAsync(ct);
-            if (globalLimit > 0 && !await ConsumeAsync(db, tx, "global", globalLimit, ct)) return false;
+            var boundedSite = RateLimitKey.Site(siteId);
+            if (siteGlobalLimit > 0 && !await ConsumeAsync(db, tx, boundedSite + ":global", siteGlobalLimit, ct)) return false;
             var siteKey = RateLimitKey.Site(siteId);
-            if (!await ConsumeAsync(db, tx, siteKey + ":ip:" + RateLimitKey.Bounded(ip, 128), perIpLimit, ct)) return false;
-            if (!await ConsumeAsync(db, tx, siteKey + ":route:" + RateLimitKey.Bounded(route, 128) + ":ip:" + RateLimitKey.Bounded(ip, 128), perIpLimit, ct)) return false;
+            if (!await ConsumeAsync(db, tx, siteKey + ":ip:" + RateLimitKey.Bounded(ip, 128), siteLimit, ct)) return false;
+            if (!await ConsumeAsync(db, tx, siteKey + ":route:" + RateLimitKey.Bounded(route, 128) + ":ip:" + RateLimitKey.Bounded(ip, 128), siteLimit, ct)) return false;
             await tx.CommitAsync(ct);
             Interlocked.Exchange(ref _failures, 0);
             return true;

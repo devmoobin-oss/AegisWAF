@@ -71,15 +71,19 @@ public static class ProductionReadinessPolicy
         Require(inspection.MaxDecompressedBytes >= inspection.MaxCompressedBytes,
             "Waf:Inspection:MaxDecompressedBytes must not be smaller than MaxCompressedBytes", errors);
 
-        var egress = UpstreamEgressOptions.From(configuration);
-        Require(egress.AllowedHosts.Count > 0,
-            "Waf:Egress:AllowedHosts must contain at least one explicit upstream host", errors);
-        Require(egress.AllowedPorts.Count > 0 && egress.AllowedPorts.All(port => port is >= 1 and <= 65535),
-            "Waf:Egress:AllowedPorts must contain valid explicit ports", errors);
-        Require(egress.AllowedSchemes.Count > 0 && egress.AllowedSchemes.All(s => string.Equals(s, "https", StringComparison.OrdinalIgnoreCase)),
-            "Waf:Egress:AllowedSchemes must be explicit HTTPS in Production", errors);
-        Require(!egress.AllowPrivateExceptions,
-            "Waf:Egress:AllowPrivateExceptions must be false; private destinations need an explicit reviewed exception model", errors);
+        var hasExplicitSites = configuration.GetSection("Sites").GetChildren().Any();
+        if (!hasExplicitSites)
+        {
+            var egress = UpstreamEgressOptions.From(configuration);
+            Require(egress.AllowedHosts.Count > 0,
+                "Waf:Egress:AllowedHosts must contain at least one explicit upstream host", errors);
+            Require(egress.AllowedPorts.Count > 0 && egress.AllowedPorts.All(port => port is >= 1 and <= 65535),
+                "Waf:Egress:AllowedPorts must contain valid explicit ports", errors);
+            Require(egress.AllowedSchemes.Count > 0 && egress.AllowedSchemes.All(s => string.Equals(s, "https", StringComparison.OrdinalIgnoreCase)),
+                "Waf:Egress:AllowedSchemes must be explicit HTTPS in Production", errors);
+            Require(!egress.AllowPrivateExceptions,
+                "Waf:Egress:AllowPrivateExceptions must be false; private destinations need an explicit reviewed exception model", errors);
+        }
 
         var connection = configuration.GetConnectionString("Postgres") ?? string.Empty;
         if (connection.Contains("Username=postgres", StringComparison.OrdinalIgnoreCase) ||

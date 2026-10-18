@@ -57,7 +57,7 @@ public static class GatewayApp
         builder.Configuration.AddEnvironmentVariables();
         if (overrides is not null) builder.Configuration.AddInMemoryCollection(overrides);
         var siteSnapshot = SiteConfigurationLoader.Load(builder.Configuration);
-        builder.Configuration.AddInMemoryCollection(SiteProxyConfiguration.Build(siteSnapshot));
+        builder.Configuration.AddInMemoryCollection(SiteProxyConfiguration.Build(siteSnapshot, builder.Configuration));
         ProductionReadinessPolicy.ThrowIfInvalid(builder.Configuration);
         builder.WebHost.ConfigureKestrel(server =>
         {
@@ -176,7 +176,8 @@ public static class GatewayApp
         upstreams = site.Upstreams.Select(upstream => new
         {
             id = upstream.Id,
-            address = upstream.Address.ToString(),
+            scheme = upstream.Address.Scheme,
+            port = upstream.Address.Port,
             weight = upstream.Weight,
             health = health.Get(site.Id, upstream.Id)?.Healthy == false ? "unhealthy" : "healthy"
         })
@@ -308,7 +309,7 @@ public static class GatewayApp
             return ssrf.Blocked ? ssrf.Reason : rules.Match(value, checkOversize);
         }
         if (policies.Check(ip) == "block") threat = "IP Blocklist";
-        else if (!await limiter.AllowAsync(SiteContext.Get(ctx)?.Site.Id ?? "legacy", ip, ctx.Request.Path.Value ?? "/", ctx.RequestAborted)) threat = "Rate Limit";
+        else if (!await limiter.AllowAsync(siteContext?.Site.Id ?? "legacy", ip, ctx.Request.Path.Value ?? "/", siteContext?.Site.RateLimit, ctx.RequestAborted)) threat = "Rate Limit";
         else
         {
             // 1) Request line: decoded path + raw query (normalised inside Match to defeat %xx / double-encoding).

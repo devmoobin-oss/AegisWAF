@@ -24,7 +24,7 @@ public sealed record RuleDto(string Id, string Name, string Category, bool Enabl
 public sealed record CustomRuleDto(string Id, string Name, string Pattern, int Priority, bool Enabled);
 public sealed record OwaspCoverageDto(string Code, string Title, string Coverage, string Description, string Limitations, string[] RuleIds, string OfficialUrl);
 public sealed record IpPolicyDto(string Ip, string Action, string Reason);
-public sealed record SiteUpstreamDto(string Id, string Address, int Weight, string Health);
+public sealed record SiteUpstreamDto(string Id, string Scheme, int Port, int Weight, string Health);
 public sealed record SiteDto(string SiteId, bool Enabled, string[] Hostnames, string[] PathPrefixes, string WafPolicy, string Health, SiteUpstreamDto[] Upstreams);
 public sealed record AuditEntryDto(DateTimeOffset OccurredAt, string Action, string Target, string? Actor, string? ClientIp, string Outcome)
 {

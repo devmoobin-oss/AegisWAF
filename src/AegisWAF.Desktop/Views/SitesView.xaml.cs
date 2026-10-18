@@ -25,7 +25,7 @@ public partial class SitesView : UserControl, IPage
     {
         public string SiteId => site.SiteId;
         public string HostnamesText => string.Join(", ", site.Hostnames);
-        public string UpstreamsText => string.Join(", ", site.Upstreams.Select(x => $"{x.Id} ({x.Health})"));
+        public string UpstreamsText => string.Join(", ", site.Upstreams.Select(x => $"{x.Id} {x.Scheme}:{x.Port} ({x.Health})"));
         public string Health => site.Health;
         public string WafPolicy => site.WafPolicy;
     }
