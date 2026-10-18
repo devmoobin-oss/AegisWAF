@@ -9,6 +9,7 @@ using Npgsql;
 using AegisWAF.Gateway.Auth;
 using AegisWAF.Gateway.Infrastructure;
 using AegisWAF.Client;
+using AegisWAF.Gateway.Sites;
 
 namespace AegisWAF.Gateway;
 
@@ -55,6 +56,8 @@ public static class GatewayApp
         builder.Configuration.AddJsonFile("appsettings.local.json", optional: true, reloadOnChange: false);
         builder.Configuration.AddEnvironmentVariables();
         if (overrides is not null) builder.Configuration.AddInMemoryCollection(overrides);
+        var siteSnapshot = SiteConfigurationLoader.Load(builder.Configuration);
+        builder.Configuration.AddInMemoryCollection(SiteProxyConfiguration.Build(siteSnapshot));
         ProductionReadinessPolicy.ThrowIfInvalid(builder.Configuration);
         builder.WebHost.ConfigureKestrel(server =>
         {
@@ -69,6 +72,9 @@ public static class GatewayApp
 
     public static void AddServices(WebApplicationBuilder builder)
     {
+    var sites = SiteConfigurationLoader.Load(builder.Configuration);
+    builder.Services.AddSingleton(sites);
+    builder.Services.AddSingleton<SiteRegistry>();
     builder.Services.AddReverseProxy().LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
     builder.Services.AddHealthChecks().AddCheck<PostgresHealthCheck>("postgres", tags: ["ready"]);
     builder.Services.AddSingleton<SecurityRules>();
@@ -124,6 +130,25 @@ public static class GatewayApp
     app.UseRouting();
     // Admin API: session cookie + RBAC + CSRF, deny-by-default, local host only (see AdminGuard). Needs the routed endpoint.
     app.Use(AdminGuard.Invoke);
+    app.Use(async (ctx, next) =>
+    {
+        if (IsManagementPath(ctx.Request.Path))
+        {
+            await next();
+            return;
+        }
+
+        var registry = ctx.RequestServices.GetRequiredService<SiteRegistry>();
+        var match = registry.Resolve(ctx.Request.Host.Value, ctx.Request.Path.Value);
+        if (match is null)
+        {
+            ctx.Response.StatusCode = StatusCodes.Status421MisdirectedRequest;
+            await ctx.Response.WriteAsJsonAsync(new { title = "Unknown site", status = 421 });
+            return;
+        }
+        ctx.Items[SiteContext.ItemKey] = new SiteContext(match.Site, match.Hostname, match.PathPrefix);
+        await next();
+    });
     app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
     { Predicate = _ => false });
     app.MapHealthChecks("/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
@@ -424,4 +449,8 @@ public static class GatewayApp
     });
     app.MapReverseProxy();
     }
+
+    private static bool IsManagementPath(PathString path) =>
+        path.StartsWithSegments("/api") || path.StartsWithSegments("/health") ||
+        path == "/" || path == "/index.html" || path.StartsWithSegments("/assets");
 }
