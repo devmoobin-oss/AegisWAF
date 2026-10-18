@@ -61,7 +61,12 @@ static class Audit
 {
     private static byte[] Hash(DateTimeOffset occurred, string action, string target, string? actor, string? ip, string outcome, byte[]? previous)
     {
-        var canonical = string.Join("|", occurred.ToUniversalTime().ToString("O"), action, target, actor ?? "", ip ?? "", outcome,
+        // PostgreSQL timestamptz stores microseconds, while DateTimeOffset.UtcNow has 100ns ticks.
+        // Canonicalise before hashing so the value written and the value read during verification are identical.
+        var utc = occurred.ToUniversalTime();
+        var ticks = utc.Ticks - (utc.Ticks % TimeSpan.TicksPerMicrosecond);
+        var canonicalOccurred = new DateTimeOffset(ticks, TimeSpan.Zero);
+        var canonical = string.Join("|", canonicalOccurred.ToString("O"), action, target, actor ?? "", ip ?? "", outcome,
             previous is null ? "" : Convert.ToHexString(previous));
         return SHA256.HashData(Encoding.UTF8.GetBytes(canonical));
     }
@@ -83,13 +88,18 @@ static class Audit
 
     public static async Task<(bool Valid, long Checked, long? BadId)> VerifyAsync(NpgsqlConnection db, CancellationToken ct)
     {
-        byte[]? previous = null; long checkedRows = 0;
+        byte[]? previous = null; long checkedRows = 0; var chainStarted = false;
         await using var cmd = new NpgsqlCommand("SELECT id,occurred_at,action,target,actor,client_ip,outcome,prev_hash,entry_hash FROM waf_audit ORDER BY id", db);
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))
         {
             var entry = reader.IsDBNull(8) ? null : (byte[])reader[8];
-            if (entry is null) { previous = null; continue; } // legacy rows before integrity chaining
+            if (entry is null)
+            {
+                if (chainStarted) return (false, checkedRows, reader.GetInt64(0));
+                previous = null;
+                continue; // legacy rows are only valid before integrity chaining begins
+            }
             var id = reader.GetInt64(0);
             var occurred = reader.GetFieldValue<DateTimeOffset>(1);
             var action = reader.GetString(2); var target = reader.GetString(3);
@@ -102,6 +112,7 @@ static class Audit
             checkedRows++;
             if (!CryptographicOperations.FixedTimeEquals(expected, entry)) return (false, checkedRows, id);
             previous = entry;
+            chainStarted = true;
         }
         return (true, checkedRows, null);
     }

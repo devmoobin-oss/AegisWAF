@@ -28,6 +28,7 @@
 - `/ready` verifies the shared rate-limit table exists when `Store=postgres`; traffic should not be admitted until this migration check is healthy.
 - Security events are emitted as structured `aegiswaf.security_event` JSON logs with client, request, status and OWASP mapping fields, allowing a SIEM/agent to ingest events even when database persistence is temporarily unavailable.
 - If `/api/audit/integrity` detects a broken audit chain, the Gateway emits a structured `aegiswaf.audit_integrity_failure` event at critical level with the checked count and first invalid row ID, so SIEM alerting does not depend on an operator noticing the API response.
+- Audit-chain hashing canonicalizes timestamps to PostgreSQL microsecond precision before hashing; legacy rows are accepted only before the first chained row, while a null-hash row inserted after the chain starts is reported as tampering.
 - Structured events include the originating `requestId`, enabling correlation across WAF, SIEM and upstream traces without changing the existing database schema.
 - If the bounded event queue fills, the WAF emits a throttled `WAF_SECURITY_EVENT_DROPPED` alert with the event payload and counter so SIEM can detect observability loss.
 - Production-enforced sessions always set the cookie `Secure` flag, including deployments behind a TLS-terminating reverse proxy.
@@ -67,7 +68,7 @@
 - Distributed authentication throttle capacity checks take a transaction-scoped PostgreSQL advisory lock and count missing identity keys before insertion, preventing concurrent instances from exceeding `Auth:Throttle:MaxEntries`.
 - Real-socket integration starts two Gateway instances against one PostgreSQL database and verifies authentication throttling is shared across instances; a second test verifies Site request rate limiting returns `429` after the shared bucket is consumed across both gateways.
 - The PostgreSQL rate limiter uses separate lock/cleanup and count statements; this avoids fragile SQL string slicing and is covered by the two-Gateway regression test.
-- The current verification baseline is 305 passing tests with zero failures/skips; the assessment runner records the Git commit and source configuration SHA-256 fingerprint for each evidence run.
+- The current verification baseline is 306 passing tests with zero failures/skips; the assessment runner records the Git commit and source configuration SHA-256 fingerprint for each evidence run.
 - A safe local security/load-test harness is available at `tools/security-loadtest/loadtest.ps1`; it emits JSON/CSV latency, throughput, status, block, and error evidence without destructive payloads.
 - Multi-Site routing is configured under `Sites`; each Site has explicit hostnames, path prefixes, upstreams, rate limits and egress policy. Unknown hosts fail closed when Production enforcement is enabled.
 - `WafPolicy` resolves to an immutable per-request snapshot when a matching `Waf:Policies:<name>` section exists. A Site policy may disable built-in, scanner, anomaly or custom rule IDs for that Site only; it cannot enable a rule disabled globally. Unknown names use the global fallback in non-production compatibility mode; Production startup rejects undefined names.
