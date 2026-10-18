@@ -54,6 +54,7 @@
 - A safe local security/load-test harness is available at `tools/security-loadtest/loadtest.ps1`; it emits JSON/CSV latency, throughput, status, block, and error evidence without destructive payloads.
 - Multi-Site routing is configured under `Sites`; each Site has explicit hostnames, path prefixes, upstreams, rate limits and egress policy. Unknown hosts fail closed when Production enforcement is enabled.
 - Site-scoped rate-limit keys include SiteId and route, and structured security events include SiteId, hostname and upstream context. Run migration `010_site_event_context.sql` before enabling event persistence for Multi-Site.
+- Production rejects per-Site rate limits outside bounded ranges instead of silently clamping them: requests `1..1,000,000`, window `1..3,600` seconds, and global requests `1..10,000,000`.
 
 ## Required deployment configuration
 

@@ -162,4 +162,27 @@ public sealed class SiteConfigurationTests
         Assert.Contains(errors, error => error.Contains("health path", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(errors, error => error.Contains("health timeout", StringComparison.OrdinalIgnoreCase));
     }
+
+    [Fact]
+    public void Production_rejects_invalid_per_site_rate_limits_instead_of_silent_clamping()
+    {
+        var config = Config(new Dictionary<string, string?>
+        {
+            ["Waf:Deployment:Enforce"] = "true",
+            ["Sites:site-a:Hostnames:0"] = "app.example.com",
+            ["Sites:site-a:Upstreams:0:Address"] = "https://origin.example.com/",
+            ["Sites:site-a:Egress:AllowedHosts:0"] = "origin.example.com",
+            ["Sites:site-a:Egress:AllowedPorts:0"] = "443",
+            ["Sites:site-a:Egress:AllowedSchemes:0"] = "https",
+            ["Sites:site-a:RateLimit:Requests"] = "0",
+            ["Sites:site-a:RateLimit:WindowSeconds"] = "3601",
+            ["Sites:site-a:RateLimit:GlobalRequests"] = "-1"
+        });
+
+        var errors = SiteConfigurationValidator.Validate(config);
+
+        Assert.Contains(errors, error => error.Contains("rate requests", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(errors, error => error.Contains("rate window", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(errors, error => error.Contains("global rate", StringComparison.OrdinalIgnoreCase));
+    }
 }

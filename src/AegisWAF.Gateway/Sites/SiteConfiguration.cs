@@ -91,6 +91,19 @@ public static class SiteConfigurationValidator
                 errors.Add($"Site {id} health timeout must be between 1 and 30 seconds and less than the health interval");
             if (reactivation is < 5 or > 3600)
                 errors.Add($"Site {id} passive health reactivation must be between 5 and 3600 seconds");
+
+            if (enforcing)
+            {
+                var rateRequests = site.GetValue("RateLimit:Requests", 300);
+                var rateWindow = site.GetValue("RateLimit:WindowSeconds", 60);
+                var rateGlobal = site.GetValue("RateLimit:GlobalRequests", 10_000);
+                if (rateRequests is < 1 or > 1_000_000)
+                    errors.Add($"Site {id} rate requests must be between 1 and 1000000");
+                if (rateWindow is < 1 or > 3600)
+                    errors.Add($"Site {id} rate window must be between 1 and 3600 seconds");
+                if (rateGlobal is < 1 or > 10_000_000)
+                    errors.Add($"Site {id} global rate limit must be between 1 and 10000000");
+            }
         }
 
         if (enforcing && activeSites == 0)
