@@ -151,6 +151,7 @@ public partial class Program { }
 static class Normalizer
 {
     private const int Cap = 65536; // bound the work per field
+    private const int WindowOverlap = 1024; // preserve signatures split across bounded windows
 
     /// <summary>A small, de-duplicated set of canonical forms of <paramref name="raw"/> to run rules against.</summary>
     public static IReadOnlyList<string> Variants(string raw)
@@ -179,6 +180,27 @@ static class Normalizer
         var stripped = CollapseWhitespace(StripSqlComments(unicode));
         AddIfNew(list, stripped);
         return list;
+    }
+
+    /// <summary>
+    /// Produces bounded canonical windows for large values so inspection never silently drops a suffix.
+    /// The overlap preserves signatures and encoded sequences that cross a window boundary.
+    /// </summary>
+    public static IEnumerable<IReadOnlyList<string>> Windows(string raw)
+    {
+        if (raw.Length <= Cap)
+        {
+            yield return Variants(raw);
+            yield break;
+        }
+
+        var step = Cap - WindowOverlap;
+        for (var start = 0; start < raw.Length; start += step)
+        {
+            var length = Math.Min(Cap, raw.Length - start);
+            yield return Variants(raw.Substring(start, length));
+            if (start + length >= raw.Length) break;
+        }
     }
 
     private static void AddIfNew(List<string> list, string value)
@@ -308,7 +330,16 @@ sealed class SecurityRules
     public string? Match(string input, bool checkOversize = true)
     {
         if (checkOversize && input.Length > 8192) return "Oversized URL";
-        var variants = Normalizer.Variants(input);
+        foreach (var variants in Normalizer.Windows(input))
+        {
+            var result = MatchVariants(variants);
+            if (result is not null) return result;
+        }
+        return null;
+    }
+
+    private string? MatchVariants(IReadOnlyList<string> variants)
+    {
         foreach (var entry in _custom.OrderBy(x => x.Value.Input.Priority))
         {
             if (!entry.Value.Input.Enabled) continue;

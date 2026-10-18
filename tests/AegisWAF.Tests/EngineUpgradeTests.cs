@@ -48,6 +48,14 @@ public class EngineUpgradeTests
         Assert.Single(Normalizer.Variants("hello"));
     }
 
+    [Fact]
+    public void Rule_engine_inspects_payload_suffixes_beyond_the_single_value_cap()
+    {
+        var payload = new string('a', 66_000) + "<script>alert(1)</script>";
+
+        Assert.Equal("XSS", Rules().Match(payload, checkOversize: false));
+    }
+
     // ---- New signatures: NoSQL / XXE / SSTI ----
 
     [Theory]
