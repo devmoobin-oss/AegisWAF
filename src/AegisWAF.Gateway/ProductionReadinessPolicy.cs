@@ -69,6 +69,11 @@ public static class ProductionReadinessPolicy
             "Waf:MaxBodyInspectBytes must be between 1 byte and 16 MiB", errors);
         Require(responseCap is >= 1 and <= 32 * 1024 * 1024,
             "Waf:MaxResponseInspectBytes must be between 1 byte and 32 MiB", errors);
+        var requestBodyCap = configuration.GetValue<long?>("Waf:Limits:MaxRequestBodyBytes", null);
+        Require(requestBodyCap is >= 1 and <= 16 * 1024 * 1024,
+            "Waf:Limits:MaxRequestBodyBytes must be between 1 byte and 16 MiB", errors);
+        Require(requestBodyCap <= bodyCap,
+            "Waf:Limits:MaxRequestBodyBytes must not exceed Waf:MaxBodyInspectBytes", errors);
 
         var inspection = InspectionLimits.From(configuration);
         Require(configuration.GetValue("Waf:Inspection:MaxCompressedBytes", 131_072) is >= 1 and <= 16 * 1024 * 1024,

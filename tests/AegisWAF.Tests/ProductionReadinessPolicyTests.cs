@@ -22,6 +22,7 @@ public sealed class ProductionReadinessPolicyTests
         ["Waf:ResponseOverflowAction"] = "block",
         ["Waf:MaxBodyInspectBytes"] = "131072",
         ["Waf:MaxResponseInspectBytes"] = "262144",
+        ["Waf:Limits:MaxRequestBodyBytes"] = "131072",
         ["Waf:Events:StructuredLogging"] = "true",
         ["Waf:Ssrf:ResolveDns"] = "true",
         ["Waf:RateLimit:Requests"] = "300",
@@ -127,6 +128,17 @@ public sealed class ProductionReadinessPolicyTests
         var errors = ProductionReadinessPolicy.Validate(Config(values));
 
         Assert.Contains(errors, e => e.Contains("MaxResponseInspectBytes", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Production_rejects_request_body_limit_above_the_inspection_cap()
+    {
+        var values = SecureValues();
+        values["Waf:Limits:MaxRequestBodyBytes"] = "262144";
+
+        var errors = ProductionReadinessPolicy.Validate(Config(values));
+
+        Assert.Contains(errors, e => e.Contains("MaxRequestBodyBytes", StringComparison.Ordinal));
     }
 
     [Fact]

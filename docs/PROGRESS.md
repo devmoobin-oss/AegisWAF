@@ -6,7 +6,7 @@ Updated against commit `35bd190` in the `feature/multi-site-gateway` worktree on
 
 | Evidence | Result |
 |---|---|
-| Full automated security/regression suite | **309 passed, 0 failed, 0 skipped** |
+| Full automated security/regression suite | **310 passed, 0 failed, 0 skipped** |
 | Release solution build | **4 projects, 0 warnings, 0 errors** |
 | Dependency vulnerability scan | **No vulnerable packages reported** by NuGet sources |
 | Healthy-upstream real-socket load test | **82 requests; 78 blocked, 4 proxied, 0 errors** |
