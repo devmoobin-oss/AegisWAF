@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/AegisWAF.Client/AegisWAF.Client.csproj" />
+    <Project Path="src/AegisWAF.Desktop/AegisWAF.Desktop.csproj" />
+    <Project Path="src/AegisWAF.Gateway/AegisWAF.Gateway.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/AegisWAF.Tests/AegisWAF.Tests.csproj" />
+  </Folder>
+</Solution>

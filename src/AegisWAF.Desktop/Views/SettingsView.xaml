@@ -1,0 +1,62 @@
+<UserControl x:Class="AegisWAF.Desktop.Views.SettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="0,0,10,16" MaxWidth="860" HorizontalAlignment="Left">
+            <Border x:Name="RemoteNote" Style="{StaticResource Card}" Margin="0,0,0,14" Visibility="Collapsed">
+                <TextBlock x:Name="RemoteText" TextWrapping="Wrap" FontSize="13" LineHeight="22"/>
+            </Border>
+            <StackPanel x:Name="LocalPanel">
+                <Border Style="{StaticResource Card}" Margin="0,0,0,14">
+                    <StackPanel>
+                        <TextBlock Text="ฐานข้อมูล PostgreSQL" Style="{StaticResource H2}" Margin="0,0,0,12"/>
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="110"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <StackPanel Margin="0,0,10,0"><TextBlock Text="เครื่อง" Style="{StaticResource MutedText}" FontSize="11.5" Margin="0,0,0,4"/><TextBox x:Name="DbHost"/></StackPanel>
+                            <StackPanel Grid.Column="1" Margin="0,0,10,0"><TextBlock Text="พอร์ต" Style="{StaticResource MutedText}" FontSize="11.5" Margin="0,0,0,4"/><TextBox x:Name="DbPort"/></StackPanel>
+                            <StackPanel Grid.Column="2"><TextBlock Text="ชื่อฐานข้อมูล" Style="{StaticResource MutedText}" FontSize="11.5" Margin="0,0,0,4"/><TextBox x:Name="DbName"/></StackPanel>
+                        </Grid>
+                        <Grid Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <StackPanel Margin="0,0,10,0"><TextBlock Text="ชื่อผู้ใช้" Style="{StaticResource MutedText}" FontSize="11.5" Margin="0,0,0,4"/><TextBox x:Name="DbUser"/></StackPanel>
+                            <StackPanel Grid.Column="1"><TextBlock Text="รหัสผ่าน (เว้นว่าง = ใช้รหัสเดิม)" Style="{StaticResource MutedText}" FontSize="11.5" Margin="0,0,0,4"/><PasswordBox x:Name="DbPass"/></StackPanel>
+                        </Grid>
+                        <StackPanel Orientation="Horizontal">
+                            <Button Content="ทดสอบการเชื่อมต่อ" Style="{StaticResource Ghost}" Click="OnTestDb"/>
+                            <TextBlock x:Name="DbResult" TextWrapping="Wrap" VerticalAlignment="Center" Margin="14,0,0,0" FontSize="13" MaxWidth="560"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource Card}" Margin="0,0,0,14">
+                    <StackPanel>
+                        <TextBlock Text="เว็บไซต์ที่ปกป้องและพอร์ต" Style="{StaticResource H2}" Margin="0,0,0,12"/>
+                        <TextBlock Text="ที่อยู่เว็บจริง (Upstream)" Style="{StaticResource MutedText}" FontSize="11.5" Margin="0,0,0,4"/>
+                        <DockPanel Margin="0,0,0,6">
+                            <Button DockPanel.Dock="Right" Content="ตรวจสอบ" Style="{StaticResource Ghost}" Margin="10,0,0,0" Click="OnCheckSite"/>
+                            <TextBox x:Name="Upstream"/>
+                        </DockPanel>
+                        <TextBlock x:Name="SiteResult" TextWrapping="Wrap" FontSize="12.5" Margin="0,0,0,12" MinHeight="18"/>
+                        <TextBlock Text="พอร์ตที่ผู้ใช้เข้าผ่าน AegisWAF" Style="{StaticResource MutedText}" FontSize="11.5" Margin="0,0,0,4"/>
+                        <TextBox x:Name="ListenPort" Width="140" HorizontalAlignment="Left"/>
+                    </StackPanel>
+                </Border>
+
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                    <Button x:Name="SaveButton" Content="บันทึกและเริ่มระบบใหม่" Click="OnSave"/>
+                </StackPanel>
+                <TextBlock x:Name="SaveResult" TextWrapping="Wrap" FontSize="13" Margin="0,6,0,18" MinHeight="18"/>
+
+                <Border Style="{StaticResource Card}" BorderBrush="#5A2A35">
+                    <StackPanel>
+                        <TextBlock Text="เริ่มตั้งค่าใหม่ทั้งหมด" Style="{StaticResource H2}" Margin="0,0,0,6"/>
+                        <TextBlock Style="{StaticResource MutedText}" TextWrapping="Wrap" FontSize="12.5" Margin="0,0,0,12"
+                                   Text="ลบการตั้งค่าที่จำไว้ในเครื่องนี้ แล้วกลับไปหน้าตัวช่วยตั้งค่าครั้งแรก (ข้อมูลในฐานข้อมูล บัญชีผู้ใช้ และกฎ ไม่ถูกลบ)"/>
+                        <Button Content="ลบการตั้งค่าและเริ่มใหม่" Style="{StaticResource Danger}" HorizontalAlignment="Left" Click="OnReset"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+            <TextBlock x:Name="About" Style="{StaticResource MutedText}" FontSize="12" Margin="2,16,0,0"/>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

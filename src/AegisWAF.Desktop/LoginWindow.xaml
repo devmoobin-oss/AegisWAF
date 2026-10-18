@@ -1,0 +1,36 @@
+<Window x:Class="AegisWAF.Desktop.LoginWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="AegisWAF — เข้าสู่ระบบ" Width="460" SizeToContent="Height" ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen" Background="{StaticResource Bg}" FontFamily="Segoe UI" UseLayoutRounding="True">
+    <Border Style="{StaticResource Card}" Margin="24" Padding="30">
+        <StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                <TextBlock Text="&#xEA18;" FontFamily="Segoe MDL2 Assets" FontSize="34" Foreground="{StaticResource Blue}" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                <TextBlock FontSize="30" FontWeight="SemiBold" VerticalAlignment="Center"><Run Text="Aegis"/><Run Text="WAF" Foreground="{StaticResource Blue}"/></TextBlock>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,10,0,18">
+                <Ellipse x:Name="StatusDot" Width="10" Height="10" Fill="{StaticResource Orange}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                <TextBlock x:Name="StatusText" Text="กำลังเริ่มระบบป้องกัน..." FontSize="13" TextWrapping="Wrap" MaxWidth="360"/>
+            </StackPanel>
+
+            <StackPanel x:Name="RemotePanel" Visibility="Collapsed" Margin="0,0,0,14">
+                <TextBlock Text="ที่อยู่ Gateway ที่รันอยู่ที่อื่น" Style="{StaticResource MutedText}" FontSize="12" Margin="0,0,0,5"/>
+                <TextBox x:Name="UrlBox" Text="http://127.0.0.1:5080"/>
+            </StackPanel>
+
+            <TextBlock Text="ชื่อผู้ใช้" Style="{StaticResource MutedText}" FontSize="12" Margin="0,0,0,5"/>
+            <TextBox x:Name="UserBox" Margin="0,0,0,12"/>
+            <TextBlock Text="รหัสผ่าน" Style="{StaticResource MutedText}" FontSize="12" Margin="0,0,0,5"/>
+            <PasswordBox x:Name="PassBox" Margin="0,0,0,10"/>
+            <TextBlock x:Name="ErrorText" Foreground="{StaticResource Red}" TextWrapping="Wrap" MinHeight="18" FontSize="12.5" Margin="0,0,0,10"/>
+            <Button x:Name="LoginButton" Content="เข้าสู่ระบบ" IsDefault="True" Padding="14,10" Click="OnLogin" IsEnabled="False"/>
+            <Button x:Name="RetryButton" Content="ลองเริ่มระบบอีกครั้ง" Style="{StaticResource Ghost}" Margin="0,10,0,0" Visibility="Collapsed" Click="OnRetry"/>
+
+            <StackPanel Orientation="Horizontal" Margin="0,18,0,0" HorizontalAlignment="Center">
+                <Button x:Name="RemoteLink" Content="ใช้ Gateway ที่รันอยู่เครื่องอื่น" Style="{StaticResource Ghost}" Background="Transparent" Foreground="{StaticResource Blue}" Padding="8,4" FontSize="12" Click="OnToggleRemote"/>
+                <Button x:Name="ResetLink" Content="ตั้งค่าใหม่" Style="{StaticResource Ghost}" Background="Transparent" Foreground="{StaticResource Muted}" Padding="8,4" FontSize="12" Click="OnReset"/>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</Window>

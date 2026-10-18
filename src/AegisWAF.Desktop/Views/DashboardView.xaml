@@ -1,0 +1,155 @@
+<UserControl x:Class="AegisWAF.Desktop.Views.DashboardView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <UserControl.Resources>
+        <Style x:Key="KpiIcon" TargetType="Border">
+            <Setter Property="Width" Value="52"/><Setter Property="Height" Value="52"/><Setter Property="CornerRadius" Value="11"/><Setter Property="Margin" Value="0,0,16,0"/>
+        </Style>
+        <Style x:Key="KpiLabel" TargetType="TextBlock" BasedOn="{StaticResource MutedText}"><Setter Property="FontSize" Value="13"/></Style>
+        <Style x:Key="KpiValue" TargetType="TextBlock"><Setter Property="FontSize" Value="30"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Foreground" Value="{StaticResource Text}"/></Style>
+        <Style x:Key="ActionText" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="Bold"/><Setter Property="FontSize" Value="11"/><Setter Property="Foreground" Value="{StaticResource Red}"/>
+            <Style.Triggers><DataTrigger Binding="{Binding Action}" Value="RATE LIMIT"><Setter Property="Foreground" Value="{StaticResource Orange}"/></DataTrigger></Style.Triggers>
+        </Style>
+    </UserControl.Resources>
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="0,0,10,16">
+            <Border Style="{StaticResource Card}" Margin="0,0,0,14" Padding="20,16">
+                <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <Border Width="52" Height="52" CornerRadius="26" Background="#0F4B3D" Margin="0,0,16,0" VerticalAlignment="Top">
+                        <TextBlock Text="&#xEA18;" FontFamily="Segoe MDL2 Assets" FontSize="26" Foreground="#2FE0A3" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock x:Name="BannerTitle" Text="ระบบกำลังป้องกันเว็บของคุณ" FontSize="17" FontWeight="SemiBold"/>
+                        <TextBlock x:Name="BannerSite" Style="{StaticResource MutedText}" FontSize="12.5" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                        <TextBlock x:Name="BannerUrl" FontSize="12.5" Margin="0,2,0,0" TextWrapping="Wrap"/>
+                        <TextBlock x:Name="SelfTestResult" FontSize="13" Margin="0,8,0,0" TextWrapping="Wrap"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Top">
+                        <Border Background="#0F4B3D" BorderBrush="#2AD4C0" BorderThickness="1" CornerRadius="10" Padding="10,6" Margin="0,0,8,0" ToolTip="OWASP Top 10 mapping เปิดดูได้จากเมนูด้านซ้าย"><StackPanel Orientation="Horizontal"><TextBlock Text="&#xE72E;" FontFamily="Segoe MDL2 Assets" Foreground="#6EF0C6" FontSize="13" Margin="0,0,5,0"/><TextBlock Text="OWASP mapped" Foreground="#6EF0C6" FontSize="11.5" FontWeight="SemiBold"/></StackPanel></Border>
+                        <Button Content="คัดลอกที่อยู่" Style="{StaticResource Ghost}" Margin="0,0,8,0" Click="OnCopyUrl"/>
+                        <Button Content="เปิดในเบราว์เซอร์" Style="{StaticResource Ghost}" Margin="0,0,8,0" Click="OnOpenUrl"/>
+                        <Button x:Name="SelfTestButton" Content="ทดสอบระบบป้องกัน" Click="OnSelfTest"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+            <Border x:Name="EmptyGuide" Style="{StaticResource Card}" Margin="0,0,0,14" Padding="20,14" BorderBrush="#23466B" Visibility="Collapsed">
+                <TextBlock TextWrapping="Wrap" FontSize="13" LineHeight="22" Foreground="#A9C2D9">
+                    <Run Text="ยังไม่มีคำขอผ่านระบบ" FontWeight="SemiBold" Foreground="#E8F1FF"/><LineBreak/>
+                    <Run Text="ให้ผู้ใช้เข้าเว็บผ่านที่อยู่ด้านบน (ไม่ใช่ที่อยู่เดิมของเว็บ) ตัวเลขและกราฟด้านล่างจะเริ่มขึ้นเอง — หรือกด &quot;ทดสอบระบบป้องกัน&quot; เพื่อส่งคำขอโจมตีจำลองที่ไม่เป็นอันตรายแล้วดูว่าระบบบล็อกได้จริง"/>
+                </TextBlock>
+            </Border>
+            <Grid Margin="0,0,0,14">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/>
+                </Grid.ColumnDefinitions>
+                <Border Style="{StaticResource Card}" Margin="0,0,7,0"><StackPanel Orientation="Horizontal">
+                    <Border Style="{StaticResource KpiIcon}" Background="#0F3A63"><TextBlock Text="&#xE9D9;" FontFamily="Segoe MDL2 Assets" FontSize="24" Foreground="#3FA9FF" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+                    <StackPanel><TextBlock Text="Total Requests" Style="{StaticResource KpiLabel}"/><TextBlock x:Name="KTotal" Text="0" Style="{StaticResource KpiValue}"/><TextBlock Text="ตั้งแต่เริ่ม Gateway" Style="{StaticResource MutedText}" FontSize="12"/></StackPanel></StackPanel></Border>
+                <Border Grid.Column="1" Style="{StaticResource Card}" Margin="7,0"><StackPanel Orientation="Horizontal">
+                    <Border Style="{StaticResource KpiIcon}" Background="#4D2230"><TextBlock Text="&#xEA18;" FontFamily="Segoe MDL2 Assets" FontSize="24" Foreground="#FF5F70" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+                    <StackPanel><TextBlock Text="Blocked Threats" Style="{StaticResource KpiLabel}"/><TextBlock x:Name="KBlocked" Text="0" Style="{StaticResource KpiValue}"/>
+                        <TextBlock FontSize="12" Style="{StaticResource MutedText}"><Run x:Name="KBlockedPct" Text="0%" Foreground="{StaticResource Red}" FontWeight="SemiBold"/><Run Text=" ของคำขอทั้งหมด"/></TextBlock></StackPanel></StackPanel></Border>
+                <Border Grid.Column="2" Style="{StaticResource Card}" Margin="7,0"><StackPanel Orientation="Horizontal">
+                    <Border Style="{StaticResource KpiIcon}" Background="#0F4B3D"><TextBlock Text="&#xE73E;" FontFamily="Segoe MDL2 Assets" FontSize="24" Foreground="#2FE0A3" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+                    <StackPanel><TextBlock Text="Allowed Requests" Style="{StaticResource KpiLabel}"/><TextBlock x:Name="KAllowed" Text="0" Style="{StaticResource KpiValue}"/>
+                        <TextBlock FontSize="12" Style="{StaticResource MutedText}"><Run x:Name="KAllowedPct" Text="0%" Foreground="{StaticResource Green}" FontWeight="SemiBold"/><Run Text=" ของคำขอทั้งหมด"/></TextBlock></StackPanel></StackPanel></Border>
+                <Border Grid.Column="3" Style="{StaticResource Card}" Margin="7,0"><StackPanel Orientation="Horizontal">
+                    <Border Style="{StaticResource KpiIcon}" Background="#0F3A63"><TextBlock Text="&#xE8A5;" FontFamily="Segoe MDL2 Assets" FontSize="24" Foreground="#3FA9FF" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+                    <StackPanel><TextBlock Text="Active Rules" Style="{StaticResource KpiLabel}"/><TextBlock x:Name="KRules" Text="0" Style="{StaticResource KpiValue}"/><TextBlock Text="กฎที่เปิดใช้งาน" Style="{StaticResource MutedText}" FontSize="12"/></StackPanel></StackPanel></Border>
+                <Border Grid.Column="4" Style="{StaticResource Card}" Margin="7,0,0,0"><StackPanel Orientation="Horizontal">
+                    <Border Style="{StaticResource KpiIcon}" Background="#0D4A4A"><TextBlock Text="&#xE839;" FontFamily="Segoe MDL2 Assets" FontSize="24" Foreground="#2AD4C0" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+                    <StackPanel><TextBlock Text="Gateway Status" Style="{StaticResource KpiLabel}"/><TextBlock x:Name="KStatus" Text="—" Style="{StaticResource KpiValue}"/><TextBlock x:Name="KDropped" Text="Dropped events: 0" Style="{StaticResource MutedText}" FontSize="12"/></StackPanel></StackPanel></Border>
+            </Grid>
+
+            <Grid Margin="0,0,0,14">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Border Style="{StaticResource Card}" Margin="0,0,7,0" Height="330">
+                    <Grid>
+                        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                        <DockPanel><Border DockPanel.Dock="Right" BorderBrush="{StaticResource Line2}" BorderThickness="1" CornerRadius="7" Padding="12,6"><TextBlock Text="24 ชั่วโมงที่ผ่านมา (UTC)" FontSize="12" Foreground="#B8C9DE"/></Border>
+                            <TextBlock Text="ทราฟฟิกและการตรวจจับภัยคุกคาม" Style="{StaticResource H2}" VerticalAlignment="Center"/></DockPanel>
+                        <Canvas x:Name="Chart" Grid.Row="1" Margin="0,10,0,0" ClipToBounds="True" SizeChanged="OnChartResized"/>
+                        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="46,4,0,0">
+                            <Ellipse Width="10" Height="10" Fill="{StaticResource Blue}" Margin="0,0,6,0"/><TextBlock Text="Requests" FontSize="12" Margin="0,0,18,0"/>
+                            <Ellipse Width="10" Height="10" Fill="{StaticResource Red}" Margin="0,0,6,0"/><TextBlock Text="Blocked" FontSize="12"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+                <Border Grid.Column="1" Style="{StaticResource Card}" Margin="7,0,0,0" Height="330">
+                    <StackPanel>
+                        <TextBlock Text="ประเภทภัยคุกคาม" Style="{StaticResource H2}" Margin="0,0,0,14"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <Grid Width="176" Height="176" VerticalAlignment="Top">
+                                <Canvas x:Name="Donut" Width="176" Height="176"/>
+                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <TextBlock x:Name="DonutTotal" Text="0" FontSize="26" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Blocked" FontSize="12" Foreground="#C3D3E6" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </Grid>
+                            <ScrollViewer Grid.Column="1" Margin="16,0,0,0" VerticalScrollBarVisibility="Auto" MaxHeight="250"><StackPanel x:Name="ThreatList"/></ScrollViewer>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <Grid Margin="0,0,0,14">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Border Style="{StaticResource Card}" Margin="0,0,7,0" MinHeight="200">
+                    <StackPanel>
+                        <DockPanel><Border DockPanel.Dock="Right" BorderBrush="{StaticResource Line2}" BorderThickness="1" CornerRadius="7" Padding="12,6"><TextBlock Text="GeoIP: ไม่ได้เชื่อมต่อ" FontSize="12" Foreground="#B8C9DE"/></Border>
+                            <TextBlock Text="การโจมตีตามภูมิภาค" Style="{StaticResource H2}" VerticalAlignment="Center"/></DockPanel>
+                        <TextBlock Margin="0,30,0,0" TextWrapping="Wrap" LineHeight="22" Style="{StaticResource MutedText}" FontSize="12.5">
+                            <Run Text="ยังไม่มีข้อมูลประเทศต้นทาง" FontWeight="SemiBold" Foreground="#C9D9EC"/><LineBreak/>
+                            <Run Text="ต้องเชื่อมต่อ GeoIP Database และกำหนด Trusted Proxy ก่อน จึงจะแสดงอันดับประเทศได้อย่างถูกต้อง (ไม่มีการแสดงข้อมูลสมมติ)"/>
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+                <Border Grid.Column="1" Style="{StaticResource Card}" Margin="7,0,0,0" MinHeight="200">
+                    <StackPanel>
+                        <TextBlock Text="ประเภทคำขอ (HTTP Methods)" Style="{StaticResource H2}" Margin="0,0,0,10"/>
+                        <StackPanel x:Name="MethodList"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Border Style="{StaticResource Card}" Margin="0,0,7,0" MinHeight="300">
+                    <StackPanel>
+                        <TextBlock Text="เหตุการณ์ล่าสุด" Style="{StaticResource H2}" Margin="0,0,0,10"/>
+                        <DataGrid x:Name="EventsGrid" MaxHeight="340">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="เวลา" Binding="{Binding LocalTime}" Width="150"/>
+                                <DataGridTextColumn Header="ภัยคุกคามที่พบ" Binding="{Binding Explanation}" Width="2*"/>
+                                <DataGridTextColumn Header="Method" Binding="{Binding Method}" Width="70"/>
+                                <DataGridTextColumn Header="IP" Binding="{Binding Ip}" Width="120"/>
+                                <DataGridTextColumn Header="URL" Binding="{Binding Path}" Width="1.5*"/>
+                                <DataGridTemplateColumn Header="ผลลัพธ์" Width="100">
+                                    <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Action}" Style="{StaticResource ActionText}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <TextBlock x:Name="EventsEmpty" Text="ยังไม่มีเหตุการณ์" Style="{StaticResource MutedText}" HorizontalAlignment="Center" Margin="0,24" Visibility="Collapsed"/>
+                    </StackPanel>
+                </Border>
+                <Border Grid.Column="1" Style="{StaticResource Card}" Margin="7,0,0,0" MinHeight="300">
+                    <StackPanel>
+                        <TextBlock Text="10 อันดับ IP ที่ถูกบล็อกมากที่สุด" Style="{StaticResource H2}" Margin="0,0,0,10"/>
+                        <DataGrid x:Name="IpGrid" MaxHeight="340">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="#" Binding="{Binding Rank}" Width="40"/>
+                                <DataGridTextColumn Header="IP Address" Binding="{Binding Ip}" Width="1.5*"/>
+                                <DataGridTextColumn Header="ถูกบล็อก" Binding="{Binding Blocked}" Width="*"/>
+                                <DataGridTextColumn Header="สัดส่วน" Binding="{Binding Share}" Width="*"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <TextBlock x:Name="IpEmpty" Text="ยังไม่มี IP ที่ถูกบล็อก" Style="{StaticResource MutedText}" HorizontalAlignment="Center" Margin="0,24" Visibility="Collapsed"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

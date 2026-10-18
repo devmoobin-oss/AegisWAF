@@ -1,0 +1,68 @@
+<UserControl x:Class="AegisWAF.Desktop.Views.RulesView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="0,0,10,16">
+            <TextBlock x:Name="Msg" MinHeight="20" Margin="2,0,0,8" FontSize="12.5" TextWrapping="Wrap"/>
+
+            <Border Style="{StaticResource Card}" Margin="0,0,0,14">
+                <StackPanel>
+                    <TextBlock Text="กฎมาตรฐาน" Style="{StaticResource H2}"/>
+                    <TextBlock Text="ติ๊กเพื่อเปิดใช้ กฎที่ปิดจะไม่ตรวจ • การตั้งค่าคงอยู่หลังเปิดโปรแกรมใหม่ • เป็นกฎเบื้องต้น ไม่ใช่ชุดกฎมาตรฐาน OWASP CRS ควรใช้ร่วมกับมาตรการอื่น" Style="{StaticResource MutedText}" FontSize="12" Margin="0,4,0,10"/>
+                    <DataGrid x:Name="RulesGrid">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Rule ID" Binding="{Binding Id, Mode=OneWay}" Width="*" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="ชื่อกฎ" Binding="{Binding Name, Mode=OneWay}" Width="1.4*" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="ตรวจจับอะไร" Binding="{Binding Description, Mode=OneWay}" Width="3*" IsReadOnly="True"/>
+                            <DataGridTemplateColumn Header="เปิดใช้งาน" Width="110">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate>
+                                    <CheckBox IsChecked="{Binding Enabled, Mode=OneWay}" Click="OnToggleRule" IsEnabled="{Binding CanEdit, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+                                </DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}" Margin="0,0,0,14">
+                <StackPanel>
+                    <TextBlock Text="กฎกำหนดเอง (Custom Regex)" Style="{StaticResource H2}"/>
+                    <TextBlock Text="ใช้ Regex แบบ NonBacktracking (timeout 20 ms) • ทดสอบใน Sandbox ด้านล่างก่อนเปิดใช้จริง" Style="{StaticResource MutedText}" FontSize="12" Margin="0,4,0,10"/>
+                    <WrapPanel x:Name="CustomForm" Margin="0,0,0,8">
+                        <TextBox x:Name="CId" Width="150" Margin="0,0,10,8" Tag="Rule ID (a-z 0-9 _ -)"/>
+                        <TextBox x:Name="CName" Width="200" Margin="0,0,10,8" Tag="ชื่อกฎ"/>
+                        <TextBox x:Name="CPattern" Width="340" Margin="0,0,10,8" Tag="Regex pattern"/>
+                        <TextBox x:Name="CPriority" Width="80" Text="100" Margin="0,0,10,8" Tag="Priority 1-10000"/>
+                        <Button Content="บันทึกกฎ" Click="OnSaveCustom" Margin="0,0,0,8"/>
+                    </WrapPanel>
+                    <DataGrid x:Name="CustomGrid" MaxHeight="260">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="*"/>
+                            <DataGridTextColumn Header="ชื่อ" Binding="{Binding Name}" Width="1.3*"/>
+                            <DataGridTextColumn Header="Pattern" Binding="{Binding Pattern}" Width="2*"/>
+                            <DataGridTextColumn Header="Priority" Binding="{Binding Priority}" Width="80"/>
+                            <DataGridCheckBoxColumn Header="เปิดใช้" Binding="{Binding Enabled, Mode=OneWay}" Width="80"/>
+                            <DataGridTemplateColumn Header="จัดการ" Width="100">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate>
+                                    <Button Content="ลบ" Style="{StaticResource Danger}" Padding="12,4" Click="OnDeleteCustom" IsEnabled="{Binding CanEdit, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+                                </DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="Rule Sandbox" Style="{StaticResource H2}"/>
+                    <TextBlock Text="ทดสอบข้อความกับกฎที่เปิดใช้งาน โดยไม่ส่งไป Backend และไม่บันทึกเหตุการณ์ (dry-run)" Style="{StaticResource MutedText}" FontSize="12" Margin="0,4,0,10"/>
+                    <DockPanel Margin="0,0,0,10">
+                        <Button x:Name="TestButton" DockPanel.Dock="Right" Content="ทดสอบกฎ" Margin="10,0,0,0" Click="OnTest"/>
+                        <TextBox x:Name="Sample" MaxLength="8192" Tag="ตัวอย่าง URL / payload"/>
+                    </DockPanel>
+                    <TextBlock x:Name="TestResult" Text="รอการทดสอบ" Style="{StaticResource MutedText}" FontSize="13"/>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

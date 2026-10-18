@@ -1,0 +1,48 @@
+# AegisWAF Security Notes (v0.7)
+
+Status: **development prototype, not production-ready.** No independent security testing or load testing has been done. Do not expose the proxy or admin interface to untrusted networks.
+
+See also [PROTECTION.md](PROTECTION.md) for exactly which attack classes the gateway does and does not stop (each claim is verified by automated tests).
+
+## Baseline audit findings (v0.6) and status
+| # | Finding | Severity | Status in v0.7 |
+|---|---|---|---|
+| 1 | Single shared admin token, stored in browser `sessionStorage`; no user identity in audit | High | **Fixed** – per-user login, HttpOnly session cookie, RBAC, audit with actor |
+| 2 | Unmatched `/api/*` paths skipped inspection and could be forwarded to the upstream by the YARP catch-all | High | **Fixed** – `/api` is deny-by-default (404/403); regression test |
+| 3 | Admin network check used `LocalIpAddress` (listener address), not the client address | Medium | **Fixed** – checks client `RemoteIpAddress` (loopback only unless `Admin:AllowRemote=true`) |
+| 4 | Dashboard unreachable: static files shadowed by the proxy catch-all (found by running the app) | Medium | **Fixed** – middleware order; regression test |
+| 5 | IP-policy delete was not audited; audit rows had no actor | Medium | **Fixed** |
+| 6 | No migration tracking; scripts applied by hand | Medium | **Fixed** – `schema_migrations` with checksums |
+| 7 | GUI/admin API and protected-app traffic share one listener; protected apps cannot use `/`, `/assets`, `/api` paths | High (design) | **Open** – dedicated admin listener planned v0.8 |
+| 8 | Inspection worked on raw, non-normalised URL/query; headers/cookies and non-JSON/form bodies were not inspected | High | **Largely fixed (v0.7.1 + v0.9)** — `Normalizer` percent-decodes (incl. double encoding), `+`→space, HTML-entity-decodes, strips SQL comments, lowercases **and NFKC-folds Unicode / strips zero-width** before matching; headers, cookies and all textual body types (incl. multipart/chunked) are inspected; signature set expanded to 16 groups (+NoSQL/XXE/SSTI); an optional anomaly scorer and outbound **response-leak inspection** were added. Verified by `CatalogVerificationTests` + `EngineUpgradeTests`. Remaining gaps are documented in `PROTECTION.md` (MySQL versioned comments, http-RFI, unlisted headers, octet-stream request/response bodies, responses > 256 KiB, type-juggling NoSQL). **New risk:** the aggressive rules raise the false-positive rate (e.g. `sleep(` in ordinary text); rules are individually toggleable and the anomaly scorer is off by default |
+| 9 | Explicit IP "allow" bypasses all inspection and rate limiting | Medium | **Open** (v0.4 design; revisit) |
+| 10 | Client IP comes from the socket only; behind a load balancer all clients share one IP (rate limit, blocklist); no trusted-proxy model | High | **Open** – v0.8 / v0.11 |
+| 11 | Rate limiter is a fixed window (named "sliding"), hard-coded 300/min, per process | Medium | **Open** – v0.11 |
+| 12 | Event writer opens a connection per event; no batching, retention or partitioning; counters are in memory only | Medium | **Open** – v0.10 |
+| 13 | No TLS termination/management; session cookie is `Secure` only when the request itself is HTTPS | High | **Open** – v0.8; if `Admin:AllowRemote` is ever enabled, put HTTPS in front |
+| 14 | Dev DB account is the `postgres` superuser | Medium | **Open** – create a least-privilege role for production |
+| 15 | Audit log is append-only by convention, not tamper-evident | Low | **Open** |
+
+## Password policy removed (operator decision)
+On the operator's request all password complexity rules were removed: **any non-empty password up to 128 characters is accepted** (no minimum length, no username/repetition checks, reuse of the current password allowed). Consequences to be aware of:
+* Accounts can have trivially guessable passwords (`1`, `admin`, the username). Online guessing is only slowed by the per-account lockout (5 failures → 15 min); there is still no per-source-IP throttle.
+* Anyone who can reach the login endpoint (loopback only by default) or a copy of the database hash (PBKDF2-SHA512, 210 000 iterations) can crack weak passwords quickly.
+* Recommended compensating habits: keep `Admin:AllowRemote` off, do not expose the gateway's admin port, and give SUPER_ADMIN / SECURITY_ADMIN accounts real passwords even though the system no longer forces it.
+The empty-password and 128-character limits remain because an empty password could never log in and unbounded input would let a client make the server hash arbitrarily large strings. Password hashing, lockout, session handling and the forced change of administrator-issued temporary passwords are unchanged.
+
+## v0.7 limitations (known)
+* No MFA (column reserved) and no email-based self-service reset; reset is administrator-initiated and the user must change the password at next login.
+* Login attempts are throttled per account only (lockout), not per source IP. Because the admin API is loopback-only by default, only a local user could use lockout to deny an account.
+* CSRF relies on the synchroniser token plus `SameSite=Strict`; there is no `Origin` check.
+* Session lookups hit PostgreSQL on every admin request (fine at admin request rates; add caching before scaling).
+* The session cookie is not `__Host-` prefixed because plain-HTTP loopback use is supported.
+
+## Secrets
+* No credentials are in source. `appsettings.json` has the connection string **without a password**; supply `ConnectionStrings__Postgres` through the environment or user-secrets.
+* Optional `appsettings.local.json` (see README) stores the DB password and optionally the bootstrap password **in clear text on disk**; it is a convenience for single-user Windows machines, not a secrets manager. Restrict file permissions and remove the bootstrap password after first login.
+* The bootstrap password is read from the environment (or `Bootstrap:AdminPassword`), never logged, and used only when no users exist. Change it after first login.
+* Dependency scan (2026-10-17, `dotnet list package --vulnerable --include-transitive`): no known vulnerable packages. This is a one-off check; continuous scanning in CI is not yet configured.
+* Parser-aware inspection, bounded decompression, explicit upstream egress policy, shared authentication throttling, and a local security/load-test harness were added in the 2026-10-18 production-elevation work. These controls still require independent penetration testing and multi-instance operational validation.
+
+## Testing policy
+All tests use synthetic requests against a throw-away database. Security fixes must ship with a regression test (see `tests/AegisWAF.Tests`).

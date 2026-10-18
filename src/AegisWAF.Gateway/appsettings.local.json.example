@@ -1,0 +1,9 @@
+{
+  "ConnectionStrings": {
+    "Postgres": "Host=localhost;Port=5432;Database=aegiswaf;Username=postgres;Password=YOUR_DB_PASSWORD;Pooling=true"
+  },
+  "Bootstrap": {
+    "AdminUser": "admin",
+    "AdminPassword": "CHOOSE-A-PASSWORD-THEN-REMOVE-THIS-LINE-AFTER-FIRST-LOGIN"
+  }
+}

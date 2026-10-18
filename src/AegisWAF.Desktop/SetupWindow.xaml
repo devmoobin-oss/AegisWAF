@@ -1,0 +1,117 @@
+<Window x:Class="AegisWAF.Desktop.SetupWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="AegisWAF — ตั้งค่าครั้งแรก" Width="700" Height="720" ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen" Background="{StaticResource Bg}" FontFamily="Segoe UI" UseLayoutRounding="True">
+    <Grid Margin="28,22,28,22">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel>
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="&#xEA18;" FontFamily="Segoe MDL2 Assets" FontSize="30" Foreground="{StaticResource Blue}" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                <TextBlock FontSize="26" FontWeight="SemiBold" VerticalAlignment="Center"><Run Text="ยินดีต้อนรับสู่ Aegis"/><Run Text="WAF" Foreground="{StaticResource Blue}"/></TextBlock>
+            </StackPanel>
+            <TextBlock Text="ตั้งค่าเพียง 4 ขั้นตอน ใช้เวลาไม่กี่นาที — ระบบจะเริ่มทำงานและเข้าสู่ระบบให้อัตโนมัติ" Style="{StaticResource MutedText}" FontSize="13" Margin="0,6,0,16"/>
+            <UniformGrid Columns="4" Margin="0,0,0,16">
+                <Border x:Name="Pill1" CornerRadius="16" Padding="8,7" Margin="0,0,6,0"><TextBlock x:Name="PillText1" Text="1  ฐานข้อมูล" HorizontalAlignment="Center" FontSize="12.5"/></Border>
+                <Border x:Name="Pill2" CornerRadius="16" Padding="8,7" Margin="0,0,6,0"><TextBlock x:Name="PillText2" Text="2  ผู้ดูแลระบบ" HorizontalAlignment="Center" FontSize="12.5"/></Border>
+                <Border x:Name="Pill3" CornerRadius="16" Padding="8,7" Margin="0,0,6,0"><TextBlock x:Name="PillText3" Text="3  เว็บไซต์ที่ปกป้อง" HorizontalAlignment="Center" FontSize="12.5"/></Border>
+                <Border x:Name="Pill4" CornerRadius="16" Padding="8,7"><TextBlock x:Name="PillText4" Text="4  เริ่มใช้งาน" HorizontalAlignment="Center" FontSize="12.5"/></Border>
+            </UniformGrid>
+        </StackPanel>
+
+        <Border Grid.Row="1" Style="{StaticResource Card}" Padding="24">
+            <Grid>
+                <!-- Step 1: database -->
+                <ScrollViewer x:Name="Step1" VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock Text="เชื่อมต่อฐานข้อมูล PostgreSQL" Style="{StaticResource H2}"/>
+                        <TextBlock Style="{StaticResource MutedText}" TextWrapping="Wrap" FontSize="12.5" Margin="0,6,0,14"
+                                   Text="AegisWAF เก็บบัญชีผู้ใช้ กฎ และประวัติเหตุการณ์ไว้ใน PostgreSQL ใช้รหัสผ่านที่ตั้งไว้ตอนติดตั้ง PostgreSQL (ผู้ใช้ปกติชื่อ postgres)"/>
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="110"/></Grid.ColumnDefinitions>
+                            <StackPanel Margin="0,0,10,0"><TextBlock Text="เครื่องที่ติดตั้ง PostgreSQL" Style="{StaticResource MutedText}" FontSize="11.5" Margin="0,0,0,4"/><TextBox x:Name="DbHost" Text="localhost"/></StackPanel>
+                            <StackPanel Grid.Column="1"><TextBlock Text="พอร์ต" Style="{StaticResource MutedText}" FontSize="11.5" Margin="0,0,0,4"/><TextBox x:Name="DbPort" Text="5432"/></StackPanel>
+                        </Grid>
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <StackPanel Margin="0,0,10,0"><TextBlock Text="ชื่อผู้ใช้" Style="{StaticResource MutedText}" FontSize="11.5" Margin="0,0,0,4"/><TextBox x:Name="DbUser" Text="postgres"/></StackPanel>
+                            <StackPanel Grid.Column="1"><TextBlock Text="รหัสผ่าน" Style="{StaticResource MutedText}" FontSize="11.5" Margin="0,0,0,4"/><PasswordBox x:Name="DbPass"/></StackPanel>
+                        </Grid>
+                        <StackPanel Margin="0,0,0,14"><TextBlock Text="ชื่อฐานข้อมูลของ AegisWAF (สร้างให้อัตโนมัติถ้ายังไม่มี)" Style="{StaticResource MutedText}" FontSize="11.5" Margin="0,0,0,4"/><TextBox x:Name="DbName" Text="aegiswaf"/></StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <Button x:Name="TestDbButton" Content="ทดสอบการเชื่อมต่อ" Click="OnTestDb"/>
+                            <Button x:Name="CreateDbButton" Content="สร้างฐานข้อมูลให้" Style="{StaticResource Ghost}" Margin="10,0,0,0" Visibility="Collapsed" Click="OnCreateDb"/>
+                        </StackPanel>
+                        <TextBlock x:Name="DbResult" TextWrapping="Wrap" Margin="0,12,0,0" FontSize="13"/>
+                        <TextBlock x:Name="DbHelp" Visibility="Collapsed" TextWrapping="Wrap" Margin="0,8,0,0" FontSize="12.5" Style="{StaticResource MutedText}">
+                            <Run Text="ยังไม่ได้ติดตั้ง PostgreSQL? "/><Hyperlink NavigateUri="https://www.postgresql.org/download/windows/" RequestNavigate="OnLink"><Run Text="ดาวน์โหลดและติดตั้ง"/></Hyperlink><Run Text=" (จดรหัสผ่านที่ตั้งไว้) แล้วกลับมากด ทดสอบการเชื่อมต่อ อีกครั้ง"/>
+                        </TextBlock>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- Step 2: administrator -->
+                <ScrollViewer x:Name="Step2" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock Text="บัญชีผู้ดูแลระบบ" Style="{StaticResource H2}"/>
+                        <StackPanel x:Name="AdminExisting" Visibility="Collapsed">
+                            <TextBlock TextWrapping="Wrap" Margin="0,10,0,0" FontSize="13" Foreground="{StaticResource Green}"
+                                       Text="พบบัญชีผู้ใช้อยู่แล้วในฐานข้อมูลนี้ — ไม่ต้องสร้างใหม่ ใช้บัญชีเดิมเข้าสู่ระบบได้เลยหลังจบขั้นตอนนี้"/>
+                        </StackPanel>
+                        <StackPanel x:Name="AdminNew">
+                            <TextBlock Style="{StaticResource MutedText}" TextWrapping="Wrap" FontSize="12.5" Margin="0,6,0,14"
+                                       Text="สร้างบัญชีแรกสำหรับเข้าใช้งานโปรแกรม (สิทธิ์สูงสุด) บัญชีอื่นเพิ่มได้ภายหลังในเมนู ผู้ใช้งานระบบ"/>
+                            <TextBlock Text="ชื่อผู้ใช้ (a-z ตัวเลข . _ -)" Style="{StaticResource MutedText}" FontSize="11.5" Margin="0,0,0,4"/>
+                            <TextBox x:Name="AdminUser" Text="admin" Margin="0,0,0,12"/>
+                            <TextBlock Text="รหัสผ่าน" Style="{StaticResource MutedText}" FontSize="11.5" Margin="0,0,0,4"/>
+                            <PasswordBox x:Name="AdminPass" Margin="0,0,0,12" PasswordChanged="OnAdminPassChanged"/>
+                            <TextBlock Text="ยืนยันรหัสผ่าน" Style="{StaticResource MutedText}" FontSize="11.5" Margin="0,0,0,4"/>
+                            <PasswordBox x:Name="AdminPass2" Margin="0,0,0,8" PasswordChanged="OnAdminPassChanged"/>
+                            <TextBlock x:Name="PassHint" FontSize="12.5" TextWrapping="Wrap" Style="{StaticResource MutedText}" Text="ตั้งรหัสผ่านอะไรก็ได้ที่คุณจำได้"/>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- Step 3: protected site -->
+                <ScrollViewer x:Name="Step3" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock Text="เว็บไซต์ที่ต้องการปกป้อง" Style="{StaticResource H2}"/>
+                        <TextBlock Style="{StaticResource MutedText}" TextWrapping="Wrap" FontSize="12.5" Margin="0,6,0,14"
+                                   Text="AegisWAF จะรับคำขอจากผู้ใช้ กรองสิ่งอันตรายออก แล้วส่งต่อให้เว็บจริงของคุณ"/>
+                        <TextBlock Text="ที่อยู่เว็บจริง (Upstream)" Style="{StaticResource MutedText}" FontSize="11.5" Margin="0,0,0,4"/>
+                        <DockPanel Margin="0,0,0,6">
+                            <Button x:Name="CheckSiteButton" DockPanel.Dock="Right" Content="ตรวจสอบ" Style="{StaticResource Ghost}" Margin="10,0,0,0" Click="OnCheckSite"/>
+                            <TextBox x:Name="Upstream" Text="http://localhost:8080/"/>
+                        </DockPanel>
+                        <TextBlock x:Name="SiteResult" TextWrapping="Wrap" FontSize="12.5" Margin="0,0,0,16" MinHeight="18"/>
+                        <TextBlock Text="พอร์ตที่ผู้ใช้จะเข้าผ่าน AegisWAF" Style="{StaticResource MutedText}" FontSize="11.5" Margin="0,0,0,4"/>
+                        <TextBox x:Name="ListenPort" Text="5080" Width="140" HorizontalAlignment="Left" TextChanged="OnPortChanged"/>
+                        <TextBlock x:Name="PortHint" TextWrapping="Wrap" FontSize="12.5" Margin="0,10,0,0" Style="{StaticResource MutedText}"/>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- Step 4: summary -->
+                <ScrollViewer x:Name="Step4" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock Text="พร้อมเริ่มใช้งาน" Style="{StaticResource H2}"/>
+                        <TextBlock x:Name="Summary" TextWrapping="Wrap" FontSize="13" LineHeight="24" Margin="0,12,0,14"/>
+                        <TextBlock Style="{StaticResource MutedText}" TextWrapping="Wrap" FontSize="12" Text="การตั้งค่านี้ถูกบันทึกในเครื่องนี้แบบเข้ารหัส (Windows DPAPI) เฉพาะบัญชีผู้ใช้ Windows ของคุณ และแก้ไขได้ภายหลังที่เมนู ตั้งค่า"/>
+                        <TextBlock x:Name="StartResult" TextWrapping="Wrap" FontSize="13" Margin="0,14,0,0"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="2" Margin="0,16,0,0">
+            <Button x:Name="CancelButton" Content="ยกเลิก" Style="{StaticResource Ghost}" HorizontalAlignment="Left" IsCancel="True" Click="OnCancel"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button x:Name="BackButton" Content="ย้อนกลับ" Style="{StaticResource Ghost}" Margin="0,0,10,0" Click="OnBack"/>
+                <Button x:Name="NextButton" Content="ถัดไป" MinWidth="120" Click="OnNext"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

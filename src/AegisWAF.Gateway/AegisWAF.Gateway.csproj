@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\AegisWAF.Client\AegisWAF.Client.csproj" />
+    <PackageReference Include="Yarp.ReverseProxy" Version="2.3.0"/>
+    <PackageReference Include="Npgsql" Version="9.0.3"/>
+  </ItemGroup>
+  <ItemGroup>
+    <!-- SQL migrations are embedded so the binary carries its own schema (see Infrastructure/Migrator.cs). -->
+    <EmbeddedResource Include="..\..\database\*.sql" LogicalName="db/%(Filename)%(Extension)" />
+    <InternalsVisibleTo Include="AegisWAF.Tests" />
+  </ItemGroup>
+</Project>

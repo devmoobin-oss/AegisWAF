@@ -1,0 +1,35 @@
+# Build outputs and generated files
+**/bin/
+**/obj/
+dist/
+artifacts/
+
+# Agent/workflow state
+.superpowers/
+
+# Local configuration and secrets
+**/appsettings.local.json
+.env
+.env.*
+!.env.example
+*.pfx
+*.p12
+*.key
+*.pem
+
+# IDE and OS files
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+Thumbs.db
+Desktop.ini
+
+# Test and coverage output
+TestResults/
+coverage/
+*.trx
+
