@@ -1,12 +1,12 @@
 # Current Production WAF Progress Snapshot
 
-Updated against commit `8b6f307` in the `feature/multi-site-gateway` worktree on 2026-10-19.
+Updated against the latest Production guardrail commit in the `feature/multi-site-gateway` worktree on 2026-10-19.
 
 ## Verified local evidence
 
 | Evidence | Result |
 |---|---|
-| Full automated security/regression suite | **310 passed, 0 failed, 0 skipped** |
+| Full automated security/regression suite | **311 passed, 0 failed, 0 skipped** |
 | Release solution build | **4 projects, 0 warnings, 0 errors** |
 | Dependency vulnerability scan | **No vulnerable packages reported** by NuGet sources |
 | Healthy-upstream real-socket load test | **82 requests; 78 blocked, 4 proxied, 0 errors** |

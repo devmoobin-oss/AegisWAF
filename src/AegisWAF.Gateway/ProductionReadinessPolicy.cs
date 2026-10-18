@@ -74,6 +74,12 @@ public static class ProductionReadinessPolicy
             "Waf:Limits:MaxRequestBodyBytes must be between 1 byte and 16 MiB", errors);
         Require(requestBodyCap <= bodyCap,
             "Waf:Limits:MaxRequestBodyBytes must not exceed Waf:MaxBodyInspectBytes", errors);
+        var requestHeadersTimeout = configuration.GetValue("Waf:Limits:RequestHeadersTimeoutSeconds", 10);
+        Require(requestHeadersTimeout is >= 1 and <= 120,
+            "Waf:Limits:RequestHeadersTimeoutSeconds must be between 1 and 120 seconds", errors);
+        var keepAlive = configuration.GetValue("Waf:Limits:KeepAliveSeconds", 120);
+        Require(keepAlive is >= 5 and <= 600,
+            "Waf:Limits:KeepAliveSeconds must be between 5 and 600 seconds", errors);
 
         var inspection = InspectionLimits.From(configuration);
         Require(configuration.GetValue("Waf:Inspection:MaxCompressedBytes", 131_072) is >= 1 and <= 16 * 1024 * 1024,

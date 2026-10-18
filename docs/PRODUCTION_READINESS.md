@@ -44,6 +44,7 @@
 - Expired per-IP and global limiter buckets are cleaned periodically, preventing long-running processes from retaining stale identity state indefinitely.
 - Production enforcement bounds inspection buffers to 16 MiB for request bodies and 32 MiB for responses, preventing unsafe memory settings from creating a configuration-driven exhaustion risk.
 - Production enforcement also requires `Waf:Limits:MaxRequestBodyBytes` to be positive, bounded to 16 MiB, and no larger than `Waf:MaxBodyInspectBytes`; Kestrel cannot admit a request body larger than the parser inspection budget.
+- Production enforcement bounds `Waf:Limits:RequestHeadersTimeoutSeconds` to 1–120 seconds and `Waf:Limits:KeepAliveSeconds` to 5–600 seconds, preventing an unsafe timeout configuration from weakening slow-client protection.
 - Structured request inspection now extracts bounded JSON, form-urlencoded, XML, and multipart fields/metadata before rule evaluation; ordinary HTML DOCTYPE is allowed while entity/external-DTD payloads are rejected.
 - XML DTD/entity detection uses a bounded ordinal scan rather than an unbounded backtracking expression, while rejecting external `SYSTEM`/`PUBLIC` declarations before XML parsing.
 - JSON inspection rejects duplicate object keys before rule evaluation to prevent parser differentials where the WAF and upstream select different values for the same field.

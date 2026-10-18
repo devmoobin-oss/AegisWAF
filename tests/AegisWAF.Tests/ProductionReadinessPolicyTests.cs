@@ -142,6 +142,19 @@ public sealed class ProductionReadinessPolicyTests
     }
 
     [Fact]
+    public void Production_rejects_unsafe_connection_timeout_limits()
+    {
+        var values = SecureValues();
+        values["Waf:Limits:RequestHeadersTimeoutSeconds"] = "0";
+        values["Waf:Limits:KeepAliveSeconds"] = "999999";
+
+        var errors = ProductionReadinessPolicy.Validate(Config(values));
+
+        Assert.Contains(errors, e => e.Contains("RequestHeadersTimeoutSeconds", StringComparison.Ordinal));
+        Assert.Contains(errors, e => e.Contains("KeepAliveSeconds", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Production_rejects_disabled_structured_security_logging()
     {
         var values = SecureValues();
