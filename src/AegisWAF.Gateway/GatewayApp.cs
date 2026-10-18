@@ -428,6 +428,7 @@ public static class GatewayApp
             return;
         }
         var cap = cfg.GetValue("Waf:MaxResponseInspectBytes", 262144);
+        var inspectBinary = cfg.GetValue("Waf:InspectBinaryResponses", false);
         var original = ctx.Response.Body;
         var failClosedOverflow = string.Equals(cfg["Waf:ResponseOverflowAction"], "block", StringComparison.OrdinalIgnoreCase);
         var capture = new ResponseBufferStream(original, cap, failClosedOverflow);
@@ -450,11 +451,14 @@ public static class GatewayApp
             }
             return;
         }
-        if (!capture.Overflowed && ResponseInspector.IsInspectable(ctx.Response.ContentType))
+        if (!capture.Overflowed && (ResponseInspector.IsInspectable(ctx.Response.ContentType) || inspectBinary))
         {
             try
             {
-                leak = inspector.Inspect(InspectionTextDecoder.Decode(capture.CapturedBuffer.AsSpan(0, capture.CapturedLength).ToArray()));
+                var bytes = capture.CapturedBuffer.AsSpan(0, capture.CapturedLength);
+                leak = ResponseInspector.IsInspectable(ctx.Response.ContentType)
+                    ? inspector.Inspect(InspectionTextDecoder.Decode(bytes.ToArray()))
+                    : inspector.InspectBytes(bytes);
             }
             catch (DecoderFallbackException)
             {

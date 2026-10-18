@@ -62,6 +62,14 @@ public class EngineUpgradeTests
         Assert.Equal("Inspection Timeout", Rules().Match("ordinary input", checkOversize: false, new InspectionBudget(0)));
     }
 
+    [Fact]
+    public void Binary_response_scan_detects_high_signal_leaks_without_utf8_decoding()
+    {
+        var body = new byte[] { 0, 255, (byte)'r', (byte)'o', (byte)'o', (byte)'t', (byte)':', (byte)'x', (byte)':', (byte)'0', (byte)':', (byte)'0', (byte)':', 255 };
+
+        Assert.Equal("Response Leak — passwd/shadow file", new ResponseInspector().InspectBytes(body));
+    }
+
     // ---- New signatures: NoSQL / XXE / SSTI ----
 
     [Theory]
@@ -203,11 +211,11 @@ public class EngineUpgradeTests
     [Collection("gateway")]
     public class ResponseInspection(GatewayFixture fx)
     {
-        private async Task<Running> StartAsync(ScriptedUpstream up)
+        private async Task<Running> StartAsync(ScriptedUpstream up, IReadOnlyDictionary<string, string?>? overrides = null)
         {
             var url = FreeUrl();
             var gw = new EmbeddedGateway();
-            await gw.StartAsync(new EmbeddedGatewayOptions(url, fx.ConnectionString, null, up.Url.ToString()));
+            await gw.StartAsync(new EmbeddedGatewayOptions(url, fx.ConnectionString, null, up.Url.ToString(), null, overrides));
             return new Running(gw, up, url);
         }
 
@@ -250,6 +258,16 @@ public class EngineUpgradeTests
             var (status, body) = await GetAsync(run.Url, "/blob");
             Assert.Equal(200, status);
             Assert.Contains("root:x:0:0", body);
+        }
+
+        [Fact]
+        public async Task A_binary_response_is_scanned_when_binary_inspection_is_enabled()
+        {
+            using var up = new ScriptedUpstream("200 OK", "application/octet-stream", "root:x:0:0:root:/root:/bin/bash");
+            await using var run = await StartAsync(up, new Dictionary<string, string?> { ["Waf:InspectBinaryResponses"] = "true" });
+            var (status, body) = await GetAsync(run.Url, "/blob");
+            Assert.Equal(502, status);
+            Assert.DoesNotContain("root:x:0:0", body);
         }
 
         [Fact]

@@ -455,7 +455,13 @@ sealed class ResponseInspector
         return null;
     }
 
-    /// <summary>True for content types whose body is worth scanning (html, text, json, xml). Binary responses are skipped.</summary>
+    /// <summary>
+    /// Scans bounded binary response bytes using a one-to-one Latin-1 projection. This avoids UTF-8 replacement
+    /// semantics while still catching high-signal ASCII leaks when an upstream falsely labels sensitive text binary.
+    /// </summary>
+    public string? InspectBytes(ReadOnlySpan<byte> body) => Inspect(Encoding.Latin1.GetString(body));
+
+    /// <summary>True for content types whose body can be decoded and scanned as text (html, text, json, xml).</summary>
     public static bool IsInspectable(string? contentType)
     {
         if (string.IsNullOrEmpty(contentType)) return false; // unknown/binary: don't buffer

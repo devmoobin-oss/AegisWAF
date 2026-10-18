@@ -22,6 +22,7 @@ Use an isolated deployment with a test database and non-production credentials. 
 - SQLi, XSS, traversal, XXE, SSTI, NoSQL, command injection and SSRF payloads in query, path, headers, cookies, JSON, form, XML and multipart;
 - decompression limits and oversized request/response behavior;
 - structured parser differential cases, including duplicate JSON object keys;
+- binary/content-type spoofing cases with bounded byte-safe response leak inspection enabled;
 - upstream timeout/failure and egress policy enforcement;
 - rate-limit behavior across multiple gateway instances;
 - audit integrity, structured events, secrets in logs, and management-plane headers.

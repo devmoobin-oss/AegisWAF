@@ -19,6 +19,7 @@
 - SSRF filtering blocks loopback, RFC1918/link-local, metadata hostnames, IPv4 CGNAT, IPv4 multicast/reserved ranges, IPv6 Unique Local and IPv6 multicast targets, including encoded and non-canonical IPv4 forms.
 - Response inspection can fail closed for oversized textual responses with `Waf:ResponseOverflowAction=block`; the default Desktop compatibility profile remains `stream` and must be changed for a strict Production deployment.
 - Production enforcement requires `Waf:InspectResponses=true`; disabling response inspection is permitted only in the non-production Desktop compatibility profile.
+- Production enforcement requires `Waf:InspectBinaryResponses=true`; bounded binary responses are scanned through a byte-safe Latin-1 projection for high-signal leaks even when an upstream mislabels sensitive text as binary.
 - Textual upstream responses with malformed UTF-8 are rejected before response-leak rules run, preventing replacement-character decoding from changing the inspected representation.
 - Admin/control-plane responses send `no-store`, `X-Frame-Options: DENY`, COOP/CORP, `X-Permitted-Cross-Domain-Policies: none`, CSP and restrictive Permissions-Policy headers.
 - Rate limiting supports both per-client and global rolling-window ceilings. Production uses the PostgreSQL shared store so multiple WAF instances enforce one common limit; run migration `008_rate_limit_buckets.sql` before enabling traffic.
@@ -79,6 +80,7 @@
   "Waf": {
     "Deployment": { "Enforce": true },
     "InspectResponses": true,
+    "InspectBinaryResponses": true,
     "ResponseOverflowAction": "block",
     "RateLimit": { "Requests": 300, "GlobalRequests": 10000, "Store": "postgres", "WindowSeconds": 60, "MaxEntries": 10000 },
     "Limits": { "MaxRequestBodyBytes": 1048576 }
