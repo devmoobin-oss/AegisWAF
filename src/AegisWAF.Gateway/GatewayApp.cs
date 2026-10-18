@@ -12,6 +12,7 @@ using AegisWAF.Client;
 using Yarp.ReverseProxy;
 using AegisWAF.Gateway.Sites;
 using Microsoft.AspNetCore.DataProtection;
+using System.Security.Cryptography.X509Certificates;
 
 namespace AegisWAF.Gateway;
 
@@ -70,6 +71,13 @@ public static class GatewayApp
             var dataProtection = builder.Services.AddDataProtection()
                 .PersistKeysToFileSystem(new DirectoryInfo(Path.GetFullPath(keyRingPath)));
             if (OperatingSystem.IsWindows()) dataProtection.ProtectKeysWithDpapi();
+            else
+            {
+                var certificatePath = builder.Configuration["Security:DataProtection:CertificatePath"];
+                var certificatePassword = builder.Configuration["Security:DataProtection:CertificatePassword"];
+                if (!string.IsNullOrWhiteSpace(certificatePath) && !string.IsNullOrWhiteSpace(certificatePassword))
+                    dataProtection.ProtectKeysWithCertificate(X509CertificateLoader.LoadPkcs12FromFile(certificatePath, certificatePassword));
+            }
         }
         builder.WebHost.ConfigureKestrel(server =>
         {

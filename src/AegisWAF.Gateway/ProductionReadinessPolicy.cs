@@ -23,6 +23,14 @@ public static class ProductionReadinessPolicy
         var keyRingPath = configuration["Security:DataProtection:KeyRingPath"];
         Require(!string.IsNullOrWhiteSpace(keyRingPath) && Path.IsPathFullyQualified(keyRingPath),
             "Security:DataProtection:KeyRingPath must be an absolute persistent path", errors);
+        if (!OperatingSystem.IsWindows())
+        {
+            Require(!string.IsNullOrWhiteSpace(configuration["Security:DataProtection:CertificatePath"]) &&
+                    Path.IsPathFullyQualified(configuration["Security:DataProtection:CertificatePath"]!),
+                "Security:DataProtection:CertificatePath must be an absolute path on non-Windows Production hosts", errors);
+            Require(!string.IsNullOrWhiteSpace(configuration["Security:DataProtection:CertificatePassword"]),
+                "Security:DataProtection:CertificatePassword is required on non-Windows Production hosts", errors);
+        }
         Require(!configuration.GetValue("Waf:AllowProtocolUpgrade", false),
             "Waf:AllowProtocolUpgrade must be false unless a dedicated inspected route is deployed", errors);
         Require(!configuration.GetValue("Waf:AllowUnsafeMethods", false),
