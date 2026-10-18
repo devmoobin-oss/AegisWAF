@@ -36,6 +36,37 @@ function Add-Result([string]$name, [string]$status, [string]$tool, [string]$comm
     })
 }
 
+function Get-GitCommit([string]$root) {
+    try {
+        $commit = (& git -C $root rev-parse HEAD 2>$null | Select-Object -First 1)
+        if ($commit) { return $commit.ToString().Trim() }
+    } catch { }
+    return $null
+}
+
+function Get-ConfigurationFingerprint([string]$root) {
+    $files = @(Get-ChildItem -LiteralPath $root -Recurse -File -Filter 'appsettings*.json' |
+        Where-Object { $_.FullName -notmatch '[\\/](bin|obj)[\\/]' } |
+        Sort-Object FullName)
+    $rootPrefix = $root.TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar
+    $entries = foreach ($file in $files) {
+        $relative = $file.FullName.Substring($rootPrefix.Length).Replace('\', '/')
+        $hash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash
+        "$relative=$hash"
+    }
+    $canonical = ($entries -join "`n")
+    $fingerprint = if ($canonical.Length -eq 0) { $null } else {
+        $sha = [Security.Cryptography.SHA256]::Create()
+        try {
+            ([BitConverter]::ToString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($canonical))).Replace('-', '')).ToLowerInvariant()
+        } finally { $sha.Dispose() }
+    }
+    [pscustomobject]@{
+        sha256 = $fingerprint
+        files = @($entries | ForEach-Object { $_.Split('=', 2)[0] })
+    }
+}
+
 function Run-External([string]$name, [string]$toolName, [string[]]$arguments, [string]$outputFile = '') {
     $tool = Find-Tool $toolName
     $commandText = (($toolName) + ' ' + ($arguments -join ' ')).Trim()
@@ -99,9 +130,13 @@ if ([string]::IsNullOrWhiteSpace($LoadTestTargetUri)) {
     Run-External 'security load test' 'powershell' @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $loadtest, '-TargetUri', $LoadTestTargetUri, '-OutputJson', $json, '-OutputCsv', $csv)
 }
 
+$configFingerprint = Get-ConfigurationFingerprint $RepoRoot
 $summary = [pscustomobject]@{
     generatedAt = [DateTimeOffset]::UtcNow
     repository = $RepoRoot
+    gitCommit = Get-GitCommit $RepoRoot
+    configurationSha256 = $configFingerprint.sha256
+    configurationFiles = $configFingerprint.files
     results = $results
     overall = if (@($results | Where-Object { $_.status -in @('fail', 'unavailable', 'not_run') }).Count -eq 0) { 'pass' } else { 'incomplete_or_failed' }
 }
