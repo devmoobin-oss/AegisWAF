@@ -31,7 +31,14 @@ public static class SiteProxyConfiguration
 
         // No legacy route may compete with explicit Site routes, including custom routes beyond the default route.
         foreach (var route in configuration?.GetSection("ReverseProxy:Routes").GetChildren() ?? [])
-            values[$"ReverseProxy:Routes:{route.Key}:Match:Hosts:0"] = "__aegiswaf_legacy_route_disabled__";
+        {
+            var hosts = route.GetSection("Match:Hosts").GetChildren().ToArray();
+            if (hosts.Length == 0)
+                values[$"ReverseProxy:Routes:{route.Key}:Match:Hosts:0"] = "__aegiswaf_legacy_route_disabled__";
+            else
+                foreach (var host in hosts)
+                    values[$"ReverseProxy:Routes:{route.Key}:Match:Hosts:{host.Key}"] = "__aegiswaf_legacy_route_disabled__";
+        }
         foreach (var site in snapshot.Sites.Where(x => x.Enabled))
         {
             var clusterId = "site-" + site.Id;
@@ -66,6 +73,7 @@ public static class SiteProxyConfiguration
             values[$"ReverseProxy:Clusters:{clusterId}:HealthCheck:Passive:Enabled"] = "true";
             values[$"ReverseProxy:Clusters:{clusterId}:HealthCheck:Passive:ReactivationPeriod"] = "00:00:30";
             values[$"ReverseProxy:Clusters:{clusterId}:HealthCheck:AvailableDestinationsPolicy"] = "HealthyAndUnknown";
+            values[$"ReverseProxy:Clusters:{clusterId}:LoadBalancingPolicy"] = "PowerOfTwoChoices";
         }
         return values;
     }

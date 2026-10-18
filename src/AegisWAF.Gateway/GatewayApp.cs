@@ -488,7 +488,7 @@ public static class GatewayApp
         }
         await next();
     });
-    app.MapReverseProxy(proxyPipeline => proxyPipeline.UsePassiveHealthChecks());
+    app.MapReverseProxy(proxyPipeline => proxyPipeline.UsePassiveHealthChecks().UseLoadBalancing());
     }
 
     private static bool IsManagementPath(PathString path) =>

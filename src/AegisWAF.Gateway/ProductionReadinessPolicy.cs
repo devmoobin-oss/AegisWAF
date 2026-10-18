@@ -95,6 +95,9 @@ public static class ProductionReadinessPolicy
             errors.Add("AllowedHosts must be explicit when Admin:AllowRemote is true");
 
         foreach (var cluster in configuration.GetSection("ReverseProxy:Clusters").GetChildren())
+        {
+            Require(!cluster.GetValue("HttpClient:DangerousAcceptAnyServerCertificate", false),
+                $"ReverseProxy cluster {cluster.Key} must not enable DangerousAcceptAnyServerCertificate", errors);
         foreach (var destination in cluster.GetSection("Destinations").GetChildren())
         {
             var address = destination["Address"];
@@ -106,6 +109,7 @@ public static class ProductionReadinessPolicy
             }
             if (!string.IsNullOrEmpty(uri.UserInfo))
                 errors.Add($"ReverseProxy destination {cluster.Key}/{destination.Key} must not contain credentials in the URL");
+        }
         }
 
         return errors;

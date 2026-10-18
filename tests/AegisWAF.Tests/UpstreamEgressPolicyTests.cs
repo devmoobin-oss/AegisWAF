@@ -25,7 +25,7 @@ public sealed class UpstreamEgressPolicyTests
     {
         var resolver = new FakeResolver(new Dictionary<string, IPAddress[]>
         {
-            ["origin.example.test"] = [IPAddress.Parse("203.0.113.10")]
+            ["origin.example.test"] = [IPAddress.Parse("1.1.1.1")]
         });
         var policy = new UpstreamEgressPolicy(new UpstreamEgressOptions(["origin.example.test"], [443], ["https"], false), resolver);
 
@@ -39,7 +39,7 @@ public sealed class UpstreamEgressPolicyTests
     {
         var resolver = new FakeResolver(new Dictionary<string, IPAddress[]>
         {
-            ["origin.example.test"] = [IPAddress.Parse("203.0.113.10")]
+            ["origin.example.test"] = [IPAddress.Parse("1.1.1.1")]
         });
         var policy = new UpstreamEgressPolicy(new UpstreamEgressOptions(["origin.example.test"], [443], ["https"], false), resolver);
 
@@ -66,7 +66,7 @@ public sealed class UpstreamEgressPolicyTests
     {
         var resolver = new FakeResolver(new Dictionary<string, IPAddress[]>
         {
-            ["origin.example.test"] = [IPAddress.Parse("203.0.113.10")]
+            ["origin.example.test"] = [IPAddress.Parse("1.1.1.1")]
         });
         var policy = new UpstreamEgressPolicy(new UpstreamEgressOptions(["origin.example.test"], [443], ["https"], false), resolver);
 
@@ -90,6 +90,20 @@ public sealed class UpstreamEgressPolicyTests
         Assert.False(result.Allowed);
         Assert.Equal("port_not_allowed", result.ReasonCode);
         Assert.Empty(resolver.RequestedHosts);
+    }
+
+    [Theory]
+    [InlineData("198.18.0.1")]
+    [InlineData("0.1.2.3")]
+    [InlineData("192.0.2.1")]
+    public async Task Connection_boundary_rejects_special_use_ipv4_ranges(string address)
+    {
+        var policy = new UpstreamEgressPolicy(new UpstreamEgressOptions([address], [443], ["https"], true), new FakeResolver([]));
+
+        var result = await policy.CheckConnectionAsync(address, 443);
+
+        Assert.False(result.Allowed);
+        Assert.Equal("special_use_target", result.ReasonCode);
     }
 
     private sealed class FakeResolver(Dictionary<string, IPAddress[]> answers) : IUpstreamAddressResolver

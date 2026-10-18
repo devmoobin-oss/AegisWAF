@@ -107,6 +107,7 @@ internal sealed class UpstreamEgressPolicy(UpstreamEgressOptions options, IUpstr
         {
             var b = address.GetAddressBytes();
             var value = (uint)(b[0] << 24 | b[1] << 16 | b[2] << 8 | b[3]);
+                if (IsSpecialUseIpv4(value)) return new(false, "special_use_target", address.ToString());
             var privateTarget = (value & 0xff000000) == 0x0a000000 || (value & 0xfff00000) == 0xac100000 ||
                 (value & 0xffff0000) == 0xc0a80000 || (value & 0xffff0000) == 0xa9fe0000 ||
                 (value & 0xffc00000) == 0x64400000 || (value & 0xff000000) >= 0xe0000000 || value == 0;
@@ -120,6 +121,15 @@ internal sealed class UpstreamEgressPolicy(UpstreamEgressOptions options, IUpstr
         }
         return new(true, "allowed", address.ToString());
     }
+
+    private static bool IsSpecialUseIpv4(uint value) =>
+        value < 0x01000000 || // 0.0.0.0/8
+        (value & 0xffffff00) == 0xc0000000 || // 192.0.0.0/24
+        (value & 0xffffff00) == 0xc0000200 || // TEST-NET-1
+        (value & 0xffff0000) == 0xc6120000 || // benchmark 198.18.0.0/15
+        (value & 0xffffff00) == 0xc6336400 || // TEST-NET-2
+        (value & 0xffffff00) == 0xcb007100 || // TEST-NET-3
+        (value & 0xffffff00) == 0xc0586300; // deprecated 6to4 relay anycast
 }
 
 internal static class EgressConnectionGuard

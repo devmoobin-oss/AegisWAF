@@ -142,4 +142,15 @@ public sealed class ProductionReadinessPolicyTests
         Assert.Contains(errors, e => e.Contains("AllowedHosts", StringComparison.Ordinal));
         Assert.Contains(errors, e => e.Contains("AllowedSchemes", StringComparison.Ordinal));
     }
+
+    [Fact]
+    public void Production_rejects_dangerous_tls_certificate_bypass()
+    {
+        var values = SecureValues();
+        values["ReverseProxy:Clusters:app:HttpClient:DangerousAcceptAnyServerCertificate"] = "true";
+
+        var errors = ProductionReadinessPolicy.Validate(Config(values));
+
+        Assert.Contains(errors, e => e.Contains("DangerousAcceptAnyServerCertificate", StringComparison.Ordinal));
+    }
 }

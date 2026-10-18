@@ -79,4 +79,31 @@ public sealed class SiteProxyConfigurationTests
         Assert.Equal("HealthyAndUnknown", values["ReverseProxy:Clusters:site-site-a:HealthCheck:AvailableDestinationsPolicy"]);
         Assert.Equal("true", values["ReverseProxy:Clusters:site-site-a:HealthCheck:Passive:Enabled"]);
     }
+
+    [Fact]
+    public void Disables_every_host_entry_on_legacy_routes()
+    {
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["ReverseProxy:Routes:legacy:Match:Hosts:0"] = "old.example.com",
+            ["ReverseProxy:Routes:legacy:Match:Hosts:1"] = "other.example.com"
+        }).Build();
+
+        var values = SiteProxyConfiguration.Build(new SiteConfigurationSnapshot([], false), config);
+
+        Assert.Equal("__aegiswaf_legacy_route_disabled__", values["ReverseProxy:Routes:legacy:Match:Hosts:0"]);
+        Assert.Equal("__aegiswaf_legacy_route_disabled__", values["ReverseProxy:Routes:legacy:Match:Hosts:1"]);
+    }
+
+    [Fact]
+    public void Generated_site_pipeline_enables_load_balancing()
+    {
+        var site = new GatewaySite("site-a", true, ["app-a.example.com"], ["/"],
+            [new SiteUpstream("primary", new Uri("https://origin.example.com/"))], "default",
+            new SiteRateLimitPolicy(), new SiteEgressPolicy(["origin.example.com"], [443], ["https"]));
+
+        var values = SiteProxyConfiguration.Build(new SiteConfigurationSnapshot([site], false));
+
+        Assert.Equal("PowerOfTwoChoices", values["ReverseProxy:Clusters:site-site-a:LoadBalancingPolicy"]);
+    }
 }
