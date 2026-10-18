@@ -60,7 +60,7 @@ sealed class SlidingRateLimiter : IDisposable
     private readonly int _globalLimit;
     private readonly TimeSpan _window;
     private readonly int _maxEntries;
-    private readonly Bucket _global = new();
+    private readonly ConcurrentDictionary<string, Bucket> _globalBuckets = new(StringComparer.Ordinal);
     private readonly Timer _cleanupTimer;
     private readonly PostgresRateLimiter? _shared;
 
@@ -78,12 +78,13 @@ sealed class SlidingRateLimiter : IDisposable
 
     public bool Allow(string ip) => Allow("global", ip, "/");
 
-    public bool Allow(string siteId, string ip, string route, int? limitOverride = null, int? globalLimitOverride = null)
+    public bool Allow(string siteId, string ip, string route, int? limitOverride = null, int? globalLimitOverride = null, TimeSpan? windowOverride = null)
     {
         var limit = Math.Clamp(limitOverride ?? _limit, 1, 1_000_000);
         var globalLimit = Math.Clamp(globalLimitOverride ?? _globalLimit, 0, 10_000_000);
+        var window = windowOverride ?? _window;
         var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        var cutoff = now - (long)_window.TotalMilliseconds;
+        var cutoff = now - (long)window.TotalMilliseconds;
         var key = RateLimitKey.Build(siteId, route, ip);
         if (!_buckets.ContainsKey(key) && _buckets.Count >= _maxEntries)
         {
@@ -99,11 +100,12 @@ sealed class SlidingRateLimiter : IDisposable
             if (bucket.Hits.Count >= limit) return false;
             if (globalLimit > 0)
             {
-                lock (_global.Gate)
+                var global = _globalBuckets.GetOrAdd(RateLimitKey.Site(siteId), _ => new Bucket());
+                lock (global.Gate)
                 {
-                    while (_global.Hits.Count > 0 && _global.Hits.Peek() <= cutoff) _global.Hits.Dequeue();
-                    if (_global.Hits.Count >= globalLimit) return false;
-                    _global.Hits.Enqueue(now);
+                    while (global.Hits.Count > 0 && global.Hits.Peek() <= cutoff) global.Hits.Dequeue();
+                    if (global.Hits.Count >= globalLimit) return false;
+                    global.Hits.Enqueue(now);
                 }
             }
             bucket.Hits.Enqueue(now);
@@ -116,17 +118,25 @@ sealed class SlidingRateLimiter : IDisposable
     public Task<bool> AllowAsync(string ip, string route, CancellationToken ct = default) => AllowAsync("global", ip, route, ct);
 
     public Task<bool> AllowAsync(string siteId, string ip, string route, CancellationToken ct = default) =>
-        _shared is null ? Task.FromResult(Allow(siteId, ip, route)) : _shared.AllowAsync(siteId, ip, route, ct);
+        _shared is null ? Task.FromResult(Allow(siteId, ip, route)) : _shared.AllowAsync(siteId, ip, route, _limit, _globalLimit, null, ct);
 
     public Task<bool> AllowAsync(string siteId, string ip, string route, SiteRateLimitPolicy? policy, CancellationToken ct = default) =>
         _shared is null
-            ? Task.FromResult(Allow(siteId, ip, route, policy?.Requests, policy?.GlobalRequests))
-            : _shared.AllowAsync(siteId, ip, route, policy?.Requests ?? _limit, policy?.GlobalRequests ?? _globalLimit, ct);
+            ? Task.FromResult(Allow(siteId, ip, route, policy?.Requests, policy?.GlobalRequests,
+                policy is null ? null : TimeSpan.FromSeconds(Math.Clamp(policy.WindowSeconds, 1, 3600))))
+            : _shared.AllowAsync(siteId, ip, route, policy?.Requests ?? _limit, policy?.GlobalRequests ?? _globalLimit,
+                policy is null ? null : TimeSpan.FromSeconds(Math.Clamp(policy.WindowSeconds, 1, 3600)), ct);
 
     private void PurgeExpired(long cutoff)
     {
-        lock (_global.Gate)
-            while (_global.Hits.Count > 0 && _global.Hits.Peek() <= cutoff) _global.Hits.Dequeue();
+        foreach (var global in _globalBuckets)
+        {
+            lock (global.Value.Gate)
+            {
+                while (global.Value.Hits.Count > 0 && global.Value.Hits.Peek() <= cutoff) global.Value.Hits.Dequeue();
+                if (global.Value.Hits.Count == 0) _globalBuckets.TryRemove(global.Key, out _);
+            }
+        }
         foreach (var entry in _buckets)
         {
             lock (entry.Value.Gate)
@@ -149,12 +159,12 @@ sealed class PostgresRateLimiter(string connectionString, int perIpLimit, int gl
     public Task<bool> AllowAsync(string ip, CancellationToken ct) => AllowAsync("global", ip, "/", ct);
 
     public async Task<bool> AllowAsync(string ip, string route, CancellationToken ct)
-        => await AllowAsync("global", ip, route, perIpLimit, globalLimit, ct);
+        => await AllowAsync("global", ip, route, perIpLimit, globalLimit, null, ct);
 
     public async Task<bool> AllowAsync(string siteId, string ip, string route, CancellationToken ct)
-        => await AllowAsync(siteId, ip, route, perIpLimit, globalLimit, ct);
+        => await AllowAsync(siteId, ip, route, perIpLimit, globalLimit, null, ct);
 
-    public async Task<bool> AllowAsync(string siteId, string ip, string route, int siteLimit, int siteGlobalLimit, CancellationToken ct)
+    public async Task<bool> AllowAsync(string siteId, string ip, string route, int siteLimit, int siteGlobalLimit, TimeSpan? windowOverride, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(connectionString)) return false;
         if (DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() < Interlocked.Read(ref _openUntilMs)) return false;
@@ -164,10 +174,11 @@ sealed class PostgresRateLimiter(string connectionString, int perIpLimit, int gl
             await db.OpenAsync(ct);
             await using var tx = await db.BeginTransactionAsync(ct);
             var boundedSite = RateLimitKey.Site(siteId);
-            if (siteGlobalLimit > 0 && !await ConsumeAsync(db, tx, boundedSite + ":global", siteGlobalLimit, ct)) return false;
+            var activeWindow = windowOverride ?? window;
+            if (siteGlobalLimit > 0 && !await ConsumeAsync(db, tx, boundedSite + ":global", siteGlobalLimit, activeWindow, ct)) return false;
             var siteKey = RateLimitKey.Site(siteId);
-            if (!await ConsumeAsync(db, tx, siteKey + ":ip:" + RateLimitKey.Bounded(ip, 128), siteLimit, ct)) return false;
-            if (!await ConsumeAsync(db, tx, siteKey + ":route:" + RateLimitKey.Bounded(route, 128) + ":ip:" + RateLimitKey.Bounded(ip, 128), siteLimit, ct)) return false;
+            if (!await ConsumeAsync(db, tx, siteKey + ":ip:" + RateLimitKey.Bounded(ip, 128), siteLimit, activeWindow, ct)) return false;
+            if (!await ConsumeAsync(db, tx, siteKey + ":route:" + RateLimitKey.Bounded(route, 128) + ":ip:" + RateLimitKey.Bounded(ip, 128), siteLimit, activeWindow, ct)) return false;
             await tx.CommitAsync(ct);
             Interlocked.Exchange(ref _failures, 0);
             return true;
@@ -182,7 +193,7 @@ sealed class PostgresRateLimiter(string connectionString, int perIpLimit, int gl
         }
     }
 
-    private async Task<bool> ConsumeAsync(NpgsqlConnection db, NpgsqlTransaction tx, string key, int limit, CancellationToken ct)
+    private async Task<bool> ConsumeAsync(NpgsqlConnection db, NpgsqlTransaction tx, string key, int limit, TimeSpan activeWindow, CancellationToken ct)
     {
         const string sql = """
             INSERT INTO waf_rate_limit_buckets(bucket_key, window_started, request_count, updated_at)
@@ -195,7 +206,7 @@ sealed class PostgresRateLimiter(string connectionString, int perIpLimit, int gl
             """;
         await using var cmd = new NpgsqlCommand(sql, db, tx);
         cmd.Parameters.AddWithValue("key", key);
-        cmd.Parameters.AddWithValue("window", window);
+        cmd.Parameters.AddWithValue("window", activeWindow);
         var count = (int)(await cmd.ExecuteScalarAsync(ct) ?? limit + 1);
         return count <= limit;
     }

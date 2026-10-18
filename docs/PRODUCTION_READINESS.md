@@ -13,6 +13,7 @@
 - New audit rows use `prev_hash` and `entry_hash` SHA-256 chaining.
 - Analysts can query `/api/audit/integrity` to detect a broken chain.
 - `/health` is liveness-only; `/ready` verifies PostgreSQL connectivity before traffic should be admitted.
+- `/ready` also verifies every enabled explicit Site has a YARP cluster with at least one destination that is not marked unhealthy by either active or passive health checks; unknown destinations remain eligible during initial probing.
 - Compressed request bodies and protocol upgrades are denied by default because the WAF cannot inspect them safely; enable `Waf:AllowProtocolUpgrade` only for a dedicated, tested route.
 - An opt-in fail-closed deployment gate is available with `Waf:Deployment:Enforce=true`; it rejects auto-migration, superuser database roles, unsafe methods, unsafe upgrades, missing rate-limit bounds, and wildcard hosts for remote administration.
 - SSRF filtering blocks loopback, RFC1918/link-local, metadata hostnames, IPv4 CGNAT, IPv4 multicast/reserved ranges, IPv6 Unique Local and IPv6 multicast targets, including encoded and non-canonical IPv4 forms.
@@ -36,6 +37,7 @@
 - gzip, deflate, and Brotli request bodies are decompressed only within compressed-size, decompressed-size, expansion-ratio, and parser budgets; unknown encodings fail closed.
 - Production upstreams require explicit HTTPS host/port/scheme allowlists and are checked against DNS-resolved private, loopback, metadata, multicast, reserved, and link-local targets before proxying.
 - Generated Multi-Site YARP clusters enable active `/health` probes and passive failure tracking; destination selection uses `HealthyAndUnknown` so unhealthy upstreams are removed while unknown destinations remain eligible until the first probe completes.
+- `/api/sites` projects runtime YARP destination health, so the Desktop view no longer treats an unprobed destination as healthy by default.
 - Generated Multi-Site clusters explicitly enable YARP load balancing with `PowerOfTwoChoices`; configured upstream weights remain part of the Site model, while YARP health state controls availability.
 - Under `Waf:Deployment:Enforce=true`, YARP's outbound `SocketsHttpHandler` connection callback rechecks the exact destination host/port and current DNS answer immediately before opening a socket, then connects to the validated address rather than resolving again after validation. This is defense-in-depth and does not replace infrastructure egress ACLs.
 - Production startup rejects `DangerousAcceptAnyServerCertificate` and the egress classifier rejects special-use IPv4 ranges including unspecified, documentation, benchmark, and deprecated relay ranges.

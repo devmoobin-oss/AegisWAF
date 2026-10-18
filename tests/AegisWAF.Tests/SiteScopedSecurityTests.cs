@@ -31,6 +31,25 @@ public sealed class SiteScopedSecurityTests
     }
 
     [Fact]
+    public async Task Site_rate_limit_uses_the_site_window_override()
+    {
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Waf:RateLimit:Requests"] = "10",
+            ["Waf:RateLimit:GlobalRequests"] = "0",
+            ["Waf:RateLimit:WindowSeconds"] = "60",
+            ["Waf:RateLimit:MaxEntries"] = "100"
+        }).Build();
+        using var limiter = new SlidingRateLimiter(config);
+        var policy = new SiteRateLimitPolicy(Requests: 1, WindowSeconds: 1, GlobalRequests: 0);
+
+        Assert.True(await limiter.AllowAsync("site-short", "198.51.100.9", "/api", policy, CancellationToken.None));
+        Assert.False(await limiter.AllowAsync("site-short", "198.51.100.9", "/api", policy, CancellationToken.None));
+        await Task.Delay(1_100);
+        Assert.True(await limiter.AllowAsync("site-short", "198.51.100.9", "/api", policy, CancellationToken.None));
+    }
+
+    [Fact]
     public void Site_egress_policy_only_allows_the_site_host_and_port()
     {
         var site = new GatewaySite("site-a", true, ["app-a.example.com"], ["/"],

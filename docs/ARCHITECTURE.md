@@ -48,7 +48,7 @@ The v0.6 code base is one ASP.NET Core project (`src/AegisWAF.Gateway`). The mas
 
 ## Multi-Site request model
 
-`SiteConfigurationLoader` validates and normalizes Site definitions before services start. `SiteMatcher` resolves exact Host plus longest path prefix; `SiteContext` is attached before WAF inspection. SiteId is included in rate-limit keys, egress policy and security events. Generated YARP clusters use active/passive health checks, and production outbound connections pass through a bounded egress connection guard before socket creation. Legacy `ReverseProxy` configuration remains supported as `default-site` when Production enforcement is disabled.
+`SiteConfigurationLoader` validates and normalizes Site definitions before services start. `SiteMatcher` resolves exact Host plus longest path prefix; `SiteContext` is attached before WAF inspection. SiteId is included in rate-limit keys, egress policy and security events. Generated YARP clusters use active/passive health checks, and production outbound connections pass through a bounded egress connection guard before socket creation. `/api/sites` and `/ready` read YARP runtime destination health. Legacy `ReverseProxy` configuration remains supported as `default-site` when Production enforcement is disabled.
 
 ## Target architecture (not yet built)
 Dedicated admin listener → project split → per-site policies (v0.8) → normalising rule engine with anomaly scoring (v0.9) → batched/partitioned event store, SignalR, SIEM (v0.10) → Redis (v0.11). See `DEVELOPMENT_ROADMAP.md`.

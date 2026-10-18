@@ -9,6 +9,7 @@ using Npgsql;
 using AegisWAF.Gateway.Auth;
 using AegisWAF.Gateway.Infrastructure;
 using AegisWAF.Client;
+using Yarp.ReverseProxy;
 using AegisWAF.Gateway.Sites;
 
 namespace AegisWAF.Gateway;
@@ -93,7 +94,8 @@ public static class GatewayApp
             handler.ConnectCallback = (socketContext, ct) => EgressConnectionGuard.ConnectAsync(policy, socketContext.DnsEndPoint, ct);
         });
     }
-    builder.Services.AddHealthChecks().AddCheck<PostgresHealthCheck>("postgres", tags: ["ready"]);
+    builder.Services.AddHealthChecks().AddCheck<PostgresHealthCheck>("postgres", tags: ["ready"])
+        .AddCheck<SiteRoutingHealthCheck>("sites", tags: ["ready"]);
     builder.Services.AddSingleton<SecurityRules>();
     builder.Services.AddSingleton<ResponseInspector>();
     builder.Services.AddHostedService<CustomRuleLoader>();
@@ -181,23 +183,24 @@ public static class GatewayApp
         code = x.Code, title = x.Title, coverage = x.Coverage.ToString(), description = x.Description,
         limitations = x.Limitations, ruleIds = OwaspCatalog.RuleIdsForCode(x.Code), officialUrl = OwaspCatalog.OfficialUrl
     }))).Require(Roles.Viewer);
-    app.MapGet("/api/sites", (SiteRegistry registry, SiteHealthRegistry health) => Results.Ok(registry.Current.Sites.Select(site => new
+    app.MapGet("/api/sites", (SiteRegistry registry, SiteHealthRegistry legacyHealth, IProxyStateLookup proxy) =>
     {
-        siteId = site.Id,
-        enabled = site.Enabled,
-        hostnames = site.Hostnames,
-        pathPrefixes = site.PathPrefixes,
-        wafPolicy = site.WafPolicy,
-        health = site.Upstreams.Count == 0 ? "invalid" : site.Upstreams.All(x => health.Get(site.Id, x.Id)?.Healthy == false) ? "unhealthy" : "healthy",
-        upstreams = site.Upstreams.Select(upstream => new
+        var result = registry.Current.Sites.Select(site =>
         {
-            id = upstream.Id,
-            scheme = upstream.Address.Scheme,
-            port = upstream.Address.Port,
-            weight = upstream.Weight,
-            health = health.Get(site.Id, upstream.Id)?.Healthy == false ? "unhealthy" : "healthy"
-        })
-    }))).Require(Roles.Viewer);
+            proxy.TryGetCluster("site-" + site.Id, out var cluster);
+            var upstreams = site.Upstreams.Select(upstream =>
+            {
+                var yarp = cluster is null ? null : cluster.DestinationsState.AllDestinations.FirstOrDefault(x => x.DestinationId == upstream.Id);
+                var status = yarp is null
+                    ? legacyHealth.Get(site.Id, upstream.Id)?.Healthy == false ? "unhealthy" : "unknown"
+                    : SiteProxyHealth.Status(yarp.Health.Active.ToString(), yarp.Health.Passive.ToString());
+                return new { id = upstream.Id, scheme = upstream.Address.Scheme, port = upstream.Address.Port, weight = upstream.Weight, health = status };
+            }).ToArray();
+            var siteHealth = upstreams.Length == 0 ? "invalid" : upstreams.All(x => x.health == "unhealthy") ? "unhealthy" : upstreams.Any(x => x.health == "healthy") ? "healthy" : "unknown";
+            return new { siteId = site.Id, enabled = site.Enabled, hostnames = site.Hostnames, pathPrefixes = site.PathPrefixes, wafPolicy = site.WafPolicy, health = siteHealth, upstreams };
+        });
+        return Results.Ok(result);
+    }).Require(Roles.Viewer);
     app.MapAuth();
     app.MapGet("/api/ip-policies", (IpAccessPolicy policies) => Results.Ok(policies.List())).Require(Roles.Viewer);
     app.MapPut("/api/ip-policies", async (IpPolicyInput input, IpAccessPolicy policies, IConfiguration cfg, HttpContext ctx, CancellationToken ct) =>

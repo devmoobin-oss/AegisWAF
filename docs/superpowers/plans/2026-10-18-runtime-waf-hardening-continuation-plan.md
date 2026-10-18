@@ -26,6 +26,14 @@ Add RED tests for the outbound client factory/policy bridge: a destination must 
 
 Add RED tests for production binding/default safety, health readiness, and safe egress failure behavior. Update production readiness/protection documentation and the ledger. Run focused tests, full suite, Gateway/Desktop Release builds, and diff checks. Record remaining gaps and percentage progress by recommendation category.
 
+### Task 4 — YARP health as the runtime source of truth
+
+Add tests for active/passive health projection and unknown/unhealthy availability semantics. Project YARP `IProxyStateLookup` state into `/api/sites` and add a Site routing readiness check without treating unknown destinations as healthy.
+
+### Task 5 — per-Site rate-limit windows
+
+Add a regression test proving `SiteRateLimitPolicy.WindowSeconds` is honored in memory. Apply the same window to the PostgreSQL path and scope memory global buckets by Site.
+
 ## Verification
 
 - Every task starts with a failing test and ends with a focused passing run.
