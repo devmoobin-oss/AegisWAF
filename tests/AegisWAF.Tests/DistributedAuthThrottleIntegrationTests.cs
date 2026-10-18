@@ -79,4 +79,42 @@ public sealed class DistributedAuthThrottleIntegrationTests(GatewayFixture fx)
         Assert.Equal(HttpStatusCode.Unauthorized, thirdResponse.StatusCode);
         Assert.True(after > before, $"Expected shared throttle audit entry; before={before}, after={after}");
     }
+
+    [Fact]
+    public async Task Real_gateway_instances_share_site_rate_limit_state_over_postgres()
+    {
+        var firstUrl = FreeUrl();
+        var secondUrl = FreeUrl();
+        var upstream = "http://127.0.0.1:9/";
+        var overrides = new Dictionary<string, string?>
+        {
+            ["AllowedHosts"] = "*",
+            ["Waf:RateLimit:Store"] = "postgres",
+            ["Waf:RateLimit:MaxEntries"] = "10000",
+            ["Sites:rate:Enabled"] = "true",
+            ["Sites:rate:Hostnames:0"] = "rate.test",
+            ["Sites:rate:PathPrefixes:0"] = "/",
+            ["Sites:rate:RateLimit:Requests"] = "2",
+            ["Sites:rate:RateLimit:WindowSeconds"] = "60",
+            ["Sites:rate:RateLimit:GlobalRequests"] = "10000",
+            ["Sites:rate:Upstreams:one:Address"] = upstream
+        };
+        await using var first = new EmbeddedGateway();
+        await using var second = new EmbeddedGateway();
+        await first.StartAsync(new EmbeddedGatewayOptions(firstUrl, fx.ConnectionString, null, null, null, overrides));
+        await second.StartAsync(new EmbeddedGatewayOptions(secondUrl, fx.ConnectionString, null, null, null, overrides));
+
+        using var firstClient = new HttpClient { BaseAddress = firstUrl };
+        using var secondClient = new HttpClient { BaseAddress = secondUrl };
+        using var firstRequest = new HttpRequestMessage(HttpMethod.Get, "/rate-test") { Headers = { Host = "rate.test" } };
+        using var secondRequest = new HttpRequestMessage(HttpMethod.Get, "/rate-test") { Headers = { Host = "rate.test" } };
+        using var thirdRequest = new HttpRequestMessage(HttpMethod.Get, "/rate-test") { Headers = { Host = "rate.test" } };
+        using var firstResponse = await firstClient.SendAsync(firstRequest);
+        using var secondResponse = await secondClient.SendAsync(secondRequest);
+        using var thirdResponse = await firstClient.SendAsync(thirdRequest);
+
+        Assert.NotEqual(HttpStatusCode.TooManyRequests, firstResponse.StatusCode);
+        Assert.NotEqual(HttpStatusCode.TooManyRequests, secondResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.TooManyRequests, thirdResponse.StatusCode);
+    }
 }

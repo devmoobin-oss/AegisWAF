@@ -201,22 +201,22 @@ sealed class PostgresRateLimiter(string connectionString, int perIpLimit, int gl
 
     private async Task<bool> EnsureCapacityAsync(NpgsqlConnection db, NpgsqlTransaction tx, IReadOnlyList<string> keys, TimeSpan activeWindow, CancellationToken ct)
     {
-        const string sql = """
+        const string lockAndCleanup = """
             SELECT pg_advisory_xact_lock(hashtextextended('aegiswaf:rate-limit-capacity', 0));
             DELETE FROM waf_rate_limit_buckets
               WHERE updated_at < now() - @retention;
+            """;
+        const string countsSql = """
             SELECT
                 COUNT(*)::bigint AS total_rows,
                 COUNT(*) FILTER (WHERE bucket_key = ANY(@keys))::bigint AS existing_rows
               FROM waf_rate_limit_buckets;
             """;
-        var lockAndCleanup = sql[..sql.LastIndexOf("SELECT\n                COUNT", StringComparison.Ordinal)];
         await using (var cleanup = new NpgsqlCommand(lockAndCleanup, db, tx))
         {
             cleanup.Parameters.AddWithValue("retention", activeWindow > window ? activeWindow : window);
             await cleanup.ExecuteNonQueryAsync(ct);
         }
-        var countsSql = sql[sql.LastIndexOf("SELECT\n                COUNT", StringComparison.Ordinal)..];
         await using var cmd = new NpgsqlCommand(countsSql, db, tx);
         cmd.Parameters.AddWithValue("keys", keys.ToArray());
         await using var reader = await cmd.ExecuteReaderAsync(ct);
