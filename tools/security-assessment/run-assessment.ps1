@@ -88,7 +88,7 @@ function Run-External([string]$name, [string]$toolName, [string[]]$arguments, [s
     $watch.Stop()
     if ($outputFile) { Set-Content -LiteralPath $outputFile -Value $captured -Encoding UTF8 }
     $status = if ($exitCode -eq 0) { 'pass' }
-        elseif ($ClassifyInfrastructureFailure -and $captured -match 'NU1301|SSL connection could not be established|No credentials are available in the security package') { 'unavailable' }
+        elseif ($ClassifyInfrastructureFailure -and $captured -match 'NU1301|SSL connection could not be established|No credentials are available in the security package|MSB3027|MSB3021|being used by another process') { 'unavailable' }
         else { 'fail' }
     Add-Result $name $status $toolName $commandText $exitCode $captured $watch.Elapsed.TotalSeconds
 }
@@ -96,7 +96,7 @@ function Run-External([string]$name, [string]$toolName, [string[]]$arguments, [s
 if ($SkipTests) {
     Add-Result 'dotnet tests' 'not_run' 'dotnet' 'skipped by parameter' -1 'Skipped by -SkipTests.' 0
 } else {
-    Run-External 'dotnet tests' 'dotnet' @('test', (Join-Path $RepoRoot 'tests\AegisWAF.Tests\AegisWAF.Tests.csproj'), '--no-restore', '--logger', 'console;verbosity=minimal')
+    Run-External 'dotnet tests' 'dotnet' @('test', (Join-Path $RepoRoot 'tests\AegisWAF.Tests\AegisWAF.Tests.csproj'), '--no-restore', '--logger', 'console;verbosity=minimal') -ClassifyInfrastructureFailure
 }
 
 if ($SkipDependencyScan) {
