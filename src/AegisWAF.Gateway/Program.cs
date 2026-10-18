@@ -327,33 +327,49 @@ sealed class SecurityRules
     }
 
     /// <summary>Runs custom rules then built-in rules against every canonical form of <paramref name="input"/>.</summary>
-    public string? Match(string input, bool checkOversize = true)
+    public string? Match(string input, bool checkOversize = true, InspectionBudget? budget = null)
     {
         if (checkOversize && input.Length > 8192) return "Oversized URL";
+        if (budget?.Expired == true) return "Inspection Timeout";
         foreach (var variants in Normalizer.Windows(input))
         {
-            var result = MatchVariants(variants);
+            var result = MatchVariants(variants, budget);
             if (result is not null) return result;
         }
         return null;
     }
 
-    private string? MatchVariants(IReadOnlyList<string> variants)
+    private string? MatchVariants(IReadOnlyList<string> variants, InspectionBudget? budget)
     {
         foreach (var entry in _custom.OrderBy(x => x.Value.Input.Priority))
         {
             if (!entry.Value.Input.Enabled) continue;
-            try { foreach (var v in variants) if (entry.Value.Pattern.IsMatch(v)) return "Custom: " + entry.Key; }
+            try
+            {
+                foreach (var v in variants)
+                {
+                    if (budget?.Expired == true) return "Inspection Timeout";
+                    if (entry.Value.Pattern.IsMatch(v)) return "Custom: " + entry.Key;
+                }
+            }
             catch (RegexMatchTimeoutException) { return "Inspection Timeout"; }
         }
         foreach (var rule in _rules)
         {
             if (!rule.Enabled) continue;
-            try { foreach (var v in variants) if (rule.Pattern.IsMatch(v)) return rule.Category; }
+            try
+            {
+                foreach (var v in variants)
+                {
+                    if (budget?.Expired == true) return "Inspection Timeout";
+                    if (rule.Pattern.IsMatch(v)) return rule.Category;
+                }
+            }
             catch (RegexMatchTimeoutException) { return "Inspection Timeout"; }
         }
         if (_anomaly.Enabled)
         {
+            if (budget?.Expired == true) return "Inspection Timeout";
             try { if (_anomaly.Score(variants) >= _anomaly.Threshold) return "Anomaly Score"; }
             catch (RegexMatchTimeoutException) { return "Inspection Timeout"; }
         }

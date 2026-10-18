@@ -56,6 +56,12 @@ public class EngineUpgradeTests
         Assert.Equal("XSS", Rules().Match(payload, checkOversize: false));
     }
 
+    [Fact]
+    public void Rule_engine_fails_closed_when_inspection_budget_is_expired()
+    {
+        Assert.Equal("Inspection Timeout", Rules().Match("ordinary input", checkOversize: false, new InspectionBudget(0)));
+    }
+
     // ---- New signatures: NoSQL / XXE / SSTI ----
 
     [Theory]

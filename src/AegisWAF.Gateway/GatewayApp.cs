@@ -322,12 +322,12 @@ public static class GatewayApp
         var siteContext = SiteContext.Get(ctx);
         var watch = Stopwatch.StartNew();
         string? threat = null;
-        async Task<string?> InspectValue(string value, bool checkOversize = false)
+        async Task<string?> InspectValue(string value, bool checkOversize = false, InspectionBudget? budget = null)
         {
             var ssrf = await SsrfGuard.CheckAsync(value,
                 ctx.RequestServices.GetRequiredService<IConfiguration>().GetValue("Waf:Ssrf:ResolveDns", false),
                 ctx.RequestAborted);
-            return ssrf.Blocked ? ssrf.Reason : rules.Match(value, checkOversize);
+            return ssrf.Blocked ? ssrf.Reason : rules.Match(value, checkOversize, budget);
         }
         if (policies.Check(ip) == "block") threat = "IP Blocklist";
         else if (!await limiter.AllowAsync(siteContext?.Site.Id ?? "legacy", ip, ctx.Request.Path.Value ?? "/", siteContext?.Site.RateLimit, ctx.RequestAborted)) threat = "Rate Limit";
@@ -381,7 +381,7 @@ public static class GatewayApp
                                 try { body = InspectionTextDecoder.Decode(decoded.Bytes); }
                                 catch (DecoderFallbackException) { threat = "Malformed Structured Body"; }
                                 if (threat is null && budget.Expired) threat = "Inspection Timeout";
-                                if (threat is null) threat = await InspectValue(body);
+                                if (threat is null) threat = await InspectValue(body, budget: budget);
                                 if (threat is null && budget.Expired) threat = "Inspection Timeout";
                                 if (threat is null)
                                 {
@@ -394,7 +394,7 @@ public static class GatewayApp
                                     else
                                         foreach (var value in parsed.Values)
                                         {
-                                            threat = await InspectValue(value.Text);
+                                            threat = await InspectValue(value.Text, budget: budget);
                                             if (threat is not null) break;
                                             if (budget.Expired) { threat = "Inspection Timeout"; break; }
                                         }

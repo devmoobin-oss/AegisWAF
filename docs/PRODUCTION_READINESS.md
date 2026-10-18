@@ -43,6 +43,7 @@
 - Textual request bodies with malformed UTF-8 are rejected before parser/rule evaluation; the security/load-test harness supports explicit `Host` selection for multi-Site runs and uses the worker-scoped target URL.
 - The configured inspection timeout now covers request-body read, decoding, raw rule evaluation, structured parsing, and parsed-value evaluation; expiry fails closed with `Inspection Timeout`.
 - Large inspected values are evaluated through bounded overlapping canonical windows, so payloads after the former 65,536-character normalization cap are not silently skipped while per-window regex work remains bounded.
+- The inspection budget is propagated into windowed rule evaluation for raw and structured body values; expiration returns `Inspection Timeout` before additional windows are evaluated.
 - gzip, deflate, and Brotli request bodies are decompressed only within compressed-size, decompressed-size, expansion-ratio, and parser budgets; unknown encodings fail closed.
 - Production upstreams require explicit HTTPS host/port/scheme allowlists and are checked against DNS-resolved private, loopback, metadata, multicast, reserved, and link-local targets before proxying.
 - Generated Multi-Site YARP clusters enable active `/health` probes and the explicit `TransportFailureRate` passive policy; destination selection uses `HealthyAndUnknown` so unhealthy upstreams are removed while unknown destinations remain eligible until the first probe completes.
