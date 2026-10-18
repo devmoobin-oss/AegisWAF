@@ -35,6 +35,7 @@
 - Production enforcement bounds inspection buffers to 16 MiB for request bodies and 32 MiB for responses, preventing unsafe memory settings from creating a configuration-driven exhaustion risk.
 - Structured request inspection now extracts bounded JSON, form-urlencoded, XML, and multipart fields/metadata before rule evaluation; ordinary HTML DOCTYPE is allowed while entity/external-DTD payloads are rejected.
 - Textual request bodies with malformed UTF-8 are rejected before parser/rule evaluation; the security/load-test harness supports explicit `Host` selection for multi-Site runs and uses the worker-scoped target URL.
+- The configured inspection timeout now covers request-body read, decoding, raw rule evaluation, structured parsing, and parsed-value evaluation; expiry fails closed with `Inspection Timeout`.
 - gzip, deflate, and Brotli request bodies are decompressed only within compressed-size, decompressed-size, expansion-ratio, and parser budgets; unknown encodings fail closed.
 - Production upstreams require explicit HTTPS host/port/scheme allowlists and are checked against DNS-resolved private, loopback, metadata, multicast, reserved, and link-local targets before proxying.
 - Generated Multi-Site YARP clusters enable active `/health` probes and passive failure tracking; destination selection uses `HealthyAndUnknown` so unhealthy upstreams are removed while unknown destinations remain eligible until the first probe completes.

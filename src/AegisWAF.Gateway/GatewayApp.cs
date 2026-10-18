@@ -358,14 +358,19 @@ public static class GatewayApp
                     if (ctx.Request.ContentLength > maxRawBytes) threat = "Inspection Body Limit"; // fail closed on oversized bodies
                 else
                 {
+                        var budget = new InspectionBudget(limits.TimeoutMilliseconds);
+                        using var inspectionTimeout = CancellationTokenSource.CreateLinkedTokenSource(ctx.RequestAborted);
+                        inspectionTimeout.CancelAfter(limits.TimeoutMilliseconds);
                         ctx.Request.EnableBuffering(bufferThreshold: 32768, bufferLimit: maxRawBytes);
                     try
                     {
                             using var raw = new MemoryStream();
-                            await ctx.Request.Body.CopyToAsync(raw, ctx.RequestAborted);
+                            await ctx.Request.Body.CopyToAsync(raw, inspectionTimeout.Token);
                         ctx.Request.Body.Position = 0;
                             var decoded = RequestBodyInspector.Decode(raw.ToArray(), encoding, limits);
-                            if (!decoded.Success)
+                            if (budget.Expired)
+                                threat = "Inspection Timeout";
+                            else if (!decoded.Success)
                                 threat = decoded.ReasonCode is "compressed_limit" or "decompressed_limit" or "decompression_ratio"
                                     ? "Inspection Body Limit" : "Malformed Structured Body";
                             else
@@ -373,11 +378,15 @@ public static class GatewayApp
                                 var body = string.Empty;
                                 try { body = InspectionTextDecoder.Decode(decoded.Bytes); }
                                 catch (DecoderFallbackException) { threat = "Malformed Structured Body"; }
+                                if (threat is null && budget.Expired) threat = "Inspection Timeout";
                                 if (threat is null) threat = await InspectValue(body);
+                                if (threat is null && budget.Expired) threat = "Inspection Timeout";
                                 if (threat is null)
                                 {
                                     var parsed = StructuredPayloadParser.Parse(ctx.Request.ContentType, body, limits);
-                                    if (!parsed.Success)
+                                    if (budget.Expired)
+                                        threat = "Inspection Timeout";
+                                    else if (!parsed.Success)
                                         threat = parsed.ReasonCode is "json_limit" or "xml_limit" or "form_limit" or "multipart_limit"
                                             ? "Inspection Body Limit" : "Malformed Structured Body";
                                     else
@@ -385,10 +394,12 @@ public static class GatewayApp
                                         {
                                             threat = await InspectValue(value.Text);
                                             if (threat is not null) break;
+                                            if (budget.Expired) { threat = "Inspection Timeout"; break; }
                                         }
                                 }
                             }
                     }
+                    catch (OperationCanceledException) when (!ctx.RequestAborted.IsCancellationRequested) { threat = "Inspection Timeout"; }
                     catch (IOException) { threat = "Inspection Body Limit"; }
                     catch (InvalidDataException) { threat = "Inspection Body Limit"; }
                 }
