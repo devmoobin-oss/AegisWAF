@@ -6,6 +6,7 @@ Automated tests and load tests are evidence of implementation behavior, not inde
 
 - Run the complete .NET test suite.
 - Run `tools/security-loadtest/loadtest.ps1` against a local synthetic upstream.
+- Run `tools/security-assessment/run-assessment.ps1` to collect repeatable test, dependency, secret, SAST, SBOM, and authorized load-test status; unavailable tools and omitted targets remain non-passing statuses.
 - Run dependency vulnerability scan, secret scan, SAST, and SBOM generation where the tools are available.
 - Preserve JSON/CSV outputs with commit/build hash and configuration checksum.
 
