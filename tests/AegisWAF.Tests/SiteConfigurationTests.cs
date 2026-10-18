@@ -224,4 +224,23 @@ public sealed class SiteConfigurationTests
 
         Assert.Contains(errors, error => error.Contains("weight", StringComparison.OrdinalIgnoreCase));
     }
+
+    [Fact]
+    public void Production_rejects_private_literal_upstream_before_startup()
+    {
+        var config = Config(new Dictionary<string, string?>
+        {
+            ["Waf:Deployment:Enforce"] = "true",
+            ["Sites:site-a:Hostnames:0"] = "app.example.com",
+            ["Sites:site-a:Upstreams:primary:Address"] = "https://127.0.0.1/",
+            ["Sites:site-a:Egress:AllowedHosts:0"] = "127.0.0.1",
+            ["Sites:site-a:Egress:AllowedPorts:0"] = "443",
+            ["Sites:site-a:Egress:AllowedSchemes:0"] = "https"
+        });
+
+        var errors = SiteConfigurationValidator.Validate(config);
+
+        Assert.Contains(errors, error => error.Contains("private", StringComparison.OrdinalIgnoreCase) ||
+                                         error.Contains("loopback", StringComparison.OrdinalIgnoreCase));
+    }
 }

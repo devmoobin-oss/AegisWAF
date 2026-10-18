@@ -57,6 +57,8 @@ public static class SiteConfigurationValidator
                     errors.Add($"Site {id} upstream {upstream.Key} must not contain credentials");
                 if (enforcing && upstream.GetValue("Weight", 100) is < 1 or > 10_000)
                     errors.Add($"Site {id} upstream {upstream.Key} weight must be between 1 and 10000");
+                if (enforcing && uri is not null && IPAddress.TryParse(uri.Host, out var literal) && IsDisallowedLiteral(literal))
+                    errors.Add($"Site {id} upstream {upstream.Key} must not target a private, loopback, metadata, multicast, or special-use IP literal");
             }
 
             if (enforcing)
@@ -134,6 +136,26 @@ public static class SiteConfigurationValidator
         if (path.Length == 0 || path == "/") return "/";
         if (!path.StartsWith('/')) path = "/" + path;
         return path.TrimEnd('/');
+    }
+
+    private static bool IsDisallowedLiteral(IPAddress address)
+    {
+        if (IPAddress.IsLoopback(address) || IPAddress.Any.Equals(address) || IPAddress.IPv6Any.Equals(address)) return true;
+        if (address.IsIPv4MappedToIPv6) address = address.MapToIPv4();
+        if (address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+        {
+            var b = address.GetAddressBytes();
+            var value = (uint)(b[0] << 24 | b[1] << 16 | b[2] << 8 | b[3]);
+            return (value & 0xff000000) == 0x0a000000 ||
+                   (value & 0xfff00000) == 0xac100000 ||
+                   (value & 0xffff0000) == 0xc0a80000 ||
+                   (value & 0xffff0000) == 0xa9fe0000 ||
+                   (value & 0xffc00000) == 0x64400000 ||
+                   (value & 0xe0000000) == 0xe0000000 ||
+                   value < 0x01000000;
+        }
+        var bytes = address.GetAddressBytes();
+        return address.IsIPv6LinkLocal || address.IsIPv6SiteLocal || bytes[0] == 0xff || (bytes[0] & 0xfe) == 0xfc;
     }
 }
 

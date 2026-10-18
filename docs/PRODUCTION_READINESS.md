@@ -59,6 +59,7 @@
 - Production rejects per-Site rate limits outside bounded ranges instead of silently clamping them: requests `1..1,000,000`, window `1..3,600` seconds, and global requests `1..10,000,000`.
 - Production Site egress allowlists reject wildcard or malformed host entries and ports outside `1..65,535`; upstream coverage must still match an explicit HTTPS host/port/scheme tuple.
 - Production rejects upstream weights outside `1..10,000` instead of silently clamping them, keeping configured load-balancing/failover proportions explicit.
+- Production rejects private, loopback, metadata, multicast, and special-use IP-literal upstreams during startup validation; DNS hostnames remain subject to the bounded preflight and connection-boundary checks.
 
 ## Required deployment configuration
 
