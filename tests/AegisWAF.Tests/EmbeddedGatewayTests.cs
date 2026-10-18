@@ -133,6 +133,38 @@ public class EmbeddedGatewayTests(GatewayFixture fx)
         Assert.Equal((HttpStatusCode)421, unknownResponse.StatusCode);
     }
 
+    [Fact]
+    public async Task Real_socket_keeps_concurrent_site_routing_isolated()
+    {
+        await using var upstream = await LoopbackUpstream.StartAsync();
+        var url = FreeUrl();
+        var config = new Dictionary<string, string?>
+        {
+            ["AllowedHosts"] = "*",
+            ["Sites:alpha:Hostnames:0"] = "alpha.test",
+            ["Sites:alpha:Upstreams:one:Address"] = upstream.Url.ToString(),
+            ["Sites:beta:Hostnames:0"] = "beta.test",
+            ["Sites:beta:Upstreams:one:Address"] = upstream.Url.ToString()
+        };
+        await using var gw = new EmbeddedGateway();
+        await gw.StartAsync(new EmbeddedGatewayOptions(url, fx.ConnectionString, null, null, null, config));
+
+        using var client = new HttpClient { BaseAddress = url };
+        var requests = Enumerable.Range(0, 30).Select(async index =>
+        {
+            var host = index % 3 == 0 ? "unknown.test" : index % 2 == 0 ? "alpha.test" : "beta.test";
+            using var request = new HttpRequestMessage(HttpMethod.Get, "/concurrent/" + index);
+            request.Headers.Host = host;
+            using var response = await client.SendAsync(request);
+            return (host, response.StatusCode);
+        });
+
+        var results = await Task.WhenAll(requests);
+
+        Assert.All(results.Where(x => x.host is "alpha.test" or "beta.test"), x => Assert.Equal(HttpStatusCode.OK, x.StatusCode));
+        Assert.All(results.Where(x => x.host == "unknown.test"), x => Assert.Equal((HttpStatusCode)421, x.StatusCode));
+    }
+
     private sealed class LoopbackUpstream : IAsyncDisposable
     {
         private readonly TcpListener _listener;

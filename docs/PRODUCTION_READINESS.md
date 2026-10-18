@@ -48,6 +48,7 @@
 - `/api/sites` projects runtime YARP destination health, so the Desktop view no longer treats an unprobed destination as healthy by default.
 - Generated Multi-Site clusters explicitly enable YARP load balancing with `PowerOfTwoChoices`; configured upstream weights remain part of the Site model, while YARP health state controls availability.
 - Real-socket integration coverage verifies two configured Sites route through the embedded gateway and an unknown Host is rejected with `421 Misdirected Request`; this complements, but does not replace, external multi-instance testing.
+- Concurrent real-socket coverage sends 30 requests across two configured Sites plus an unknown Host; valid Site traffic remains `200` while unknown Host traffic remains `421`, demonstrating routing isolation under concurrency.
 - Under `Waf:Deployment:Enforce=true`, YARP's outbound `SocketsHttpHandler` connection callback rechecks the exact destination host/port and current DNS answer immediately before opening a socket, then connects to the validated address rather than resolving again after validation. This is defense-in-depth and does not replace infrastructure egress ACLs.
 - Egress DNS validation is bounded to 32 answers per hostname and fails closed with `dns_answer_limit` when a resolver returns an unexpectedly large set.
 - The egress connection guard preserves the complete validated DNS answer set and tries each validated address before failing, without resolving the hostname again after policy validation.
