@@ -50,8 +50,10 @@ internal static class StructuredPayloadParser
             switch (element.ValueKind)
             {
                 case JsonValueKind.Object:
+                    var keys = new HashSet<string>(StringComparer.Ordinal);
                     foreach (var property in element.EnumerateObject())
                     {
+                        if (!keys.Add(property.Name)) throw new PayloadLimitException("json_duplicate_key");
                         var next = path + "." + property.Name;
                         values.Add(InspectionValue.Create(next + ".key", property.Name, 65_536));
                         WalkJson(property.Value, next, depth + 1);

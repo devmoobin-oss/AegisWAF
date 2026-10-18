@@ -80,6 +80,15 @@ public sealed class StructuredPayloadParserTests
     }
 
     [Fact]
+    public void Json_parser_rejects_duplicate_object_keys_to_prevent_parser_differential()
+    {
+        var result = StructuredPayloadParser.Parse("application/json", "{\"role\":\"user\",\"role\":\"admin\"}", Limits);
+
+        Assert.False(result.Success);
+        Assert.Equal("json_duplicate_key", result.ReasonCode);
+    }
+
+    [Fact]
     public void Form_parser_rejects_malformed_percent_encoding()
     {
         var result = StructuredPayloadParser.Parse("application/x-www-form-urlencoded", "q=%ZZ", Limits);
