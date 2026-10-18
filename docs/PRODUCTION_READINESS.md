@@ -68,7 +68,7 @@
 - Distributed authentication throttle capacity checks take a transaction-scoped PostgreSQL advisory lock and count missing identity keys before insertion, preventing concurrent instances from exceeding `Auth:Throttle:MaxEntries`.
 - Real-socket integration starts two Gateway instances against one PostgreSQL database and verifies authentication throttling is shared across instances; a second test verifies Site request rate limiting returns `429` after the shared bucket is consumed across both gateways.
 - The PostgreSQL rate limiter uses separate lock/cleanup and count statements; this avoids fragile SQL string slicing and is covered by the two-Gateway regression test.
-- The current verification baseline is 306 passing tests with zero failures/skips; the assessment runner records the Git commit and source configuration SHA-256 fingerprint for each evidence run.
+- The current verification baseline is 307 passing tests with zero failures/skips; the assessment runner records the Git commit and source configuration SHA-256 fingerprint for each evidence run.
 - A safe local security/load-test harness is available at `tools/security-loadtest/loadtest.ps1`; it emits JSON/CSV latency, throughput, status, block, and error evidence without destructive payloads.
 - Multi-Site routing is configured under `Sites`; each Site has explicit hostnames, path prefixes, upstreams, rate limits and egress policy. Unknown hosts fail closed when Production enforcement is enabled.
 - `WafPolicy` resolves to an immutable per-request snapshot when a matching `Waf:Policies:<name>` section exists. A Site policy may disable built-in, scanner, anomaly or custom rule IDs for that Site only; it cannot enable a rule disabled globally. Unknown names use the global fallback in non-production compatibility mode; Production startup rejects undefined names.
@@ -144,7 +144,7 @@ The Desktop Site Manager is read-only for the active runtime configuration and i
 
 The PostgreSQL route limiter is fail-closed and bounded for long-running deployments: each transaction takes a database advisory lock for the shared capacity check, removes expired bucket rows, and rejects new bucket identities when `Waf:RateLimit:MaxEntries` would be exceeded. Existing identities can continue to be evaluated without allowing unbounded bucket growth. Validate the configured cap against expected Site × route × client cardinality before production rollout.
 - SIEM routing and alert policy configuration for the `aegiswaf.audit_integrity_failure` event.
-- WebSocket/Upgrade regression tests and a full external DNS-rebinding assessment between validation and connection establishment.
+- Full external DNS-rebinding assessment between validation and connection establishment; local real-socket coverage now verifies a valid WebSocket upgrade is rejected before proxying unless explicitly enabled for a dedicated route.
 - Continuous SAST/secret scanning, independent load-test review and external penetration testing. Deterministic fuzz regression coverage and a local load-test harness are included; external evidence is still pending.
 - A least-privilege PostgreSQL deployment account instead of a superuser.
 - Set `Database:RequireLeastPrivilege=true` in Production; startup then fails closed when the database role is a superuser.

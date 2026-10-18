@@ -77,6 +77,24 @@ public class EmbeddedGatewayTests(GatewayFixture fx)
     }
 
     [Fact]
+    public async Task Real_socket_rejects_protocol_upgrade_before_proxying()
+    {
+        var url = FreeUrl();
+        await using var gw = new EmbeddedGateway();
+        await gw.StartAsync(new EmbeddedGatewayOptions(url, fx.ConnectionString, null, "http://127.0.0.1:9/"));
+
+        using var client = new HttpClient { BaseAddress = url };
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/payload");
+        request.Headers.TryAddWithoutValidation("Connection", "Upgrade");
+        request.Headers.TryAddWithoutValidation("Upgrade", "websocket");
+        request.Headers.TryAddWithoutValidation("Sec-WebSocket-Version", "13");
+        request.Headers.TryAddWithoutValidation("Sec-WebSocket-Key", "dGhlIHNhbXBsZSBub25jZQ==");
+
+        using var response = await client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Real_socket_rejects_duplicate_json_keys_before_proxying()
     {
         var url = FreeUrl();
