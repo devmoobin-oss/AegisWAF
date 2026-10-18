@@ -54,6 +54,15 @@ public static class SiteProxyConfiguration
                 values[$"ReverseProxy:Clusters:{clusterId}:Destinations:{upstream.Id}:Address"] = upstream.Address.ToString();
                 values[$"ReverseProxy:Clusters:{clusterId}:Destinations:{upstream.Id}:Metadata:SiteId"] = site.Id;
             }
+            // Let YARP own destination availability so active probes and passive failures
+            // affect load balancing instead of remaining only in the UI registry.
+            values[$"ReverseProxy:Clusters:{clusterId}:HealthCheck:Active:Enabled"] = "true";
+            values[$"ReverseProxy:Clusters:{clusterId}:HealthCheck:Active:Path"] = "/health";
+            values[$"ReverseProxy:Clusters:{clusterId}:HealthCheck:Active:Interval"] = "00:00:10";
+            values[$"ReverseProxy:Clusters:{clusterId}:HealthCheck:Active:Timeout"] = "00:00:03";
+            values[$"ReverseProxy:Clusters:{clusterId}:HealthCheck:Passive:Enabled"] = "true";
+            values[$"ReverseProxy:Clusters:{clusterId}:HealthCheck:Passive:ReactivationPeriod"] = "00:00:30";
+            values[$"ReverseProxy:Clusters:{clusterId}:HealthCheck:AvailableDestinationsPolicy"] = "HealthyAndUnknown";
         }
         return values;
     }

@@ -64,4 +64,19 @@ public sealed class SiteProxyConfigurationTests
         Assert.Contains("app-a.example.com", routeHosts);
         Assert.Contains("app-b.example.com", routeHosts);
     }
+
+    [Fact]
+    public void Configures_active_and_passive_health_checks_for_each_generated_cluster()
+    {
+        var site = new GatewaySite("site-a", true, ["app-a.example.com"], ["/"],
+            [new SiteUpstream("primary", new Uri("https://origin.example.com/"))], "default",
+            new SiteRateLimitPolicy(), new SiteEgressPolicy(["origin.example.com"], [443], ["https"]));
+
+        var values = SiteProxyConfiguration.Build(new SiteConfigurationSnapshot([site], false));
+
+        Assert.Equal("true", values["ReverseProxy:Clusters:site-site-a:HealthCheck:Active:Enabled"]);
+        Assert.Equal("/health", values["ReverseProxy:Clusters:site-site-a:HealthCheck:Active:Path"]);
+        Assert.Equal("HealthyAndUnknown", values["ReverseProxy:Clusters:site-site-a:HealthCheck:AvailableDestinationsPolicy"]);
+        Assert.Equal("true", values["ReverseProxy:Clusters:site-site-a:HealthCheck:Passive:Enabled"]);
+    }
 }
