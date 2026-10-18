@@ -87,4 +87,18 @@ public sealed class StructuredPayloadParserTests
         Assert.False(result.Success);
         Assert.Equal("form_limit", result.ReasonCode);
     }
+
+    [Fact]
+    public void Multipart_parser_enforces_part_limit_during_bounded_scan()
+    {
+        const string boundary = "----bounded";
+        var body = $"--{boundary}\r\nContent-Disposition: form-data; name=\"a\"\r\n\r\n1\r\n" +
+                   $"--{boundary}\r\nContent-Disposition: form-data; name=\"b\"\r\n\r\n2\r\n" +
+                   $"--{boundary}\r\nContent-Disposition: form-data; name=\"c\"\r\n\r\n3\r\n--{boundary}--\r\n";
+
+        var result = StructuredPayloadParser.Parse($"multipart/form-data; boundary={boundary}", body, Limits with { MaxMultipartParts = 2 });
+
+        Assert.False(result.Success);
+        Assert.Equal("multipart_limit", result.ReasonCode);
+    }
 }

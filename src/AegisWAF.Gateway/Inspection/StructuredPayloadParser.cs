@@ -139,11 +139,22 @@ internal static class StructuredPayloadParser
         if (string.IsNullOrWhiteSpace(boundary)) return StructuredPayloadResult.Reject("multipart_boundary");
         var values = new List<InspectionValue>();
         var marker = "--" + boundary;
-        var parts = body.Split(marker, StringSplitOptions.RemoveEmptyEntries);
         var count = 0;
-        foreach (var raw in parts)
+        var cursor = 0;
+        while (cursor < body.Length)
         {
-            if (raw is "--\r\n" or "--" || string.IsNullOrWhiteSpace(raw)) continue;
+            var markerStart = body.IndexOf(marker, cursor, StringComparison.Ordinal);
+            if (markerStart < 0) break;
+            var partStart = markerStart + marker.Length;
+            var nextMarker = body.IndexOf(marker, partStart, StringComparison.Ordinal);
+            var raw = nextMarker < 0 ? body[partStart..] : body[partStart..nextMarker];
+            if (raw.StartsWith("--", StringComparison.Ordinal)) break;
+            if (raw is "--\r\n" or "--" || string.IsNullOrWhiteSpace(raw))
+            {
+                if (nextMarker < 0) break;
+                cursor = nextMarker;
+                continue;
+            }
             if (++count > limits.MaxMultipartParts) return StructuredPayloadResult.Reject("multipart_limit");
             var part = raw.Trim('\r', '\n', '-');
             var headerEnd = part.IndexOf("\r\n\r\n", StringComparison.Ordinal);
@@ -155,6 +166,8 @@ internal static class StructuredPayloadParser
             values.Add(InspectionValue.Create("multipart." + name + ".key", name, 65_536));
             if (filename is not null) values.Add(InspectionValue.Create("multipart." + name + ".filename", filename, 65_536));
             values.Add(InspectionValue.Create("multipart." + name, value, 65_536));
+            if (nextMarker < 0) break;
+            cursor = nextMarker;
         }
         return StructuredPayloadResult.Clean(values);
     }
