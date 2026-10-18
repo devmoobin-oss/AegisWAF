@@ -41,18 +41,34 @@ internal sealed class DistributedAuthThrottle(IConfiguration configuration)
             await using var db = new NpgsqlConnection(_connectionString);
             await db.OpenAsync(ct);
             await using var tx = await db.BeginTransactionAsync(ct);
+            // Serialize the shared capacity check across WAF instances. Without this
+            // transaction-scoped lock, concurrent first-seen identities could all pass
+            // the count and exceed MaxEntries before their inserts become visible.
+            await using (var capacityLock = new NpgsqlCommand(
+                "SELECT pg_advisory_xact_lock(hashtext('aegiswaf:auth-throttle-capacity'))", db, tx))
+            {
+                await capacityLock.ExecuteNonQueryAsync(ct);
+            }
             await using (var cleanup = new NpgsqlCommand("DELETE FROM waf_auth_throttle_buckets WHERE updated_at < now()-@retention", db, tx))
             {
                 cleanup.Parameters.AddWithValue("retention", _window + _window);
                 await cleanup.ExecuteNonQueryAsync(ct);
             }
-            await using (var count = new NpgsqlCommand("SELECT count(*) FROM waf_auth_throttle_buckets WHERE bucket_key <> ALL(@keys)", db, tx))
+            var keys = Keys(ip, username);
+            long totalRows;
+            await using (var count = new NpgsqlCommand("SELECT count(*) FROM waf_auth_throttle_buckets", db, tx))
             {
-                count.Parameters.AddWithValue("keys", Keys(ip, username));
-                var entries = (long)(await count.ExecuteScalarAsync(ct) ?? 0L);
-                if (entries >= _maxEntries) return !_failClosed;
+                totalRows = (long)(await count.ExecuteScalarAsync(ct) ?? 0L);
             }
-            foreach (var key in Keys(ip, username))
+            long existingKeys;
+            await using (var existing = new NpgsqlCommand("SELECT count(*) FROM waf_auth_throttle_buckets WHERE bucket_key = ANY(@keys)", db, tx))
+            {
+                existing.Parameters.AddWithValue("keys", keys);
+                existingKeys = (long)(await existing.ExecuteScalarAsync(ct) ?? 0L);
+            }
+            if (!AuthThrottleCapacityPolicy.Allows(totalRows, (int)existingKeys, keys.Length, _maxEntries))
+                return !_failClosed;
+            foreach (var key in keys)
             {
                 await using var cmd = new NpgsqlCommand("""
                     INSERT INTO waf_auth_throttle_buckets(bucket_key,window_started,failure_count,updated_at)
@@ -92,4 +108,14 @@ internal sealed class DistributedAuthThrottle(IConfiguration configuration)
         [$"ip:{Normalize(ip)}", $"user:{Normalize(username)}"];
 
     private static string Normalize(string value) => (value ?? "unknown").Trim().ToLowerInvariant()[..Math.Min(128, (value ?? "unknown").Trim().Length)];
+}
+
+internal static class AuthThrottleCapacityPolicy
+{
+    public static bool Allows(long totalRows, int existingKeys, int candidateKeys, int maxEntries)
+    {
+        var missingKeys = Math.Max(0, candidateKeys - existingKeys);
+        return totalRows >= 0 && existingKeys >= 0 && candidateKeys >= 0 && maxEntries > 0 &&
+            totalRows <= maxEntries - missingKeys;
+    }
 }
