@@ -449,7 +449,16 @@ public static class GatewayApp
             return;
         }
         if (!capture.Overflowed && ResponseInspector.IsInspectable(ctx.Response.ContentType))
-            leak = inspector.Inspect(Encoding.UTF8.GetString(capture.CapturedBuffer, 0, capture.CapturedLength));
+        {
+            try
+            {
+                leak = inspector.Inspect(InspectionTextDecoder.Decode(capture.CapturedBuffer.AsSpan(0, capture.CapturedLength).ToArray()));
+            }
+            catch (DecoderFallbackException)
+            {
+                leak = "Malformed Response UTF-8";
+            }
+        }
         if (leak != null)
         {
             stats.Record(method, ip, leak);

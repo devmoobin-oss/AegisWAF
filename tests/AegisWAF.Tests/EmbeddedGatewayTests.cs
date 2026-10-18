@@ -77,6 +77,29 @@ public class EmbeddedGatewayTests(GatewayFixture fx)
     }
 
     [Fact]
+    public async Task Real_socket_blocks_malformed_utf8_in_textual_upstream_response()
+    {
+        await using var upstream = await LoopbackUpstream.StartAsync([0xC3, 0x28]);
+        var url = FreeUrl();
+        var config = new Dictionary<string, string?>
+        {
+            ["AllowedHosts"] = "*",
+            ["Sites:response:Enabled"] = "true",
+            ["Sites:response:Hostnames:0"] = "response.test",
+            ["Sites:response:PathPrefixes:0"] = "/",
+            ["Sites:response:Upstreams:one:Address"] = upstream.Url.ToString()
+        };
+        await using var gw = new EmbeddedGateway();
+        await gw.StartAsync(new EmbeddedGatewayOptions(url, fx.ConnectionString, null, null, null, config));
+
+        using var client = new HttpClient { BaseAddress = url };
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/response") { Headers = { Host = "response.test" } };
+        using var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.BadGateway, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Real_socket_routes_two_sites_and_rejects_unknown_host()
     {
         await using var upstream = await LoopbackUpstream.StartAsync();
@@ -115,21 +138,23 @@ public class EmbeddedGatewayTests(GatewayFixture fx)
         private readonly TcpListener _listener;
         private readonly CancellationTokenSource _stop = new();
         private readonly Task _loop;
+        private readonly byte[] _body;
 
-        private LoopbackUpstream(TcpListener listener)
+        private LoopbackUpstream(TcpListener listener, byte[]? body)
         {
             _listener = listener;
+            _body = body ?? System.Text.Encoding.UTF8.GetBytes("site-upstream");
             Url = new Uri($"http://127.0.0.1:{((IPEndPoint)listener.LocalEndpoint).Port}/");
             _loop = AcceptAsync();
         }
 
         public Uri Url { get; }
 
-        public static Task<LoopbackUpstream> StartAsync()
+        public static Task<LoopbackUpstream> StartAsync(byte[]? body = null)
         {
             var listener = new TcpListener(IPAddress.Loopback, 0);
             listener.Start();
-            return Task.FromResult(new LoopbackUpstream(listener));
+            return Task.FromResult(new LoopbackUpstream(listener, body));
         }
 
         private async Task AcceptAsync()
@@ -139,20 +164,19 @@ public class EmbeddedGatewayTests(GatewayFixture fx)
                 while (!_stop.IsCancellationRequested)
                 {
                     var client = await _listener.AcceptTcpClientAsync(_stop.Token);
-                    _ = RespondAsync(client);
+                    _ = RespondAsync(client, _body);
                 }
             }
             catch (OperationCanceledException) when (_stop.IsCancellationRequested) { }
             catch (ObjectDisposedException) when (_stop.IsCancellationRequested) { }
         }
 
-        private static async Task RespondAsync(TcpClient client)
+        private static async Task RespondAsync(TcpClient client, byte[] body)
         {
             using var owned = client;
             await using var stream = owned.GetStream();
             using var reader = new StreamReader(stream, System.Text.Encoding.ASCII, detectEncodingFromByteOrderMarks: false, bufferSize: 1024, leaveOpen: true);
             while ((await reader.ReadLineAsync()) is { Length: > 0 }) { }
-            var body = System.Text.Encoding.UTF8.GetBytes("site-upstream");
             var head = System.Text.Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nContent-Length: {body.Length}\r\nConnection: close\r\nContent-Type: text/plain\r\n\r\n");
             await stream.WriteAsync(head);
             await stream.WriteAsync(body);
