@@ -80,6 +80,15 @@ public sealed class StructuredPayloadParserTests
     }
 
     [Fact]
+    public void Form_parser_rejects_invalid_percent_encoded_utf8()
+    {
+        var result = StructuredPayloadParser.Parse("application/x-www-form-urlencoded", "q=%C3%28", Limits);
+
+        Assert.False(result.Success);
+        Assert.Equal("form_malformed", result.ReasonCode);
+    }
+
+    [Fact]
     public void Form_parser_stops_at_member_limit_without_materializing_unbounded_pairs()
     {
         var result = StructuredPayloadParser.Parse("application/x-www-form-urlencoded", "a=1&b=2&c=3", Limits with { MaxMembers = 2 });

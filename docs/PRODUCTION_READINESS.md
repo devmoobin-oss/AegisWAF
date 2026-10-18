@@ -36,6 +36,7 @@
 - Production enforcement bounds inspection buffers to 16 MiB for request bodies and 32 MiB for responses, preventing unsafe memory settings from creating a configuration-driven exhaustion risk.
 - Structured request inspection now extracts bounded JSON, form-urlencoded, XML, and multipart fields/metadata before rule evaluation; ordinary HTML DOCTYPE is allowed while entity/external-DTD payloads are rejected.
 - Form-urlencoded inspection is bounded while parsing and rejects malformed percent-encoding with a stable parser reason, avoiding unbounded pair materialization before the member limit is applied.
+- Form-urlencoded percent escapes are decoded through a strict UTF-8 byte path; malformed encoded sequences such as `%C3%28` fail closed instead of being left partially decoded or normalized ambiguously.
 - Multipart inspection scans boundary markers incrementally and enforces the part limit before continuing, avoiding an all-parts allocation for oversized multipart requests.
 - Textual request bodies with malformed UTF-8 are rejected before parser/rule evaluation; the security/load-test harness supports explicit `Host` selection for multi-Site runs and uses the worker-scoped target URL.
 - The configured inspection timeout now covers request-body read, decoding, raw rule evaluation, structured parsing, and parsed-value evaluation; expiry fails closed with `Inspection Timeout`.

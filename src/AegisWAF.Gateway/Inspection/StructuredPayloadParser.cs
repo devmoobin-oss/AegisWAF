@@ -13,6 +13,8 @@ internal sealed record StructuredPayloadResult(bool Success, IReadOnlyList<Inspe
 
 internal static class StructuredPayloadParser
 {
+    private static readonly Encoding FormUtf8 = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
+
     public static StructuredPayloadResult Parse(string? contentType, string body, InspectionLimits limits)
     {
         if (string.IsNullOrWhiteSpace(contentType)) return StructuredPayloadResult.Clean([InspectionValue.Create("body", body, 65_536)]);
@@ -174,23 +176,38 @@ internal static class StructuredPayloadParser
 
     private static bool TryDecodeForm(string value, out string decoded)
     {
+        var bytes = new List<byte>(value.Length);
         for (var i = 0; i < value.Length; i++)
         {
-            if (value[i] != '%') continue;
-            if (i + 2 >= value.Length || !Uri.IsHexDigit(value[i + 1]) || !Uri.IsHexDigit(value[i + 2]))
+            if (value[i] == '%')
             {
-                decoded = string.Empty;
-                return false;
+                if (i + 2 >= value.Length || !Uri.IsHexDigit(value[i + 1]) || !Uri.IsHexDigit(value[i + 2]))
+                {
+                    decoded = string.Empty;
+                    return false;
+                }
+                bytes.Add(Convert.ToByte(value.Substring(i + 1, 2), 16));
+                i += 2;
+                continue;
             }
-            i += 2;
+
+            if (value[i] == '+')
+            {
+                bytes.Add((byte)' ');
+                continue;
+            }
+
+            var charLength = char.IsHighSurrogate(value[i]) && i + 1 < value.Length && char.IsLowSurrogate(value[i + 1]) ? 2 : 1;
+            bytes.AddRange(FormUtf8.GetBytes(value.AsSpan(i, charLength).ToArray()));
+            i += charLength - 1;
         }
 
         try
         {
-            decoded = Uri.UnescapeDataString(value.Replace('+', ' '));
+            decoded = FormUtf8.GetString(bytes.ToArray());
             return true;
         }
-        catch (UriFormatException)
+        catch (DecoderFallbackException)
         {
             decoded = string.Empty;
             return false;
