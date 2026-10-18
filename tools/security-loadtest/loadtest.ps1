@@ -5,6 +5,7 @@ param(
     [int]$Concurrency = 4,
     [int]$Requests = 0,
     [int]$AttackRatioPercent = 20,
+    [string]$HostHeader = '',
     [string]$OutputJson = '.\security-loadtest.json',
     [string]$OutputCsv = '.\security-loadtest.csv'
 )
@@ -21,7 +22,7 @@ $deadline = [DateTimeOffset]::UtcNow.AddSeconds($DurationSeconds)
 $results = [System.Collections.Generic.List[object]]::new()
 
 $worker = {
-    param($workerBase, $workerDeadlineText, $workerRequests, $workerAttackRatio)
+    param($workerBase, $workerDeadlineText, $workerRequests, $workerAttackRatio, $workerHostHeader)
     Add-Type -AssemblyName System.Net.Http
     $workerDeadline = [DateTimeOffset]::Parse($workerDeadlineText)
     $client = [System.Net.Http.HttpClient]::new()
@@ -35,9 +36,14 @@ $worker = {
             $path = if ($attack) { '/load-test?q=1%20union%20select%201' } else { '/load-test?item=42' }
             $watch = [System.Diagnostics.Stopwatch]::StartNew()
             try {
-                $response = $client.GetAsync($base + $path).GetAwaiter().GetResult()
+                $request = [System.Net.Http.HttpRequestMessage]::new([System.Net.Http.HttpMethod]::Get, $workerBase + $path)
+                if (-not [string]::IsNullOrWhiteSpace($workerHostHeader)) {
+                    $request.Headers.Host = $workerHostHeader
+                }
+                $response = $client.SendAsync($request).GetAwaiter().GetResult()
                 $status = [int]$response.StatusCode
                 $response.Dispose()
+                $request.Dispose()
                 $local.Add([pscustomobject]@{ attack = $attack; status = $status; latencyMs = [Math]::Round($watch.Elapsed.TotalMilliseconds, 3); error = $null })
             } catch {
                 $local.Add([pscustomobject]@{ attack = $attack; status = 0; latencyMs = [Math]::Round($watch.Elapsed.TotalMilliseconds, 3); error = $_.Exception.GetType().Name })
@@ -48,7 +54,7 @@ $worker = {
 }
 
 $perWorkerRequests = if ($Requests -gt 0) { [Math]::Ceiling($Requests / $Concurrency) } else { 0 }
-$jobs = 1..$Concurrency | ForEach-Object { Start-Job -ScriptBlock $worker -ArgumentList $base,$deadline.ToString('O'),$perWorkerRequests,$AttackRatioPercent }
+$jobs = 1..$Concurrency | ForEach-Object { Start-Job -ScriptBlock $worker -ArgumentList $base,$deadline.ToString('O'),$perWorkerRequests,$AttackRatioPercent,$HostHeader }
 Wait-Job -Job $jobs | Out-Null
 foreach ($job in $jobs) {
     Receive-Job -Job $job | ForEach-Object { $results.Add($_) }

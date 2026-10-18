@@ -1,9 +1,16 @@
+using System.Text;
 using AegisWAF.Gateway;
 
 namespace AegisWAF.Tests;
 
 public sealed class InspectionModelTests
 {
+    [Fact]
+    public void Invalid_utf8_is_rejected_instead_of_replaced_before_parser_evaluation()
+    {
+        Assert.Throws<DecoderFallbackException>(() => InspectionTextDecoder.Decode([0xC3, 0x28]));
+    }
+
     [Fact]
     public void Inspection_value_is_bounded_and_decision_does_not_expose_raw_payload()
     {

@@ -370,8 +370,10 @@ public static class GatewayApp
                                     ? "Inspection Body Limit" : "Malformed Structured Body";
                             else
                             {
-                                var body = Encoding.UTF8.GetString(decoded.Bytes);
-                                threat = await InspectValue(body);
+                                var body = string.Empty;
+                                try { body = InspectionTextDecoder.Decode(decoded.Bytes); }
+                                catch (DecoderFallbackException) { threat = "Malformed Structured Body"; }
+                                if (threat is null) threat = await InspectValue(body);
                                 if (threat is null)
                                 {
                                     var parsed = StructuredPayloadParser.Parse(ctx.Request.ContentType, body, limits);
