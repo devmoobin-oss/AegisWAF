@@ -47,6 +47,7 @@
 - Real-socket integration coverage verifies two configured Sites route through the embedded gateway and an unknown Host is rejected with `421 Misdirected Request`; this complements, but does not replace, external multi-instance testing.
 - Under `Waf:Deployment:Enforce=true`, YARP's outbound `SocketsHttpHandler` connection callback rechecks the exact destination host/port and current DNS answer immediately before opening a socket, then connects to the validated address rather than resolving again after validation. This is defense-in-depth and does not replace infrastructure egress ACLs.
 - Egress DNS validation is bounded to 32 answers per hostname and fails closed with `dns_answer_limit` when a resolver returns an unexpectedly large set.
+- The egress connection guard preserves the complete validated DNS answer set and tries each validated address before failing, without resolving the hostname again after policy validation.
 - Production startup rejects `DangerousAcceptAnyServerCertificate` and the egress classifier rejects special-use IPv4 ranges including unspecified, documentation, benchmark, and deprecated relay ranges.
 - Production authentication throttling uses shared PostgreSQL state for normalized source and username keys; the WAF limiter also includes bounded route keys and the readiness check verifies the distributed authentication migration.
 - A safe local security/load-test harness is available at `tools/security-loadtest/loadtest.ps1`; it emits JSON/CSV latency, throughput, status, block, and error evidence without destructive payloads.

@@ -110,6 +110,21 @@ public sealed class UpstreamEgressPolicyTests
         Assert.Equal("dns_answer_limit", result.ReasonCode);
     }
 
+    [Fact]
+    public async Task Connection_boundary_preserves_all_validated_addresses_for_connector_failover()
+    {
+        var resolver = new FakeResolver(new Dictionary<string, IPAddress[]>
+        {
+            ["origin.example.test"] = [IPAddress.Parse("1.1.1.1"), IPAddress.Parse("8.8.8.8")]
+        });
+        var policy = new UpstreamEgressPolicy(new UpstreamEgressOptions(["origin.example.test"], [443], ["https"], false), resolver);
+
+        var result = await policy.CheckConnectionAsync("origin.example.test", 443);
+
+        Assert.True(result.Allowed);
+        Assert.Equal(["1.1.1.1", "8.8.8.8"], result.ResolvedAddresses!.Select(x => x.ToString()).ToArray());
+    }
+
     [Theory]
     [InlineData("198.18.0.1")]
     [InlineData("0.1.2.3")]

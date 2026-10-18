@@ -21,7 +21,11 @@ internal sealed record UpstreamEgressOptions(
         policy.AllowedHosts, policy.AllowedPorts, policy.AllowedSchemes, policy.AllowPrivateExceptions);
 }
 
-internal sealed record UpstreamEgressDecision(bool Allowed, string ReasonCode, string? ResolvedAddress = null);
+internal sealed record UpstreamEgressDecision(
+    bool Allowed,
+    string ReasonCode,
+    string? ResolvedAddress = null,
+    IReadOnlyList<IPAddress>? ResolvedAddresses = null);
 
 internal interface IUpstreamAddressResolver
 {
@@ -47,7 +51,10 @@ internal sealed class UpstreamEgressPolicy(UpstreamEgressOptions options, IUpstr
         if (destination.UserInfo.Length > 0) return new(false, "credentials_not_allowed");
 
         if (IPAddress.TryParse(destination.Host, out var direct))
-            return CheckAddress(direct, options.AllowPrivateExceptions);
+        {
+            var decision = CheckAddress(direct, options.AllowPrivateExceptions);
+            return decision with { ResolvedAddresses = decision.Allowed ? [direct] : null };
+        }
         if (MetadataHosts.Contains(destination.Host) || destination.Host.EndsWith(".internal", StringComparison.OrdinalIgnoreCase))
             return new(false, "metadata_host");
 
@@ -63,7 +70,7 @@ internal sealed class UpstreamEgressPolicy(UpstreamEgressOptions options, IUpstr
                 var decision = CheckAddress(address, options.AllowPrivateExceptions);
                 if (!decision.Allowed) return decision;
             }
-            return new(true, "allowed", addresses[0].ToString());
+            return new(true, "allowed", addresses[0].ToString(), addresses);
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested) { return new(false, "dns_timeout"); }
         catch (SocketException) { return new(false, "dns_failed"); }
@@ -83,7 +90,11 @@ internal sealed class UpstreamEgressPolicy(UpstreamEgressOptions options, IUpstr
         if (MetadataHosts.Contains(host) || host.EndsWith(".internal", StringComparison.OrdinalIgnoreCase))
             return new(false, "metadata_host");
 
-        if (IPAddress.TryParse(host, out var direct)) return CheckAddress(direct, options.AllowPrivateExceptions);
+        if (IPAddress.TryParse(host, out var direct))
+        {
+            var decision = CheckAddress(direct, options.AllowPrivateExceptions);
+            return decision with { ResolvedAddresses = decision.Allowed ? [direct] : null };
+        }
         try
         {
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -96,7 +107,7 @@ internal sealed class UpstreamEgressPolicy(UpstreamEgressOptions options, IUpstr
                 var decision = CheckAddress(address, options.AllowPrivateExceptions);
                 if (!decision.Allowed) return decision;
             }
-            return new(true, "allowed", addresses[0].ToString());
+            return new(true, "allowed", addresses[0].ToString(), addresses);
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested) { return new(false, "dns_timeout"); }
         catch (SocketException) { return new(false, "dns_failed"); }
@@ -140,22 +151,34 @@ internal static class EgressConnectionGuard
     public static async ValueTask<Stream> ConnectAsync(UpstreamEgressPolicy policy, DnsEndPoint endpoint, CancellationToken ct)
     {
         var decision = await policy.CheckConnectionAsync(endpoint.Host, endpoint.Port, ct).ConfigureAwait(false);
-        if (!decision.Allowed || !IPAddress.TryParse(decision.ResolvedAddress, out var address))
+        if (!decision.Allowed)
             throw new HttpRequestException("Upstream egress denied: " + decision.ReasonCode);
 
-        var socket = new Socket(address.AddressFamily, SocketType.Stream, ProtocolType.Tcp)
+        var addresses = decision.ResolvedAddresses is { Count: > 0 }
+            ? decision.ResolvedAddresses
+            : IPAddress.TryParse(decision.ResolvedAddress, out var single) ? [single] : [];
+        if (addresses.Count == 0)
+            throw new HttpRequestException("Upstream egress denied: dns_no_address");
+
+        SocketException? lastSocketException = null;
+        foreach (var address in addresses)
         {
-            NoDelay = true
-        };
-        try
-        {
-            await socket.ConnectAsync(address, endpoint.Port, ct).ConfigureAwait(false);
-            return new NetworkStream(socket, ownsSocket: true);
+            var socket = new Socket(address.AddressFamily, SocketType.Stream, ProtocolType.Tcp)
+            {
+                NoDelay = true
+            };
+            try
+            {
+                await socket.ConnectAsync(address, endpoint.Port, ct).ConfigureAwait(false);
+                return new NetworkStream(socket, ownsSocket: true);
+            }
+            catch (SocketException ex)
+            {
+                lastSocketException = ex;
+                socket.Dispose();
+            }
         }
-        catch
-        {
-            socket.Dispose();
-            throw;
-        }
+
+        throw new HttpRequestException("Upstream connection failed for all validated DNS addresses", lastSocketException);
     }
 }
