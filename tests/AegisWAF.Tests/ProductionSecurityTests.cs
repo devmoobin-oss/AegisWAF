@@ -66,4 +66,15 @@ public class ProductionSecurityTests
         Assert.True(limiter.Allow("198.51.100.0"));
         Assert.False(limiter.Allow("203.0.113.250"));
     }
+
+    [Theory]
+    [InlineData(99, 0, 1, true)]
+    [InlineData(100, 0, 1, false)]
+    [InlineData(100, 1, 1, true)]
+    [InlineData(100, 0, 2, false)]
+    public void Distributed_bucket_capacity_allows_existing_keys_but_rejects_new_cardinality(
+        long totalRows, long existingCandidateRows, int candidateKeyCount, bool expected)
+    {
+        Assert.Equal(expected, RateLimitCapacityPolicy.Allows(totalRows, existingCandidateRows, candidateKeyCount, 100));
+    }
 }

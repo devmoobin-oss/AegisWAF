@@ -71,7 +71,7 @@ sealed class SlidingRateLimiter : IDisposable
         _window = TimeSpan.FromSeconds(Math.Clamp(cfg.GetValue("Waf:RateLimit:WindowSeconds", 60), 1, 3600));
         _maxEntries = Math.Clamp(cfg.GetValue("Waf:RateLimit:MaxEntries", 10_000), 100, 1_000_000);
         if (string.Equals(cfg["Waf:RateLimit:Store"], "postgres", StringComparison.OrdinalIgnoreCase))
-            _shared = new PostgresRateLimiter(cfg.GetConnectionString("Postgres") ?? string.Empty, _limit, _globalLimit, _window);
+            _shared = new PostgresRateLimiter(cfg.GetConnectionString("Postgres") ?? string.Empty, _limit, _globalLimit, _window, _maxEntries);
         _cleanupTimer = new(_ => PurgeExpired(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - (long)_window.TotalMilliseconds),
             null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
     }
@@ -151,7 +151,7 @@ sealed class SlidingRateLimiter : IDisposable
 }
 
 /// <summary>Optional shared limiter using one PostgreSQL transaction for global and per-IP buckets.</summary>
-sealed class PostgresRateLimiter(string connectionString, int perIpLimit, int globalLimit, TimeSpan window)
+sealed class PostgresRateLimiter(string connectionString, int perIpLimit, int globalLimit, TimeSpan window, int maxEntries)
 {
     private int _failures;
     private long _openUntilMs;
@@ -175,10 +175,16 @@ sealed class PostgresRateLimiter(string connectionString, int perIpLimit, int gl
             await using var tx = await db.BeginTransactionAsync(ct);
             var boundedSite = RateLimitKey.Site(siteId);
             var activeWindow = windowOverride ?? window;
-            if (siteGlobalLimit > 0 && !await ConsumeAsync(db, tx, boundedSite + ":global", siteGlobalLimit, activeWindow, ct)) return false;
             var siteKey = RateLimitKey.Site(siteId);
-            if (!await ConsumeAsync(db, tx, siteKey + ":ip:" + RateLimitKey.Bounded(ip, 128), siteLimit, activeWindow, ct)) return false;
-            if (!await ConsumeAsync(db, tx, siteKey + ":route:" + RateLimitKey.Bounded(route, 128) + ":ip:" + RateLimitKey.Bounded(ip, 128), siteLimit, activeWindow, ct)) return false;
+            var keys = new List<string>(3);
+            if (siteGlobalLimit > 0) keys.Add(boundedSite + ":global");
+            keys.Add(siteKey + ":ip:" + RateLimitKey.Bounded(ip, 128));
+            keys.Add(siteKey + ":route:" + RateLimitKey.Bounded(route, 128) + ":ip:" + RateLimitKey.Bounded(ip, 128));
+            if (!await EnsureCapacityAsync(db, tx, keys, activeWindow, ct)) return false;
+            var keyIndex = 0;
+            if (siteGlobalLimit > 0 && !await ConsumeAsync(db, tx, keys[keyIndex++], siteGlobalLimit, activeWindow, ct)) return false;
+            if (!await ConsumeAsync(db, tx, keys[keyIndex++], siteLimit, activeWindow, ct)) return false;
+            if (!await ConsumeAsync(db, tx, keys[keyIndex], siteLimit, activeWindow, ct)) return false;
             await tx.CommitAsync(ct);
             Interlocked.Exchange(ref _failures, 0);
             return true;
@@ -191,6 +197,34 @@ sealed class PostgresRateLimiter(string connectionString, int perIpLimit, int gl
                 Interlocked.Exchange(ref _openUntilMs, DateTimeOffset.UtcNow.AddSeconds(5).ToUnixTimeMilliseconds());
             return false;
         }
+    }
+
+    private async Task<bool> EnsureCapacityAsync(NpgsqlConnection db, NpgsqlTransaction tx, IReadOnlyList<string> keys, TimeSpan activeWindow, CancellationToken ct)
+    {
+        const string sql = """
+            SELECT pg_advisory_xact_lock(hashtextextended('aegiswaf:rate-limit-capacity', 0));
+            DELETE FROM waf_rate_limit_buckets
+              WHERE updated_at < now() - @retention;
+            SELECT
+                COUNT(*)::bigint AS total_rows,
+                COUNT(*) FILTER (WHERE bucket_key = ANY(@keys))::bigint AS existing_rows
+              FROM waf_rate_limit_buckets;
+            """;
+        var lockAndCleanup = sql[..sql.LastIndexOf("SELECT\n                COUNT", StringComparison.Ordinal)];
+        await using (var cleanup = new NpgsqlCommand(lockAndCleanup, db, tx))
+        {
+            cleanup.Parameters.AddWithValue("retention", activeWindow > window ? activeWindow : window);
+            await cleanup.ExecuteNonQueryAsync(ct);
+        }
+        var countsSql = sql[sql.LastIndexOf("SELECT\n                COUNT", StringComparison.Ordinal)..];
+        await using var cmd = new NpgsqlCommand(countsSql, db, tx);
+        cmd.Parameters.AddWithValue("keys", keys.ToArray());
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        if (!await reader.ReadAsync(ct)) return false;
+        var totalRows = reader.GetInt64(0);
+        var existingRows = reader.GetInt64(1);
+        var candidateCount = keys.Distinct(StringComparer.Ordinal).Count();
+        return RateLimitCapacityPolicy.Allows(totalRows, existingRows, candidateCount, maxEntries);
     }
 
     private async Task<bool> ConsumeAsync(NpgsqlConnection db, NpgsqlTransaction tx, string key, int limit, TimeSpan activeWindow, CancellationToken ct)
@@ -209,6 +243,17 @@ sealed class PostgresRateLimiter(string connectionString, int perIpLimit, int gl
         cmd.Parameters.AddWithValue("window", activeWindow);
         var count = (int)(await cmd.ExecuteScalarAsync(ct) ?? limit + 1);
         return count <= limit;
+    }
+}
+
+internal static class RateLimitCapacityPolicy
+{
+    public static bool Allows(long totalRows, long existingCandidateRows, int candidateKeyCount, int maxEntries)
+    {
+        if (totalRows < 0 || existingCandidateRows < 0 || candidateKeyCount < 0 || maxEntries < 1) return false;
+        if (existingCandidateRows > candidateKeyCount || existingCandidateRows > totalRows) return false;
+        var missing = candidateKeyCount - existingCandidateRows;
+        return totalRows <= maxEntries && totalRows - existingCandidateRows + missing <= maxEntries;
     }
 }
 

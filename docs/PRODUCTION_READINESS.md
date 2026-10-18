@@ -97,6 +97,8 @@ The Desktop Site Manager is read-only for the active runtime configuration and i
 
 - MFA/WebAuthn or OIDC for administrators (intentionally skipped per project instruction).
 - Independent multi-instance concurrency validation for distributed authentication and route-aware rate limiting.
+
+The PostgreSQL route limiter is fail-closed and bounded for long-running deployments: each transaction takes a database advisory lock for the shared capacity check, removes expired bucket rows, and rejects new bucket identities when `Waf:RateLimit:MaxEntries` would be exceeded. Existing identities can continue to be evaluated without allowing unbounded bucket growth. Validate the configured cap against expected Site × route × client cardinality before production rollout.
 - SIEM export and alerting when audit-chain verification fails.
 - WebSocket/Upgrade regression tests and a full external DNS-rebinding assessment between validation and connection establishment.
 - Continuous SAST/secret scanning, independent load-test review and external penetration testing. Deterministic fuzz regression coverage and a local load-test harness are included; external evidence is still pending.
