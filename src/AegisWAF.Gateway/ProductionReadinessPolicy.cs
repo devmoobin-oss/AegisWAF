@@ -20,6 +20,14 @@ public static class ProductionReadinessPolicy
             "Database:AutoMigrate must be false; run reviewed migrations separately", errors);
         Require(configuration.GetValue("Admin:RequireHttps", true),
             "Admin:RequireHttps must be true", errors);
+        Require(configuration.GetValue("Auth:SessionIdleMinutes", 30) is >= 1 and <= 1_440,
+            "Auth:SessionIdleMinutes must be between 1 and 1440 minutes", errors);
+        Require(configuration.GetValue("Auth:SessionAbsoluteHours", 8) is >= 1 and <= 168,
+            "Auth:SessionAbsoluteHours must be between 1 and 168 hours", errors);
+        Require(configuration.GetValue("Auth:MaxFailedAttempts", 5) is >= 1 and <= 100,
+            "Auth:MaxFailedAttempts must be between 1 and 100", errors);
+        Require(configuration.GetValue("Auth:LockoutMinutes", 15) is >= 1 and <= 1_440,
+            "Auth:LockoutMinutes must be between 1 and 1440 minutes", errors);
         var keyRingPath = configuration["Security:DataProtection:KeyRingPath"];
         Require(!string.IsNullOrWhiteSpace(keyRingPath) && Path.IsPathFullyQualified(keyRingPath),
             "Security:DataProtection:KeyRingPath must be an absolute persistent path", errors);

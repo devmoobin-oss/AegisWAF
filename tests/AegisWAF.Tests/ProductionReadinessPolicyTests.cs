@@ -202,6 +202,23 @@ public sealed class ProductionReadinessPolicyTests
     }
 
     [Fact]
+    public void Production_rejects_unsafe_session_and_lockout_windows()
+    {
+        var values = SecureValues();
+        values["Auth:SessionIdleMinutes"] = "0";
+        values["Auth:SessionAbsoluteHours"] = "169";
+        values["Auth:MaxFailedAttempts"] = "0";
+        values["Auth:LockoutMinutes"] = "1441";
+
+        var errors = ProductionReadinessPolicy.Validate(Config(values));
+
+        Assert.Contains(errors, e => e.Contains("SessionIdleMinutes", StringComparison.Ordinal));
+        Assert.Contains(errors, e => e.Contains("SessionAbsoluteHours", StringComparison.Ordinal));
+        Assert.Contains(errors, e => e.Contains("MaxFailedAttempts", StringComparison.Ordinal));
+        Assert.Contains(errors, e => e.Contains("LockoutMinutes", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Production_rejects_disabled_structured_security_logging()
     {
         var values = SecureValues();
