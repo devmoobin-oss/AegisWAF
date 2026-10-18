@@ -92,6 +92,24 @@ public sealed class UpstreamEgressPolicyTests
         Assert.Empty(resolver.RequestedHosts);
     }
 
+    [Fact]
+    public async Task Egress_policy_rejects_unbounded_dns_answer_sets()
+    {
+        var answers = Enumerable.Range(1, 33)
+            .Select(index => IPAddress.Parse($"1.1.1.{index}"))
+            .ToArray();
+        var resolver = new FakeResolver(new Dictionary<string, IPAddress[]>
+        {
+            ["origin.example.test"] = answers
+        });
+        var policy = new UpstreamEgressPolicy(new UpstreamEgressOptions(["origin.example.test"], [443], ["https"], false), resolver);
+
+        var result = await policy.CheckConnectionAsync("origin.example.test", 443);
+
+        Assert.False(result.Allowed);
+        Assert.Equal("dns_answer_limit", result.ReasonCode);
+    }
+
     [Theory]
     [InlineData("198.18.0.1")]
     [InlineData("0.1.2.3")]

@@ -35,6 +35,7 @@ internal sealed class SystemUpstreamAddressResolver : IUpstreamAddressResolver
 
 internal sealed class UpstreamEgressPolicy(UpstreamEgressOptions options, IUpstreamAddressResolver resolver)
 {
+    private const int MaxDnsAnswers = 32;
     private static readonly HashSet<string> MetadataHosts = new(StringComparer.OrdinalIgnoreCase)
     { "metadata", "metadata.google.internal", "instance-data", "instance-data.ec2.internal", "100.100.100.200" };
 
@@ -56,6 +57,7 @@ internal sealed class UpstreamEgressPolicy(UpstreamEgressOptions options, IUpstr
             timeout.CancelAfter(TimeSpan.FromMilliseconds(500));
             var addresses = await resolver.ResolveAsync(destination.Host, timeout.Token).ConfigureAwait(false);
             if (addresses.Length == 0) return new(false, "dns_no_address");
+            if (addresses.Length > MaxDnsAnswers) return new(false, "dns_answer_limit");
             foreach (var address in addresses)
             {
                 var decision = CheckAddress(address, options.AllowPrivateExceptions);
@@ -88,6 +90,7 @@ internal sealed class UpstreamEgressPolicy(UpstreamEgressOptions options, IUpstr
             timeout.CancelAfter(TimeSpan.FromMilliseconds(500));
             var addresses = await resolver.ResolveAsync(host, timeout.Token).ConfigureAwait(false);
             if (addresses.Length == 0) return new(false, "dns_no_address");
+            if (addresses.Length > MaxDnsAnswers) return new(false, "dns_answer_limit");
             foreach (var address in addresses)
             {
                 var decision = CheckAddress(address, options.AllowPrivateExceptions);
