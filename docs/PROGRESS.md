@@ -1,4 +1,33 @@
-# Progress Report — v0.7
+# Current Production WAF Progress Snapshot
+
+Updated against commit `35bd190` in the `feature/multi-site-gateway` worktree on 2026-10-19.
+
+## Verified local evidence
+
+| Evidence | Result |
+|---|---|
+| Full automated security/regression suite | **309 passed, 0 failed, 0 skipped** |
+| Release solution build | **4 projects, 0 warnings, 0 errors** |
+| Dependency vulnerability scan | **No vulnerable packages reported** by NuGet sources |
+| Healthy-upstream real-socket load test | **82 requests; 78 blocked, 4 proxied, 0 errors** |
+| Worktree integrity | **Clean; `git diff --check` passed** |
+
+## Workstream progress
+
+| Workstream | Progress | Evidence boundary |
+|---|---:|---|
+| Multi-Site routing and isolation | 99% | Real-socket site isolation and unknown-host rejection tested; external multi-instance validation pending |
+| Runtime egress enforcement | 96% | Startup DNS preflight and connection-boundary checks tested; infrastructure ACL and external rebinding assessment pending |
+| Upstream health/failover | 96% | Active/passive YARP health and local failover tested; external capacity/failure testing pending |
+| Distributed rate limiting/auth throttling | 100% local evidence | PostgreSQL shared state and two-gateway tests pass; multi-instance deployment validation pending |
+| Parser-aware hardening | 98% | Structured parsing, decompression limits, duplicate-key and fuzz regressions pass; independent bypass testing pending |
+| Secure production guardrails | 100% local evidence | Fail-closed configuration/readiness checks pass; deployment operation review pending |
+| Audit/SIEM integrity | 98% | Structured events, chain verification and tamper alert pass; SIEM routing/alert policy pending |
+| External security assessment | 86% | Local harness exists; independent penetration, SAST/secret/SBOM and external load review pending |
+
+These percentages describe implementation and local evidence only. They are not a certification or an OWASP compliance claim. The remaining gates are tracked in [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md).
+
+# Historical Progress Report — v0.7
 
 ## Iteration summary
 * **Version**: v0.7 (from the v0.6 baseline)
