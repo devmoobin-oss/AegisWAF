@@ -155,6 +155,19 @@ public sealed class ProductionReadinessPolicyTests
     }
 
     [Fact]
+    public void Production_rejects_unbounded_request_line_and_header_limits()
+    {
+        var values = SecureValues();
+        values["Waf:Limits:MaxRequestLineBytes"] = "0";
+        values["Waf:Limits:MaxRequestHeadersBytes"] = "999999999";
+
+        var errors = ProductionReadinessPolicy.Validate(Config(values));
+
+        Assert.Contains(errors, e => e.Contains("MaxRequestLineBytes", StringComparison.Ordinal));
+        Assert.Contains(errors, e => e.Contains("MaxRequestHeadersBytes", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Production_rejects_disabled_structured_security_logging()
     {
         var values = SecureValues();

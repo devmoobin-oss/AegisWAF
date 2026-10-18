@@ -80,6 +80,12 @@ public static class ProductionReadinessPolicy
         var keepAlive = configuration.GetValue("Waf:Limits:KeepAliveSeconds", 120);
         Require(keepAlive is >= 5 and <= 600,
             "Waf:Limits:KeepAliveSeconds must be between 5 and 600 seconds", errors);
+        var requestLineBytes = configuration.GetValue("Waf:Limits:MaxRequestLineBytes", 16 * 1024);
+        Require(requestLineBytes is >= 1024 and <= 64 * 1024,
+            "Waf:Limits:MaxRequestLineBytes must be between 1 KiB and 64 KiB", errors);
+        var requestHeadersBytes = configuration.GetValue("Waf:Limits:MaxRequestHeadersBytes", 64 * 1024);
+        Require(requestHeadersBytes is >= 4 * 1024 and <= 256 * 1024,
+            "Waf:Limits:MaxRequestHeadersBytes must be between 4 KiB and 256 KiB", errors);
 
         var inspection = InspectionLimits.From(configuration);
         Require(configuration.GetValue("Waf:Inspection:MaxCompressedBytes", 131_072) is >= 1 and <= 16 * 1024 * 1024,
