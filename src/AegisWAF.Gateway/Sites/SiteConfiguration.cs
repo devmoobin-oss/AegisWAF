@@ -20,6 +20,8 @@ public static class SiteConfigurationValidator
         }
 
         var activeHostnames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var configuredPolicies = configuration.GetSection("Waf:Policies").GetChildren()
+            .Select(x => x.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var activeSites = 0;
         foreach (var site in siteSections)
         {
@@ -27,6 +29,11 @@ public static class SiteConfigurationValidator
             var enabled = site.GetValue("Enabled", true);
             if (!enabled) continue;
             activeSites++;
+
+            var wafPolicy = site["WafPolicy"] ?? "default";
+            if (enforcing && !string.Equals(wafPolicy, "default", StringComparison.OrdinalIgnoreCase) &&
+                !configuredPolicies.Contains(wafPolicy))
+                errors.Add($"Site {id} references undefined WafPolicy {wafPolicy}");
 
             var hostnames = site.GetSection("Hostnames").Get<string[]>() ?? [];
             var normalizedHosts = hostnames.Select(NormalizeHostname).Where(x => x.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();

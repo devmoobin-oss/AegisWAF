@@ -97,6 +97,7 @@ public static class GatewayApp
     builder.Services.AddHealthChecks().AddCheck<PostgresHealthCheck>("postgres", tags: ["ready"])
         .AddCheck<SiteRoutingHealthCheck>("sites", tags: ["ready"]);
     builder.Services.AddSingleton<SecurityRules>();
+    builder.Services.AddSingleton<SitePolicyResolver>();
     builder.Services.AddSingleton<ResponseInspector>();
     builder.Services.AddHostedService<CustomRuleLoader>();
     builder.Services.AddHostedService<RuleStateLoader>();
@@ -313,6 +314,7 @@ public static class GatewayApp
         { await next(); return; }
         var stats = ctx.RequestServices.GetRequiredService<TrafficCounters>();
         var rules = ctx.RequestServices.GetRequiredService<SecurityRules>();
+        var policyResolver = ctx.RequestServices.GetRequiredService<SitePolicyResolver>();
         var events = ctx.RequestServices.GetRequiredService<SecurityEvents>();
         var limiter = ctx.RequestServices.GetRequiredService<SlidingRateLimiter>();
         var policies = ctx.RequestServices.GetRequiredService<IpAccessPolicy>();
@@ -320,6 +322,7 @@ public static class GatewayApp
         var path = ctx.Request.Path.Value ?? "/";
         var method = ctx.Request.Method;
         var siteContext = SiteContext.Get(ctx);
+        var sitePolicy = siteContext is null ? SiteWafPolicy.Global : policyResolver.Resolve(siteContext.Site);
         var watch = Stopwatch.StartNew();
         string? threat = null;
         async Task<string?> InspectValue(string value, bool checkOversize = false, InspectionBudget? budget = null)
@@ -327,7 +330,7 @@ public static class GatewayApp
             var ssrf = await SsrfGuard.CheckAsync(value,
                 ctx.RequestServices.GetRequiredService<IConfiguration>().GetValue("Waf:Ssrf:ResolveDns", false),
                 ctx.RequestAborted);
-            return ssrf.Blocked ? ssrf.Reason : rules.Match(value, checkOversize, budget);
+            return ssrf.Blocked ? ssrf.Reason : rules.Match(value, checkOversize, budget, sitePolicy);
         }
         if (policies.Check(ip) == "block") threat = "IP Blocklist";
         else if (!await limiter.AllowAsync(siteContext?.Site.Id ?? "legacy", ip, ctx.Request.Path.Value ?? "/", siteContext?.Site.RateLimit, ctx.RequestAborted)) threat = "Rate Limit";
@@ -340,7 +343,7 @@ public static class GatewayApp
                 foreach (var q in ctx.Request.Query)
                 { threat = await InspectValue(q.Key + "=" + q.Value); if (threat != null) break; }
             // 3) Attack-tool fingerprint, then headers and cookies that commonly carry payloads.
-            if (threat is null) threat = rules.MatchUserAgent(ctx.Request.Headers.UserAgent.ToString());
+            if (threat is null) threat = rules.MatchUserAgent(ctx.Request.Headers.UserAgent.ToString(), sitePolicy);
             if (threat is null)
                 foreach (var name in InspectedHeaders)
                     if (ctx.Request.Headers.TryGetValue(name, out var hv) && (threat = await InspectValue(hv.ToString())) != null) break;

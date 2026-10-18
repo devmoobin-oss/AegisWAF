@@ -67,6 +67,23 @@ public sealed class SiteConfigurationTests
     }
 
     [Fact]
+    public void Production_rejects_a_site_that_references_an_undefined_waf_policy()
+    {
+        var config = Config(new Dictionary<string, string?>
+        {
+            ["Waf:Deployment:Enforce"] = "true",
+            ["Sites:shop:Enabled"] = "true",
+            ["Sites:shop:Hostnames:0"] = "shop.example.com",
+            ["Sites:shop:WafPolicy"] = "strict",
+            ["Sites:shop:Upstreams:0:Address"] = "https://origin.example.com/"
+        });
+
+        var errors = SiteConfigurationValidator.Validate(config);
+
+        Assert.Contains(errors, error => error.Contains("WafPolicy strict", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void Rejects_upstream_credentials_and_non_http_schemes()
     {
         var config = Config(new Dictionary<string, string?>

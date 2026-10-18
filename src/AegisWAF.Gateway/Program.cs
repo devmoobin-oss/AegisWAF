@@ -10,6 +10,7 @@ using AegisWAF.Gateway;
 using AegisWAF.Gateway.Auth;
 using AegisWAF.Gateway.Infrastructure;
 using AegisWAF.Client;
+using AegisWAF.Gateway.Sites;
 
 var builder = GatewayApp.CreateBuilder(args);
 GatewayApp.AddServices(builder);
@@ -327,23 +328,23 @@ sealed class SecurityRules
     }
 
     /// <summary>Runs custom rules then built-in rules against every canonical form of <paramref name="input"/>.</summary>
-    public string? Match(string input, bool checkOversize = true, InspectionBudget? budget = null)
+    public string? Match(string input, bool checkOversize = true, InspectionBudget? budget = null, SiteWafPolicy? policy = null)
     {
         if (checkOversize && input.Length > 8192) return "Oversized URL";
         if (budget?.Expired == true) return "Inspection Timeout";
         foreach (var variants in Normalizer.Windows(input))
         {
-            var result = MatchVariants(variants, budget);
+            var result = MatchVariants(variants, budget, policy);
             if (result is not null) return result;
         }
         return null;
     }
 
-    private string? MatchVariants(IReadOnlyList<string> variants, InspectionBudget? budget)
+    private string? MatchVariants(IReadOnlyList<string> variants, InspectionBudget? budget, SiteWafPolicy? policy)
     {
         foreach (var entry in _custom.OrderBy(x => x.Value.Input.Priority))
         {
-            if (!entry.Value.Input.Enabled) continue;
+            if (!entry.Value.Input.Enabled || policy?.DisabledRuleIds.Contains(entry.Key) == true) continue;
             try
             {
                 foreach (var v in variants)
@@ -356,7 +357,7 @@ sealed class SecurityRules
         }
         foreach (var rule in _rules)
         {
-            if (!rule.Enabled) continue;
+            if (!rule.Enabled || policy?.DisabledRuleIds.Contains(rule.Id) == true) continue;
             try
             {
                 foreach (var v in variants)
@@ -367,7 +368,7 @@ sealed class SecurityRules
             }
             catch (RegexMatchTimeoutException) { return "Inspection Timeout"; }
         }
-        if (_anomaly.Enabled)
+        if (_anomaly.Enabled && policy?.DisabledRuleIds.Contains("anomaly-01") != true)
         {
             if (budget?.Expired == true) return "Inspection Timeout";
             try { if (_anomaly.Score(variants) >= _anomaly.Threshold) return "Anomaly Score"; }
@@ -377,9 +378,9 @@ sealed class SecurityRules
     }
 
     /// <summary>Scanner / attack-tool fingerprint in the User-Agent (checked separately to avoid body false-positives).</summary>
-    public string? MatchUserAgent(string userAgent)
+    public string? MatchUserAgent(string userAgent, SiteWafPolicy? policy = null)
     {
-        if (!_scanner.Enabled || string.IsNullOrEmpty(userAgent)) return null;
+        if (!_scanner.Enabled || policy?.DisabledRuleIds.Contains(_scanner.Id) == true || string.IsNullOrEmpty(userAgent)) return null;
         try { return _scanner.Pattern.IsMatch(userAgent) ? _scanner.Category : null; }
         catch (RegexMatchTimeoutException) { return "Inspection Timeout"; }
     }
