@@ -105,6 +105,8 @@ public static class GatewayApp
     builder.Services.AddSingleton<SlidingRateLimiter>();
     builder.Services.AddSingleton<UpstreamEgressPolicy>(sp =>
         new UpstreamEgressPolicy(UpstreamEgressOptions.From(sp.GetRequiredService<IConfiguration>()), new SystemUpstreamAddressResolver()));
+    if (builder.Configuration.GetValue("Waf:Deployment:Enforce", false))
+        builder.Services.AddHostedService<ProductionEgressStartupValidator>();
     builder.Services.AddSingleton<IpAccessPolicy>();
     builder.Services.AddHostedService<IpPolicyLoader>();
     builder.Services.AddHostedService<EventWriter>();

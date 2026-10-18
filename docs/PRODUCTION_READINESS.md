@@ -62,6 +62,7 @@
 - Production Site egress allowlists reject wildcard or malformed host entries and ports outside `1..65,535`; upstream coverage must still match an explicit HTTPS host/port/scheme tuple.
 - Production rejects upstream weights outside `1..10,000` instead of silently clamping them, keeping configured load-balancing/failover proportions explicit.
 - Production rejects private, loopback, metadata, multicast, and special-use IP-literal upstreams during startup validation; DNS hostnames remain subject to the bounded preflight and connection-boundary checks.
+- When Production enforcement is enabled, startup performs a DNS-aware egress preflight for every enabled Site upstream and fails before accepting traffic if the current answer is disallowed; the connection-boundary check remains mandatory for post-startup DNS changes.
 
 ## Required deployment configuration
 
