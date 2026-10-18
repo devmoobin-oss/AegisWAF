@@ -130,11 +130,16 @@ if ([string]::IsNullOrWhiteSpace($LoadTestTargetUri)) {
     Run-External 'security load test' 'powershell' @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $loadtest, '-TargetUri', $LoadTestTargetUri, '-OutputJson', $json, '-OutputCsv', $csv)
 }
 
+$gitCommit = Get-GitCommit $RepoRoot
 $configFingerprint = Get-ConfigurationFingerprint $RepoRoot
+$metadataReady = -not [string]::IsNullOrWhiteSpace($gitCommit) -and
+    -not [string]::IsNullOrWhiteSpace($configFingerprint.sha256) -and
+    @($configFingerprint.files).Count -gt 0
+Add-Result 'assessment evidence metadata' $(if ($metadataReady) { 'pass' } else { 'unavailable' }) 'PowerShell' 'git commit + configuration fingerprint' $(if ($metadataReady) { 0 } else { 1 }) $(if ($metadataReady) { 'Commit and configuration fingerprint recorded.' } else { 'Could not compute commit and configuration fingerprint.' }) 0
 $summary = [pscustomobject]@{
     generatedAt = [DateTimeOffset]::UtcNow
     repository = $RepoRoot
-    gitCommit = Get-GitCommit $RepoRoot
+    gitCommit = $gitCommit
     configurationSha256 = $configFingerprint.sha256
     configurationFiles = $configFingerprint.files
     results = $results

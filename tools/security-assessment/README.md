@@ -8,6 +8,8 @@
 
 It records `assessment-summary.json`, command output, and (when available) SBOM/load-test artifacts under `tools/security-assessment/artifacts/`. The summary also records the current Git commit and a SHA-256 fingerprint of source `appsettings*.json` files (excluding generated `bin/` and `obj/` output). Missing tools and omitted live load-test targets are reported as `unavailable`/`not_run` and make the overall result `incomplete_or_failed`; they are never silently treated as passing.
 
+The summary includes an `assessment evidence metadata` result; missing commit or configuration fingerprints are themselves fail-closed and cannot be mistaken for a complete assessment.
+
 The runner can be used for an offline regression-only run, but skipped checks remain visible:
 
 ```powershell
