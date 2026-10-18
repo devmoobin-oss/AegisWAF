@@ -1,3 +1,6 @@
+using System.Security.Cryptography;
+using System.Text;
+
 namespace AegisWAF.Gateway.Sites;
 
 public sealed class SiteRegistry
@@ -35,7 +38,7 @@ public static class SiteProxyConfiguration
             {
                 foreach (var prefix in site.PathPrefixes)
                 {
-                    var routeId = prefix == "/" ? clusterId : clusterId + "-" + Math.Abs(StringComparer.Ordinal.GetHashCode(prefix));
+                    var routeId = prefix == "/" ? clusterId : clusterId + "-" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(prefix)))[..10].ToLowerInvariant();
                     values[$"ReverseProxy:Routes:{routeId}:ClusterId"] = clusterId;
                     values[$"ReverseProxy:Routes:{routeId}:Match:Hosts:0"] = hostname;
                     values[$"ReverseProxy:Routes:{routeId}:Match:Path"] = prefix == "/" ? "{**catch-all}" : prefix + "/{**remainder}";

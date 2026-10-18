@@ -37,6 +37,8 @@
 - Production upstreams require explicit HTTPS host/port/scheme allowlists and are checked against DNS-resolved private, loopback, metadata, multicast, reserved, and link-local targets before proxying.
 - Production authentication throttling uses shared PostgreSQL state for normalized source and username keys; the WAF limiter also includes bounded route keys and the readiness check verifies the distributed authentication migration.
 - A safe local security/load-test harness is available at `tools/security-loadtest/loadtest.ps1`; it emits JSON/CSV latency, throughput, status, block, and error evidence without destructive payloads.
+- Multi-Site routing is configured under `Sites`; each Site has explicit hostnames, path prefixes, upstreams, rate limits and egress policy. Unknown hosts fail closed when Production enforcement is enabled.
+- Site-scoped rate-limit keys include SiteId and route, and structured security events include SiteId, hostname and upstream context. Run migration `010_site_event_context.sql` before enabling event persistence for Multi-Site.
 
 ## Required deployment configuration
 
@@ -56,6 +58,34 @@
 ```
 
 Never configure `0.0.0.0/0` as a trusted proxy. Only infrastructure proxies belong in this list.
+
+### Multi-Site example
+
+```json
+{
+  "Sites": {
+    "site-a": {
+      "Enabled": true,
+      "Hostnames": ["app-a.example.com"],
+      "PathPrefixes": ["/"],
+      "Upstreams": [{ "Id": "primary", "Address": "https://origin-a.example.com/", "Weight": 100 }],
+      "WafPolicy": "strict",
+      "RateLimit": { "Requests": 300, "WindowSeconds": 60, "GlobalRequests": 10000 },
+      "Egress": { "AllowedHosts": ["origin-a.example.com"], "AllowedPorts": [443], "AllowedSchemes": ["https"], "AllowPrivateExceptions": false }
+    },
+    "site-b": {
+      "Enabled": true,
+      "Hostnames": ["app-b.example.com"],
+      "PathPrefixes": ["/"],
+      "Upstreams": [{ "Id": "primary", "Address": "https://origin-b.example.com/", "Weight": 100 }],
+      "WafPolicy": "standard",
+      "Egress": { "AllowedHosts": ["origin-b.example.com"], "AllowedPorts": [443], "AllowedSchemes": ["https"], "AllowPrivateExceptions": false }
+    }
+  }
+}
+```
+
+The Desktop Site Manager is read-only for the active runtime configuration and indicates that a Gateway restart is required after configuration-file changes. This avoids changing YARP routes without a validated atomic reload.
 
 ## Remaining Production gates
 

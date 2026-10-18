@@ -54,6 +54,18 @@ public static class SiteConfigurationValidator
                 if (uri is not null && !string.IsNullOrEmpty(uri.UserInfo))
                     errors.Add($"Site {id} upstream {upstream.Key} must not contain credentials");
             }
+
+            if (enforcing)
+            {
+                var allowedHosts = site.GetSection("Egress:AllowedHosts").Get<string[]>() ?? [];
+                var allowedPorts = site.GetSection("Egress:AllowedPorts").Get<int[]>() ?? [];
+                var allowedSchemes = site.GetSection("Egress:AllowedSchemes").Get<string[]>() ?? [];
+                if (allowedHosts.Length == 0 || allowedPorts.Length == 0 || allowedSchemes.Length == 0 ||
+                    allowedSchemes.Any(x => !string.Equals(x, "https", StringComparison.OrdinalIgnoreCase)))
+                    errors.Add($"Site {id} must define an explicit HTTPS egress allowlist");
+                if (site.GetValue("Egress:AllowPrivateExceptions", false))
+                    errors.Add($"Site {id} must not enable private egress exceptions in Production");
+            }
         }
 
         if (enforcing && activeSites == 0)

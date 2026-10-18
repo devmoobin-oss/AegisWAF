@@ -96,4 +96,20 @@ public sealed class SiteConfigurationTests
         Assert.Contains(errors, error => error.Contains("hostname", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(errors, error => error.Contains("upstream", StringComparison.OrdinalIgnoreCase));
     }
+
+    [Fact]
+    public void Production_requires_explicit_https_egress_policy_per_site()
+    {
+        var config = Config(new Dictionary<string, string?>
+        {
+            ["Waf:Deployment:Enforce"] = "true",
+            ["Sites:site-a:Enabled"] = "true",
+            ["Sites:site-a:Hostnames:0"] = "app.example.com",
+            ["Sites:site-a:Upstreams:0:Address"] = "http://origin.example.com/"
+        });
+
+        var errors = SiteConfigurationValidator.Validate(config);
+
+        Assert.Contains(errors, error => error.Contains("egress", StringComparison.OrdinalIgnoreCase));
+    }
 }
