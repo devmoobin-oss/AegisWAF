@@ -42,8 +42,11 @@ public static class GatewayApp
         var useBaseDir = contentRoot is null && !Directory.Exists(Path.Combine(Directory.GetCurrentDirectory(), "wwwroot")) && Directory.Exists(Path.Combine(AppContext.BaseDirectory, "wwwroot"));
         var options = new WebApplicationOptions { Args = args, ContentRootPath = contentRoot ?? (useBaseDir ? AppContext.BaseDirectory : null) };
         var builder = WebApplication.CreateBuilder(options);
-        // TestHost may inherit the Windows EventLog provider, which can throw when the test account
-        // cannot create an Event Source. Keep production logging unchanged but make security tests deterministic.
+        // Windows may add an EventLog provider that throws when the process cannot write the event source.
+        // A logging sink failure must never take down EventWriter or the request pipeline; console JSON/message
+        // output is also the portable contract consumed by the SIEM/agent in production.
+        builder.Logging.ClearProviders();
+        builder.Logging.AddConsole();
         if (builder.Environment.IsEnvironment("Testing")) builder.Logging.ClearProviders();
         // Lowest precedence: a working default so the proxy has a route even when no appsettings.json is shipped.
         builder.Configuration.Sources.Insert(0, new Microsoft.Extensions.Configuration.Memory.MemoryConfigurationSource { InitialData = new Dictionary<string, string?>

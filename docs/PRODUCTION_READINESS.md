@@ -27,6 +27,7 @@
 - Rate limiting supports both per-client and global rolling-window ceilings. Production uses the PostgreSQL shared store so multiple WAF instances enforce one common limit; run migration `008_rate_limit_buckets.sql` before enabling traffic.
 - `/ready` verifies the shared rate-limit table exists when `Store=postgres`; traffic should not be admitted until this migration check is healthy.
 - Security events are emitted as structured `aegiswaf.security_event` JSON logs with client, request, status and OWASP mapping fields, allowing a SIEM/agent to ingest events even when database persistence is temporarily unavailable.
+- Standalone Windows hosting uses an explicit console logging provider instead of an implicit EventLog sink, so EventLog source permissions cannot crash `EventWriter` and stop security-event processing.
 - If `/api/audit/integrity` detects a broken audit chain, the Gateway emits a structured `aegiswaf.audit_integrity_failure` event at critical level with the checked count and first invalid row ID, so SIEM alerting does not depend on an operator noticing the API response.
 - Audit-chain hashing canonicalizes timestamps to PostgreSQL microsecond precision before hashing; legacy rows are accepted only before the first chained row, while a null-hash row inserted after the chain starts is reported as tampering.
 - Structured events include the originating `requestId`, enabling correlation across WAF, SIEM and upstream traces without changing the existing database schema.
@@ -70,6 +71,7 @@
 - The PostgreSQL rate limiter uses separate lock/cleanup and count statements; this avoids fragile SQL string slicing and is covered by the two-Gateway regression test.
 - The current verification baseline is 307 passing tests with zero failures/skips; the assessment runner records the Git commit and source configuration SHA-256 fingerprint for each evidence run.
 - A safe local security/load-test harness is available at `tools/security-loadtest/loadtest.ps1`; it emits JSON/CSV latency, throughput, status, block, and error evidence without destructive payloads.
+- Local runtime evidence after the logging hardening: 80 requests at concurrency 2, 78 WAF blocks (403), 0 client errors, p95 latency 1.662 ms; 2 clean requests returned 502 because the intentionally absent local upstream was unavailable.
 - Multi-Site routing is configured under `Sites`; each Site has explicit hostnames, path prefixes, upstreams, rate limits and egress policy. Unknown hosts fail closed when Production enforcement is enabled.
 - `WafPolicy` resolves to an immutable per-request snapshot when a matching `Waf:Policies:<name>` section exists. A Site policy may disable built-in, scanner, anomaly or custom rule IDs for that Site only; it cannot enable a rule disabled globally. Unknown names use the global fallback in non-production compatibility mode; Production startup rejects undefined names.
 - Site-scoped rate-limit keys include SiteId and route, and structured security events include SiteId, hostname and upstream context. Run migration `010_site_event_context.sql` before enabling event persistence for Multi-Site.
