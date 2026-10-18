@@ -165,6 +165,42 @@ public class EmbeddedGatewayTests(GatewayFixture fx)
         Assert.All(results.Where(x => x.host == "unknown.test"), x => Assert.Equal((HttpStatusCode)421, x.StatusCode));
     }
 
+    [Fact]
+    public async Task Real_socket_passive_health_removes_failed_destinations_and_keeps_healthy_failover()
+    {
+        await using var upstream = await LoopbackUpstream.StartAsync();
+        var badPorts = Enumerable.Range(0, 2).Select(_ => FreeUrl().Port).ToArray();
+        var url = FreeUrl();
+        var config = new Dictionary<string, string?>
+        {
+            ["AllowedHosts"] = "*",
+            ["Sites:failover:Hostnames:0"] = "failover.test",
+            ["Sites:failover:Health:IntervalSeconds"] = "5",
+            ["Sites:failover:Health:TimeoutSeconds"] = "1",
+            ["Sites:failover:Health:PassiveReactivationSeconds"] = "5",
+            ["Sites:failover:Upstreams:healthy:Address"] = upstream.Url.ToString(),
+            ["Sites:failover:Upstreams:bad-a:Address"] = $"http://127.0.0.1:{badPorts[0]}/",
+            ["Sites:failover:Upstreams:bad-b:Address"] = $"http://127.0.0.1:{badPorts[1]}/"
+        };
+        await using var gw = new EmbeddedGateway();
+        await gw.StartAsync(new EmbeddedGatewayOptions(url, fx.ConnectionString, null, null, null, config));
+
+        using var client = new HttpClient { BaseAddress = url, Timeout = TimeSpan.FromSeconds(5) };
+        var statuses = new List<HttpStatusCode>();
+        for (var i = 0; i < 50; i++)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, "/failover/" + i);
+            request.Headers.Host = "failover.test";
+            using var response = await client.SendAsync(request);
+            statuses.Add(response.StatusCode);
+            if (statuses.Count >= 10 && statuses.TakeLast(5).All(x => x == HttpStatusCode.OK)) break;
+        }
+
+        Assert.Contains(HttpStatusCode.OK, statuses);
+        Assert.True(statuses.TakeLast(5).All(x => x == HttpStatusCode.OK),
+            $"Expected stable healthy failover, observed: {string.Join(',', statuses)}");
+    }
+
     private sealed class LoopbackUpstream : IAsyncDisposable
     {
         private readonly TcpListener _listener;

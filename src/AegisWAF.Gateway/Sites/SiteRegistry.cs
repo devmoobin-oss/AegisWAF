@@ -72,6 +72,7 @@ public static class SiteProxyConfiguration
             values[$"ReverseProxy:Clusters:{clusterId}:HealthCheck:Active:Interval"] = TimeSpan.FromSeconds(health.IntervalSeconds).ToString("c");
             values[$"ReverseProxy:Clusters:{clusterId}:HealthCheck:Active:Timeout"] = TimeSpan.FromSeconds(health.TimeoutSeconds).ToString("c");
             values[$"ReverseProxy:Clusters:{clusterId}:HealthCheck:Passive:Enabled"] = "true";
+            values[$"ReverseProxy:Clusters:{clusterId}:HealthCheck:Passive:Policy"] = "TransportFailureRate";
             values[$"ReverseProxy:Clusters:{clusterId}:HealthCheck:Passive:ReactivationPeriod"] = TimeSpan.FromSeconds(health.PassiveReactivationSeconds).ToString("c");
             values[$"ReverseProxy:Clusters:{clusterId}:HealthCheck:AvailableDestinationsPolicy"] = "HealthyAndUnknown";
             values[$"ReverseProxy:Clusters:{clusterId}:LoadBalancingPolicy"] = "PowerOfTwoChoices";

@@ -78,6 +78,7 @@ public sealed class SiteProxyConfigurationTests
         Assert.Equal("/health", values["ReverseProxy:Clusters:site-site-a:HealthCheck:Active:Path"]);
         Assert.Equal("HealthyAndUnknown", values["ReverseProxy:Clusters:site-site-a:HealthCheck:AvailableDestinationsPolicy"]);
         Assert.Equal("true", values["ReverseProxy:Clusters:site-site-a:HealthCheck:Passive:Enabled"]);
+        Assert.Equal("TransportFailureRate", values["ReverseProxy:Clusters:site-site-a:HealthCheck:Passive:Policy"]);
     }
 
     [Fact]
