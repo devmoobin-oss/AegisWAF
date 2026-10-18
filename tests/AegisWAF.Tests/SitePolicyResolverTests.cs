@@ -48,4 +48,20 @@ public sealed class SitePolicyResolverTests
         Assert.Null(rules.Match("<script>alert(1)</script>", policy: policy));
         Assert.Equal("SQL Injection", rules.Match("' OR username = 'admin'", policy: policy));
     }
+
+    [Fact]
+    public void Direct_policy_construction_copies_mutable_input()
+    {
+        var disabled = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "xss-01" };
+        var policy = new SiteWafPolicy("checkout", disabled);
+
+        disabled.Add("sqli-01");
+
+        Assert.Contains("xss-01", policy.DisabledRuleIds);
+        Assert.DoesNotContain("sqli-01", policy.DisabledRuleIds);
+        Assert.Throws<NotSupportedException>(() =>
+        {
+            ((ISet<string>)policy.DisabledRuleIds).Add("cmd-01");
+        });
+    }
 }

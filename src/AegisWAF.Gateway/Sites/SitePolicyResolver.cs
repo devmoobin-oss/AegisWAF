@@ -7,8 +7,22 @@ namespace AegisWAF.Gateway.Sites;
 /// Immutable per-request policy snapshot. Site policies can only disable rules from the global catalog;
 /// they cannot silently enable a rule that an operator disabled globally.
 /// </summary>
-public sealed record SiteWafPolicy(string Name, IReadOnlySet<string> DisabledRuleIds)
+public sealed record SiteWafPolicy
 {
+    public string Name { get; }
+    public IReadOnlySet<string> DisabledRuleIds { get; }
+
+    public SiteWafPolicy(string name, IEnumerable<string> disabledRuleIds)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(disabledRuleIds);
+        Name = name.Trim();
+        DisabledRuleIds = disabledRuleIds
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim().ToLowerInvariant())
+            .ToFrozenSet(StringComparer.OrdinalIgnoreCase);
+    }
+
     public static SiteWafPolicy Global { get; } = new("global", FrozenSet<string>.Empty);
 }
 
@@ -21,10 +35,7 @@ public sealed class SitePolicyResolver
         _policies = configuration.GetSection("Waf:Policies").GetChildren()
             .Select(section => new SiteWafPolicy(
                 section.Key,
-                (section.GetSection("DisabledRules").Get<string[]>() ?? [])
-                    .Where(x => !string.IsNullOrWhiteSpace(x))
-                    .Select(x => x.Trim().ToLowerInvariant())
-                    .ToFrozenSet(StringComparer.OrdinalIgnoreCase)))
+                section.GetSection("DisabledRules").Get<string[]>() ?? []))
             .ToDictionary(x => x.Name, StringComparer.OrdinalIgnoreCase);
     }
 
