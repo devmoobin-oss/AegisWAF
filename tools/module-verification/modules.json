@@ -18,7 +18,7 @@
         { "id": "gateway-build", "kind": "build", "weight": 25, "timeoutSeconds": 120, "command": "dotnet build src/AegisWAF.Gateway/AegisWAF.Gateway.csproj --no-restore --disable-build-servers -m:1 --verbosity minimal" },
         { "id": "security-tests", "kind": "test", "weight": 25, "timeoutSeconds": 120, "command": "dotnet test tests/AegisWAF.Tests/AegisWAF.Tests.csproj --no-build --no-restore --disable-build-servers -m:1 --filter FullyQualifiedName~ProductionSecurityTests --logger \"console;verbosity=minimal\"" },
         { "id": "health-tests", "kind": "test", "weight": 25, "timeoutSeconds": 120, "command": "dotnet test tests/AegisWAF.Tests/AegisWAF.Tests.csproj --no-build --no-restore --disable-build-servers -m:1 --filter FullyQualifiedName~ProductionHealthTests --logger \"console;verbosity=minimal\"" },
-        { "id": "security-documentation", "kind": "contract", "weight": 25, "timeoutSeconds": 30, "command": "if ((Select-String -Path docs/PRODUCTION_READINESS.md -Pattern 'Deployment' -Quiet) -and (Select-String -Path docs/SECURITY.md -Pattern 'fail' -Quiet)) { exit 0 } else { exit 1 }" }
+        { "id": "security-documentation", "kind": "contract", "weight": 25, "timeoutSeconds": 30, "command": "if ((Select-String -Path docs/PRODUCTION_READINESS.md -Pattern 'Deployment' -Quiet) -and (Select-String -Path docs/SECURITY.md -Pattern 'bounded' -Quiet)) { exit 0 } else { exit 1 }" }
       ]
     },
     {
@@ -29,6 +29,16 @@
         { "id": "perimeter-tests", "kind": "test", "weight": 25, "timeoutSeconds": 120, "command": "dotnet test tests/AegisWAF.Tests/AegisWAF.Tests.csproj --no-build --no-restore --disable-build-servers -m:1 --filter FullyQualifiedName~AdminPerimeterTests --logger \"console;verbosity=minimal\"" },
         { "id": "production-policy-tests", "kind": "test", "weight": 25, "timeoutSeconds": 120, "command": "dotnet test tests/AegisWAF.Tests/AegisWAF.Tests.csproj --no-build --no-restore --disable-build-servers -m:1 --filter FullyQualifiedName~ProductionReadinessPolicyTests --logger \"console;verbosity=minimal\"" },
         { "id": "perimeter-documentation", "kind": "contract", "weight": 25, "timeoutSeconds": 30, "command": "if ((Select-String -Path docs/PRODUCTION_READINESS.md -Pattern 'listener isolation' -Quiet) -and (Select-String -Path docs/SECURITY.md -Pattern 'dual-listener' -Quiet) -and (Test-Path docs/superpowers/specs/2026-10-25-admin-perimeter-hardening-design.md)) { exit 0 } else { exit 1 }" }
+      ]
+    },
+    {
+      "id": "identity-hardening",
+      "name": "Identity hardening",
+      "gates": [
+        { "id": "gateway-build", "kind": "build", "weight": 25, "timeoutSeconds": 120, "command": "dotnet build src/AegisWAF.Gateway/AegisWAF.Gateway.csproj --no-restore --disable-build-servers -m:1 --verbosity minimal" },
+        { "id": "throttle-tests", "kind": "test", "weight": 25, "timeoutSeconds": 120, "command": "dotnet test tests/AegisWAF.Tests/AegisWAF.Tests.csproj --no-build --no-restore --disable-build-servers -m:1 --filter FullyQualifiedName~AuthThrottleTests --logger \"console;verbosity=minimal\"" },
+        { "id": "authentication-tests", "kind": "test", "weight": 25, "timeoutSeconds": 120, "command": "dotnet test tests/AegisWAF.Tests/AegisWAF.Tests.csproj --no-build --no-restore --disable-build-servers -m:1 --filter FullyQualifiedName~AuthenticationTests --logger \"console;verbosity=minimal\"" },
+        { "id": "identity-documentation", "kind": "contract", "weight": 25, "timeoutSeconds": 30, "command": "if ((Select-String -Path docs/SECURITY.md -Pattern 'local IP/username/pair' -Quiet) -and (Select-String -Path docs/PROTECTION.md -Pattern 'MFA' -Quiet) -and (Test-Path docs/superpowers/specs/2026-10-25-identity-hardening-design.md)) { exit 0 } else { exit 1 }" }
       ]
     },
     {

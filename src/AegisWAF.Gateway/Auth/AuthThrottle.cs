@@ -27,10 +27,14 @@ public sealed class AuthThrottle
         lock (_gate)
         {
             Prune(now);
-            if (!_entries.TryGetValue(Key(clientIp, username), out var entry) || now - entry.WindowStart >= _window)
-                return new(true, TimeSpan.Zero, "allowed");
-            if (entry.Failures < _maxFailures) return new(true, TimeSpan.Zero, "allowed");
-            return new(false, entry.WindowStart.Add(_window) - now, "throttled");
+            TimeSpan? retryAfter = null;
+            foreach (var key in Keys(clientIp, username))
+            {
+                if (!_entries.TryGetValue(key, out var entry) || now - entry.WindowStart >= _window || entry.Failures < _maxFailures) continue;
+                var retry = entry.WindowStart.Add(_window) - now;
+                if (retryAfter is null || retry > retryAfter.Value) retryAfter = retry;
+            }
+            return retryAfter is null ? new(true, TimeSpan.Zero, "allowed") : new(false, retryAfter.Value, "throttled");
         }
     }
 
@@ -39,26 +43,56 @@ public sealed class AuthThrottle
         lock (_gate)
         {
             Prune(now);
-            var key = Key(clientIp, username);
-            var next = _entries.TryGetValue(key, out var old) && now - old.WindowStart < _window
-                ? new Entry(old.WindowStart, old.Failures + 1)
-                : new Entry(now, 1);
-            _entries[key] = next;
+            foreach (var key in Keys(clientIp, username))
+            {
+                var next = _entries.TryGetValue(key, out var old) && now - old.WindowStart < _window
+                    ? new Entry(old.WindowStart, old.Failures + 1)
+                    : new Entry(now, 1);
+                _entries[key] = next;
+            }
             Prune(now);
         }
     }
 
     public void RecordSuccess(string clientIp, string username)
     {
-        lock (_gate) _entries.Remove(Key(clientIp, username));
+        lock (_gate)
+        {
+            // A successful login is positive evidence for this client and clears
+            // all local buckets so a prior transient burst cannot strand it.
+            _entries.Remove(IpKey(clientIp));
+            _entries.Remove(UserKey(username));
+            _entries.Remove(PairKey(clientIp, username));
+        }
     }
 
     private void Prune(DateTimeOffset now)
     {
         foreach (var key in _entries.Where(x => now - x.Value.WindowStart >= _window).Select(x => x.Key).ToArray()) _entries.Remove(key);
-        if (_entries.Count <= _maxEntries) return;
-        foreach (var key in _entries.OrderBy(x => x.Value.WindowStart).Take(_entries.Count - _maxEntries).Select(x => x.Key).ToArray()) _entries.Remove(key);
+        foreach (var prefix in Prefixes)
+        {
+            var keys = _entries.Where(x => x.Key.StartsWith(prefix, StringComparison.Ordinal))
+                .OrderBy(x => x.Value.WindowStart).Select(x => x.Key).ToArray();
+            foreach (var key in keys.Take(Math.Max(0, keys.Length - _maxEntries))) _entries.Remove(key);
+        }
     }
 
-    private static string Key(string ip, string username) => (ip ?? "unknown").Trim().ToLowerInvariant() + "\u001f" + (username ?? "").Trim().ToLowerInvariant();
+    private static readonly string[] Prefixes = ["ip:", "user:", "pair:"];
+
+    private static IEnumerable<string> Keys(string ip, string username)
+    {
+        yield return IpKey(ip);
+        yield return UserKey(username);
+        yield return PairKey(ip, username);
+    }
+
+    private static string IpKey(string value) => "ip:" + Normalize(value);
+    private static string UserKey(string value) => "user:" + Normalize(value);
+    private static string PairKey(string ip, string username) => "pair:" + Normalize(ip) + "\u001f" + Normalize(username);
+
+    private static string Normalize(string value)
+    {
+        var normalized = (value ?? "unknown").Trim().ToLowerInvariant();
+        return normalized.Length > 128 ? normalized[..128] : normalized;
+    }
 }

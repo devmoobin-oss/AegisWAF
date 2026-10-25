@@ -4,7 +4,7 @@ Status labels: NOT STARTED · IN PROGRESS · IMPLEMENTED (code, untested) · TES
 
 | Version | Scope | Status |
 |---|---|---|
-| v0.7 | Authentication, RBAC, in-process admin API isolation, user/role schema, login + user-management GUI, auth audit, auth tests | **TESTED** (53 automated tests). MFA and per-IP login throttling deferred; GUI not browser-tested |
+| v0.7 | Authentication, RBAC, in-process admin API isolation, user/role schema, login + user-management GUI, auth audit, auth tests | **TESTED** (automated tests). Local/shared IP and username login throttling implemented; MFA deferred; GUI not browser-tested |
 | v0.8 | Dedicated admin listener, project split, protected-application CRUD, domain routing, per-site policy, trusted proxies, TLS config, health checks | NOT STARTED |
 | v0.7.1 | WAF engine upgrade: request normalisation (decode/entity/comment-strip), inspect headers+cookies+all body types, 13-rule signature set, detection regression suite (`CatalogVerificationTests`) | **TESTED** (pulled forward from v0.9) |
 | v0.9 | Remaining engine work: anomaly scoring, Unicode (NFKC) normalisation, response/leak inspection, NoSQL/XXE/SSTI signatures, OWASP CRS compatibility study | **TESTED** (24 new tests in `EngineUpgradeTests`; CRS study in `OWASP_CRS_COMPATIBILITY.md`). **Deferred:** rule exclusions (per-path/param allowlisting) and rule versioning |

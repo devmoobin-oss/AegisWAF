@@ -23,16 +23,16 @@ See also [PROTECTION.md](PROTECTION.md) for exactly which attack classes the gat
 | 14 | Dev DB account is the `postgres` superuser | Medium | **Open** – create a least-privilege role for production |
 | 15 | Audit log is append-only by convention, not tamper-evident | Low | **Open** |
 
-## Password policy removed (operator decision)
-On the operator's request all password complexity rules were removed: **any non-empty password up to 128 characters is accepted** (no minimum length, no username/repetition checks, reuse of the current password allowed). Consequences to be aware of:
-* Accounts can have trivially guessable passwords (`1`, `admin`, the username). Online guessing is only slowed by the per-account lockout (5 failures → 15 min); there is still no per-source-IP throttle.
-* Anyone who can reach the login endpoint (loopback only by default) or a copy of the database hash (PBKDF2-SHA512, 210 000 iterations) can crack weak passwords quickly.
-* Recommended compensating habits: keep `Admin:AllowRemote` off, do not expose the gateway's admin port, and give SUPER_ADMIN / SECURITY_ADMIN accounts real passwords even though the system no longer forces it.
-The empty-password and 128-character limits remain because an empty password could never log in and unbounded input would let a client make the server hash arbitrarily large strings. Password hashing, lockout, session handling and the forced change of administrator-issued temporary passwords are unchanged.
+## Password policy and legacy hashes
+New password creation and changes enforce **at least 12 characters**, upper/lower/digit/symbol classes, username exclusion, and a 128-character maximum. Legacy hashes created under the older policy may still be weak and should be rotated. Consequences to be aware of:
+* Password creation/change currently requires at least 12 characters plus upper/lower/digit/symbol classes and rejects the username. Login abuse is bounded by account lockout plus local IP/username/pair buckets; production uses the shared PostgreSQL IP/username throttle.
+* Newly created or changed accounts use the current password policy, but legacy hashes created under older policy may still represent weak passwords and should be rotated by administrators.
+* Recommended compensating habits: keep `Admin:AllowRemote` off, do not expose the gateway's admin port, rotate legacy weak hashes, and give SUPER_ADMIN / SECURITY_ADMIN accounts unique passwords.
+Password hashing, lockout, session handling and the forced change of administrator-issued temporary passwords are unchanged.
 
 ## v0.7 limitations (known)
 * No MFA (column reserved) and no email-based self-service reset; reset is administrator-initiated and the user must change the password at next login.
-* Login attempts are throttled per account only (lockout), not per source IP. Because the admin API is loopback-only by default, only a local user could use lockout to deny an account.
+* Login attempts are bounded by account lockout plus local IP/username/pair buckets; production deployments must use the shared PostgreSQL IP/username throttle. MFA/WebAuthn/OIDC remains a separate hardening gap.
 * CSRF uses the synchroniser token, `SameSite=Strict`, and effective-origin validation; the effective host/scheme are proxy-aware only for explicitly trusted peers.
 * Session lookups hit PostgreSQL on every admin request (fine at admin request rates; add caching before scaling).
 * The session cookie is not `__Host-` prefixed because plain-HTTP loopback use is supported.
