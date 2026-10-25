@@ -309,9 +309,11 @@ public static class GatewayApp
             if (threat is null)
                 foreach (var cookie in ctx.Request.Cookies)
                 { threat = await InspectValue(cookie.Key + "=" + cookie.Value); if (threat != null) break; }
-            // 4) Body of any textual content type (json, form, text, xml, multipart), including chunked (no Content-Length).
+            // 4) Body of textual content types and bounded text-like opaque bodies, including chunked (no Content-Length).
             var hasBody = ctx.Request.ContentLength is > 0 || ctx.Request.Headers.ContainsKey("Transfer-Encoding");
-            if (threat is null && hasBody && IsInspectableBody(ctx.Request.ContentType))
+            var structuredBody = IsInspectableBody(ctx.Request.ContentType);
+            var opaqueBody = ContentInspection.IsOpaqueContentType(ctx.Request.ContentType);
+            if (threat is null && hasBody && (structuredBody || opaqueBody))
             {
                     var config = ctx.RequestServices.GetRequiredService<IConfiguration>();
                     var maxBodyBytes = config.GetValue("Waf:MaxBodyInspectBytes", 131072);
@@ -334,20 +336,25 @@ public static class GatewayApp
                                     ? "Inspection Body Limit" : "Malformed Structured Body";
                             else
                             {
-                                var body = Encoding.UTF8.GetString(decoded.Bytes);
-                                threat = await InspectValue(body);
-                                if (threat is null)
+                                if (!structuredBody && !ContentInspection.IsTextLike(decoded.Bytes))
+                                    threat = null; // Real binary content remains compatible and is not decoded as text.
+                                else
                                 {
-                                    var parsed = StructuredPayloadParser.Parse(ctx.Request.ContentType, body, limits);
-                                    if (!parsed.Success)
-                                        threat = parsed.ReasonCode is "json_limit" or "xml_limit" or "form_limit" or "multipart_limit"
-                                            ? "Inspection Body Limit" : "Malformed Structured Body";
-                                    else
-                                        foreach (var value in parsed.Values)
-                                        {
-                                            threat = await InspectValue(value.Text);
-                                            if (threat is not null) break;
-                                        }
+                                    var body = Encoding.UTF8.GetString(decoded.Bytes);
+                                    threat = await InspectValue(body);
+                                    if (threat is null && structuredBody)
+                                    {
+                                        var parsed = StructuredPayloadParser.Parse(ctx.Request.ContentType, body, limits);
+                                        if (!parsed.Success)
+                                            threat = parsed.ReasonCode is "json_limit" or "xml_limit" or "form_limit" or "multipart_limit"
+                                                ? "Inspection Body Limit" : "Malformed Structured Body";
+                                        else
+                                            foreach (var value in parsed.Values)
+                                            {
+                                                threat = await InspectValue(value.Text);
+                                                if (threat is not null) break;
+                                            }
+                                    }
                                 }
                             }
                     }
@@ -397,7 +404,7 @@ public static class GatewayApp
             }
             return;
         }
-        if (!capture.Overflowed && ResponseInspector.IsInspectable(ctx.Response.ContentType))
+        if (!capture.Overflowed && ResponseInspector.IsInspectable(ctx.Response.ContentType, capture.CapturedBuffer.AsSpan(0, capture.CapturedLength)))
             leak = inspector.Inspect(Encoding.UTF8.GetString(capture.CapturedBuffer, 0, capture.CapturedLength));
         if (leak != null)
         {

@@ -52,6 +52,16 @@
       ]
     },
     {
+      "id": "opaque-content-inspection",
+      "name": "Opaque content inspection",
+      "gates": [
+        { "id": "gateway-build", "kind": "build", "weight": 25, "timeoutSeconds": 120, "command": "dotnet build src/AegisWAF.Gateway/AegisWAF.Gateway.csproj --no-restore --disable-build-servers -m:1 --verbosity minimal" },
+        { "id": "opaque-request-tests", "kind": "test", "weight": 25, "timeoutSeconds": 120, "command": "dotnet test tests/AegisWAF.Tests/AegisWAF.Tests.csproj --no-build --no-restore --disable-build-servers -m:1 --filter FullyQualifiedName~CatalogVerificationTests --logger \"console;verbosity=minimal\"" },
+        { "id": "opaque-response-tests", "kind": "test", "weight": 25, "timeoutSeconds": 120, "command": "dotnet test tests/AegisWAF.Tests/AegisWAF.Tests.csproj --no-build --no-restore --disable-build-servers -m:1 --filter FullyQualifiedName~ResponseInspection --logger \"console;verbosity=minimal\"" },
+        { "id": "opaque-content-documentation", "kind": "contract", "weight": 25, "timeoutSeconds": 30, "command": "if ((Select-String -Path docs/PROTECTION.md -Pattern 'application/octet-stream' -Quiet) -and (Select-String -Path docs/SECURITY.md -Pattern 'opaque-content hardening' -Quiet) -and (Test-Path docs/superpowers/specs/2026-10-25-opaque-content-inspection-design.md)) { exit 0 } else { exit 1 }" }
+      ]
+    },
+    {
       "id": "auth-rbac-audit",
       "name": "Authentication / RBAC / audit",
       "gates": [

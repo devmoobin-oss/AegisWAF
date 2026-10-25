@@ -438,7 +438,7 @@ sealed class ResponseInspector
         return null;
     }
 
-    /// <summary>True for content types whose body is worth scanning (html, text, json, xml). Binary responses are skipped.</summary>
+    /// <summary>True for known textual content types; opaque content requires the byte-aware overload.</summary>
     public static bool IsInspectable(string? contentType)
     {
         if (string.IsNullOrEmpty(contentType)) return false; // unknown/binary: don't buffer
@@ -448,6 +448,9 @@ sealed class ResponseInspector
             || contentType.Contains("xml", StringComparison.OrdinalIgnoreCase)
             || contentType.Contains("html", StringComparison.OrdinalIgnoreCase);
     }
+
+    public static bool IsInspectable(string? contentType, ReadOnlySpan<byte> body) =>
+        IsInspectable(contentType) || ContentInspection.IsOpaqueContentType(contentType) && ContentInspection.IsTextLike(body);
 }
 
 /// <summary>

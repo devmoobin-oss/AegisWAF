@@ -228,14 +228,24 @@ public class EngineUpgradeTests
         }
 
         [Fact]
-        public async Task A_binary_response_is_not_inspected_so_the_same_bytes_pass_through_fail_open()
+        public async Task A_text_like_binary_response_is_inspected_and_suppressed()
         {
-            // Same passwd content, but declared as a binary type: not buffered/inspected (documented fail-open).
+            // Text content must not evade response-leak inspection merely by declaring a binary media type.
             using var up = new ScriptedUpstream("200 OK", "application/octet-stream", "root:x:0:0:root:/root:/bin/bash");
             await using var run = await StartAsync(up);
             var (status, body) = await GetAsync(run.Url, "/blob");
+            Assert.Equal(502, status);
+            Assert.DoesNotContain("root:x:0:0", body);
+        }
+
+        [Fact]
+        public async Task A_binary_response_with_control_bytes_remains_compatible()
+        {
+            using var up = new ScriptedUpstream("200 OK", "application/octet-stream", "PK\0\0\u0001\u0002");
+            await using var run = await StartAsync(up);
+            var (status, body) = await GetAsync(run.Url, "/binary");
             Assert.Equal(200, status);
-            Assert.Contains("root:x:0:0", body);
+            Assert.Contains("PK", body);
         }
 
         [Fact]

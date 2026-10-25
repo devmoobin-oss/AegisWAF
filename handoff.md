@@ -7,16 +7,16 @@
 
 - วันที่ตรวจสอบ: 2026-10-25 (Asia/Bangkok)
 - สาขา: `codex/modular-development-handoff`
-- สถานะ snapshot: implementation commit `9a9933a` ผ่านการตรวจแล้ว; worktree สำรอง `D:\AegisWAF\.worktrees\multi-site-gateway` มีการแก้ไขเดิมของผู้ใช้และยังไม่ได้แตะต้อง
+- สถานะ snapshot: รอบนี้เพิ่ม Opaque Content Inspection ต่อจาก implementation commit `9a9933a`; การเปลี่ยนแปลงรอบนี้ยังอยู่ใน working tree ก่อน commit; worktree สำรอง `D:\AegisWAF\.worktrees\multi-site-gateway` มีการแก้ไขเดิมของผู้ใช้และยังไม่ได้แตะต้อง
 - `handoff.md`: อ่านแล้วและใช้เป็น baseline ของรอบนี้
 - เป้าหมาย: พัฒนาแต่ละโมดูลให้มีความคืบหน้า **มากกว่า 98%** โดยต้องมีหลักฐานรองรับก่อนรายงาน
 
 ## Current continuation snapshot
 
-- รอบล่าสุดตรวจสอบครบ 9 โมดูล: ทุกโมดูลได้ 100% จาก gate `4/4` (รวม 36/36 gates) และสูงกว่าเป้าหมาย >98%
-- หลักฐานล่าสุด: `D:\AegisWAF\artifacts\module-verification\20261025-162220375.json`
-- Full test suite ล่าสุด: `227/227` ผ่าน; CIDR policy focused suite: `5/5` ผ่าน; Desktop build: 0 warning, 0 error
-- Implementation ล่าสุด: `9a9933a feat: add CIDR-aware IP policies`
+- รอบล่าสุดตรวจสอบครบ 10 โมดูล: ทุกโมดูลได้ 100% จาก gate `4/4` (รวม 40/40 gates) และสูงกว่าเป้าหมาย >98%
+- หลักฐานล่าสุด: `D:\AegisWAF\artifacts\module-verification\20261025-163021560.json`
+- Full test suite ล่าสุด: `231/231` ผ่าน; opaque-content focused regression: `33/33` ผ่าน; Desktop build: 0 warning, 0 error
+- Implementation ล่าสุด: Opaque Content Inspection (รอ commit รอบนี้; baseline 0% → 100%)
 - GitHub sync: ยังไม่สำเร็จ เนื่องจาก safety review ขอการยืนยันการส่งข้อมูล repository ออกไปยัง `origin`; remote branch ยังไม่พบ
 
 ## หลักเกณฑ์วัดความคืบหน้า
@@ -31,15 +31,16 @@
 
 | โมดูล | ก่อนรอบนี้ | หลังรอบนี้ | เป้าหมาย | หลักฐานล่าสุด | สถานะ |
 |---|---:|---:|---:|---|---|
-| 1. WAF inspection engine | 100% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-162220375.json; passed=4; failed=0; unverified=0 | passed >98% |
-| 2. Gateway / perimeter security | 100% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-162220375.json; passed=4; failed=0; unverified=0 | passed >98% |
-| 3. Authentication / RBAC / audit | 100% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-162220375.json; passed=4; failed=0; unverified=0 | passed >98% |
-| 4. Client API / Desktop UI | 100% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-162220375.json; passed=4; failed=0; unverified=0 | passed >98% |
-| 5. Database / migrations / operations | 100% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-162220375.json; passed=4; failed=0; unverified=0 | passed >98% |
-| 6. Documentation / handoff / verification | 100% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-162220375.json; passed=4; failed=0; unverified=0 | passed >98% |
-| 7. Admin perimeter hardening | 100% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-162220375.json; passed=4; failed=0; unverified=0 | passed >98% |
-| 8. Identity hardening | 100% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-162220375.json; passed=4; failed=0; unverified=0 | passed >98% |
-| 9. CIDR-aware IP policy | 0% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-162220375.json; passed=4; failed=0; unverified=0 | passed >98% |
+| 1. WAF inspection engine | 100% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-163021560.json; passed=4; failed=0; unverified=0 | passed >98% |
+| 2. Gateway / perimeter security | 100% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-163021560.json; passed=4; failed=0; unverified=0 | passed >98% |
+| 3. Authentication / RBAC / audit | 100% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-163021560.json; passed=4; failed=0; unverified=0 | passed >98% |
+| 4. Client API / Desktop UI | 100% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-163021560.json; passed=4; failed=0; unverified=0 | passed >98% |
+| 5. Database / migrations / operations | 100% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-163021560.json; passed=4; failed=0; unverified=0 | passed >98% |
+| 6. Documentation / handoff / verification | 100% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-163021560.json; passed=4; failed=0; unverified=0 | passed >98% |
+| 7. Admin perimeter hardening | 100% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-163021560.json; passed=4; failed=0; unverified=0 | passed >98% |
+| 8. Identity hardening | 100% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-163021560.json; passed=4; failed=0; unverified=0 | passed >98% |
+| 9. CIDR-aware IP policy | 100% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-163021560.json; passed=4; failed=0; unverified=0 | passed >98% |
+| 10. Opaque content inspection | 0% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-163021560.json; passed=4; failed=0; unverified=0 | passed >98% |
 
 ## หลักฐานรอบล่าสุด
 
@@ -441,4 +442,59 @@
 ### 2026-10-25 16:22:20 +07:00 -- Documentation / handoff / verification
 - Before: 100%; After: 100%; Target: >98%
 - Evidence: D:\AegisWAF\artifacts\module-verification\20261025-162220375.json
+- Gates: passed=4, failed=0, unverified=0
+
+### 2026-10-25 16:27:10 +07:00 -- Opaque content inspection
+- Before: 0%; After: 100%; Target: >98%
+- Evidence: D:\AegisWAF\artifacts\module-verification\20261025-162710791.json
+- Gates: passed=4, failed=0, unverified=0
+
+### 2026-10-25 16:30:21 +07:00 -- WAF inspection engine
+- Before: 100%; After: 100%; Target: >98%
+- Evidence: D:\AegisWAF\artifacts\module-verification\20261025-163021560.json
+- Gates: passed=4, failed=0, unverified=0
+
+### 2026-10-25 16:30:21 +07:00 -- Gateway / perimeter security
+- Before: 100%; After: 100%; Target: >98%
+- Evidence: D:\AegisWAF\artifacts\module-verification\20261025-163021560.json
+- Gates: passed=4, failed=0, unverified=0
+
+### 2026-10-25 16:30:21 +07:00 -- Admin perimeter hardening
+- Before: 100%; After: 100%; Target: >98%
+- Evidence: D:\AegisWAF\artifacts\module-verification\20261025-163021560.json
+- Gates: passed=4, failed=0, unverified=0
+
+### 2026-10-25 16:30:21 +07:00 -- Identity hardening
+- Before: 100%; After: 100%; Target: >98%
+- Evidence: D:\AegisWAF\artifacts\module-verification\20261025-163021560.json
+- Gates: passed=4, failed=0, unverified=0
+
+### 2026-10-25 16:30:21 +07:00 -- CIDR-aware IP policy
+- Before: 100%; After: 100%; Target: >98%
+- Evidence: D:\AegisWAF\artifacts\module-verification\20261025-163021560.json
+- Gates: passed=4, failed=0, unverified=0
+
+### 2026-10-25 16:30:21 +07:00 -- Opaque content inspection
+- Before: 100%; After: 100%; Target: >98%
+- Evidence: D:\AegisWAF\artifacts\module-verification\20261025-163021560.json
+- Gates: passed=4, failed=0, unverified=0
+
+### 2026-10-25 16:30:21 +07:00 -- Authentication / RBAC / audit
+- Before: 100%; After: 100%; Target: >98%
+- Evidence: D:\AegisWAF\artifacts\module-verification\20261025-163021560.json
+- Gates: passed=4, failed=0, unverified=0
+
+### 2026-10-25 16:30:21 +07:00 -- Client API / Desktop UI
+- Before: 100%; After: 100%; Target: >98%
+- Evidence: D:\AegisWAF\artifacts\module-verification\20261025-163021560.json
+- Gates: passed=4, failed=0, unverified=0
+
+### 2026-10-25 16:30:21 +07:00 -- Database / migrations / operations
+- Before: 100%; After: 100%; Target: >98%
+- Evidence: D:\AegisWAF\artifacts\module-verification\20261025-163021560.json
+- Gates: passed=4, failed=0, unverified=0
+
+### 2026-10-25 16:30:21 +07:00 -- Documentation / handoff / verification
+- Before: 100%; After: 100%; Target: >98%
+- Evidence: D:\AegisWAF\artifacts\module-verification\20261025-163021560.json
 - Gates: passed=4, failed=0, unverified=0
