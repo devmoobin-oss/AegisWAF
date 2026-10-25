@@ -7,7 +7,7 @@
 
 - วันที่ตรวจสอบ: 2026-10-25 (Asia/Bangkok)
 - สาขา: `codex/modular-development-handoff`
-- สถานะ snapshot: กำลังพัฒนาโมดูล `Audit integrity alerting`; implementation commit ก่อนรอบนี้ `870b4c0` ผ่านการตรวจแล้ว; worktree สำรอง `D:\AegisWAF\.worktrees\multi-site-gateway` มีการแก้ไขเดิมของผู้ใช้และยังไม่ได้แตะต้อง
+- สถานะ snapshot: รวมงาน Multi-site Gateway, Command Center, traffic telemetry และ security hardening เข้ากับ branch ปัจจุบันแล้วใน merge commit `7ecff93`; worktree สำรองและ local branch เดิมถูกลบหลังตรวจ merge สำเร็จ
 - `handoff.md`: อ่านแล้วและใช้เป็น baseline ของรอบนี้
 - เป้าหมายรอบปัจจุบัน: พัฒนาและตรวจสอบแต่ละโมดูลให้มีความสำเร็จ **100%** โดยทุก gate ต้องผ่านและมีหลักฐานรองรับ
 
@@ -16,8 +16,10 @@
 - รอบล่าสุดก่อนเริ่มโมดูลนี้ตรวจสอบครบ 10 โมดูล: ทุกโมดูลได้ 100% จาก gate `4/4` (รวม 40/40 gates); โมดูล 11 เริ่มที่ 0% จาก gap การแจ้งเตือน audit-chain ไปยัง SIEM
 - หลักฐานล่าสุด: `D:\AegisWAF\artifacts\module-verification\20261025-163021560.json`
 - Full test suite ล่าสุด: `231/231` ผ่าน; opaque-content focused regression: `33/33` ผ่าน; Desktop build: 0 warning, 0 error
-- Implementation ล่าสุด: `870b4c0 feat: inspect text-like opaque content`
-- GitHub sync: ยังไม่สำเร็จ เนื่องจาก safety review ขอการยืนยันการส่งข้อมูล repository ออกไปยัง `origin`; remote branch ยังไม่พบ
+- Implementation baseline ก่อน consolidation: `870b4c0 feat: inspect text-like opaque content`; consolidated merge: `7ecff93`
+- Consolidated build ล่าสุด: `dotnet build AegisWAF.slnx --no-restore --disable-build-servers -m:1 -p:TreatWarningsAsErrors=true` ผ่าน 0 warning, 0 error; current Desktop source มีเมนู `Multi-Site Gateway`
+- Multi-Site focused verification ล่าสุด: 34/34 เคสที่ไม่พึ่ง PostgreSQL ผ่าน; Command Center API 5 เคสยังรอ PostgreSQL ที่ `127.0.0.1:5432` ใน environment นี้
+- GitHub sync: push สำเร็จไปยัง `origin/codex/modular-development-handoff`
 
 ## หลักเกณฑ์วัดความคืบหน้า
 
