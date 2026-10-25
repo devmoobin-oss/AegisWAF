@@ -7,7 +7,7 @@
 
 - วันที่ตรวจสอบ: 2026-10-25 (Asia/Bangkok)
 - สาขา: `codex/modular-development-handoff`
-- สถานะ snapshot: รอบนี้พัฒนา Identity Hardening ต่อจาก implementation commit `4629311`; การเปลี่ยนแปลงรอบนี้ยังอยู่ใน working tree ก่อน commit; worktree สำรอง `D:\AegisWAF\.worktrees\multi-site-gateway` มีการแก้ไขเดิมของผู้ใช้และยังไม่ได้แตะต้อง
+- สถานะ snapshot: implementation commit `449f317` ผ่านการตรวจแล้ว; worktree สำรอง `D:\AegisWAF\.worktrees\multi-site-gateway` มีการแก้ไขเดิมของผู้ใช้และยังไม่ได้แตะต้อง
 - `handoff.md`: อ่านแล้วและใช้เป็น baseline ของรอบนี้
 - เป้าหมาย: พัฒนาแต่ละโมดูลให้มีความคืบหน้า **มากกว่า 98%** โดยต้องมีหลักฐานรองรับก่อนรายงาน
 
@@ -16,7 +16,7 @@
 - รอบล่าสุดตรวจสอบครบ 8 โมดูล: ทุกโมดูลได้ 100% จาก gate `4/4` (รวม 32/32 gates) และสูงกว่าเป้าหมาย >98%
 - หลักฐานล่าสุด: `D:\AegisWAF\artifacts\module-verification\20261025-160944108.json`
 - Full test suite ล่าสุด: `222/222` ผ่าน; Identity-focused suite: `37/37` ผ่าน; `AuthThrottleTests`: `5/5` ผ่าน
-- Implementation ล่าสุด: Identity Hardening — local IP/username/pair throttling, documentation, and verifier contract (รอ commit รอบนี้)
+- Implementation ล่าสุด: `449f317 feat: harden local identity throttling`
 - GitHub sync: ยังไม่สำเร็จ เนื่องจาก safety review ขอการยืนยันการส่งข้อมูล repository ออกไปยัง `origin`; remote branch ยังไม่พบ
 
 ## หลักเกณฑ์วัดความคืบหน้า
