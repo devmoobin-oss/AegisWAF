@@ -173,8 +173,8 @@ public static class ProtectionCatalog
             []),
 
         new("ipblock", "บล็อก / อนุญาตตาม IP", Coverage.Covered,
-            "บล็อกทุกคำขอจาก IP ที่กำหนด (IPv4/IPv6 แบบตรงตัว) หรือกำหนดให้ IP ที่เชื่อถือข้ามการตรวจได้ มีปุ่มบล็อกจากหน้าเหตุการณ์",
-            "ไม่รองรับช่วง IP (CIDR) รายการ อนุญาต จะข้ามการตรวจทุกอย่างรวมถึง rate limit และระบบเห็นเฉพาะ IP ของการเชื่อมต่อโดยตรง (หลัง load balancer ทุกคนจะเป็น IP เดียวกัน)",
+            "บล็อกทุกคำขอจาก IP หรือ network CIDR ที่กำหนด (IPv4/IPv6) และเลือก policy ที่เฉพาะเจาะจงที่สุดเมื่อช่วงซ้อนกัน มีปุ่มบล็อกจากหน้าเหตุการณ์",
+            "รายการ allow เป็นเพียงข้อยกเว้นจาก blocklist ไม่ข้าม signature inspection หรือ rate limit; ระบบเห็น IP ต้นทางตาม trusted-proxy configuration",
             []),
 
         new("ratelimit", "จำกัดความถี่คำขอ (Rate limit)", Coverage.Partial,

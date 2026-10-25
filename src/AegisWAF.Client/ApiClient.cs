@@ -71,7 +71,7 @@ public sealed class ApiClient : IDisposable
     public Task SaveIpPolicyAsync(string ip, string action, string reason, CancellationToken ct = default) =>
         SendAsync(HttpMethod.Put, "api/ip-policies", new { ip, action, reason }, ct);
     public Task DeleteIpPolicyAsync(string ip, CancellationToken ct = default) =>
-        SendAsync(HttpMethod.Delete, $"api/ip-policies/{Uri.EscapeDataString(ip)}", null, ct);
+        SendAsync(HttpMethod.Delete, ip.Contains('/') ? $"api/ip-policies?ip={Uri.EscapeDataString(ip)}" : $"api/ip-policies/{Uri.EscapeDataString(ip)}", null, ct);
 
     public Task<List<AuditEntryDto>> GetAuditAsync(CancellationToken ct = default) => SendAsync<List<AuditEntryDto>>(HttpMethod.Get, "api/audit", null, ct);
 

@@ -32,19 +32,58 @@ internal static class ClientAddress
 
 internal static class Cidr
 {
+    public static bool TryNormalize(string value, out string normalized)
+    {
+        normalized = "";
+        if (!TryParse(value, out var network, out var bits)) return false;
+        var bytes = network.GetAddressBytes();
+        MaskNetwork(bytes, bits);
+        normalized = bits == bytes.Length * 8 ? new IPAddress(bytes).ToString() : $"{new IPAddress(bytes)}/{bits}";
+        return true;
+    }
+
+    public static int PrefixLength(string value) => TryParse(value, out _, out var bits) ? bits : -1;
+
     public static bool Contains(string value, IPAddress address)
     {
-        var slash = value.IndexOf('/');
-        if (slash < 0) return IPAddress.TryParse(value, out var exact) && exact.Equals(address);
-        if (!IPAddress.TryParse(value[..slash], out var network) || !int.TryParse(value[(slash + 1)..], out var bits)) return false;
-        if (network.AddressFamily != address.AddressFamily) return false;
+        if (!TryParse(value, out var network, out var bits) || network.AddressFamily != address.AddressFamily) return false;
         var a = address.GetAddressBytes();
         var n = network.GetAddressBytes();
-        var maxBits = a.Length * 8;
-        if (bits is < 0 || bits > maxBits) return false;
         var full = bits / 8; var rem = bits % 8;
         for (var i = 0; i < full; i++) if (a[i] != n[i]) return false;
         return rem == 0 || (a[full] & (byte)(0xff << (8 - rem))) == (n[full] & (byte)(0xff << (8 - rem)));
+    }
+
+    private static bool TryParse(string value, out IPAddress network, out int bits)
+    {
+        network = IPAddress.None;
+        bits = 0;
+        if (string.IsNullOrWhiteSpace(value)) return false;
+        var trimmed = value.Trim();
+        var slash = trimmed.IndexOf('/');
+        if (slash < 0)
+        {
+            if (!IPAddress.TryParse(trimmed, out var parsed) || parsed is null) return false;
+            network = parsed;
+            bits = network.GetAddressBytes().Length * 8;
+            return true;
+        }
+        if (slash == 0 || trimmed.IndexOf('/', slash + 1) >= 0 || !IPAddress.TryParse(trimmed[..slash], out var parsedNetwork) || parsedNetwork is null) return false;
+        network = parsedNetwork;
+        if (!int.TryParse(trimmed[(slash + 1)..], out bits)) return false;
+        return bits >= 0 && bits <= network.GetAddressBytes().Length * 8;
+    }
+
+    private static void MaskNetwork(byte[] bytes, int bits)
+    {
+        var full = bits / 8;
+        var rem = bits % 8;
+        if (rem != 0)
+        {
+            bytes[full] = (byte)(bytes[full] & (byte)(0xff << (8 - rem)));
+            full++;
+        }
+        for (var i = full; i < bytes.Length; i++) bytes[i] = 0;
     }
 }
 

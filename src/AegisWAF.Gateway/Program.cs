@@ -40,9 +40,35 @@ record IpPolicyInput(string Ip,string Action,string? Reason);
 sealed class IpAccessPolicy
 {
     private readonly ConcurrentDictionary<string,(string Action,string Reason)> _items=new();
-    public string? Check(string ip) => _items.TryGetValue(ip,out var v)?v.Action:null;
-    public void Upsert(string ip,string action,string reason)=>_items[ip]=(action,reason);
-    public void Remove(string ip)=>_items.TryRemove(ip,out _);
+    public string? Check(string ip)
+    {
+        if (!IPAddress.TryParse(ip, out var address)) return null;
+        var exact = address.ToString();
+        if (_items.TryGetValue(exact, out var v)) return v.Action;
+
+        var bestPrefix = -1;
+        string? action = null;
+        foreach (var entry in _items)
+        {
+            var prefix = Cidr.PrefixLength(entry.Key);
+            if (prefix < 0 || prefix <= bestPrefix || !entry.Key.Contains('/') || !Cidr.Contains(entry.Key, address)) continue;
+            bestPrefix = prefix;
+            action = entry.Value.Action;
+        }
+        return action;
+    }
+
+    public void Upsert(string ip,string action,string reason)
+    {
+        if (!Cidr.TryNormalize(ip, out var normalized)) throw new ArgumentException("Invalid IP or CIDR policy", nameof(ip));
+        _items[normalized]=(action,reason);
+    }
+
+    public void Remove(string ip)
+    {
+        if (Cidr.TryNormalize(ip, out var normalized)) _items.TryRemove(normalized,out _);
+    }
+
     public object List()=>_items.OrderBy(x=>x.Key).Select(x=>new {ip=x.Key,action=x.Value.Action,reason=x.Value.Reason});
 }
 sealed class IpPolicyLoader(IpAccessPolicy policies,IConfiguration cfg,ILogger<IpPolicyLoader> logger):IHostedService
@@ -51,7 +77,11 @@ sealed class IpPolicyLoader(IpAccessPolicy policies,IConfiguration cfg,ILogger<I
     {
         try { await using var db=new NpgsqlConnection(cfg.GetConnectionString("Postgres"));await db.OpenAsync(ct);
             await using var cmd=new NpgsqlCommand("SELECT ip,action,reason FROM waf_ip_policies",db);await using var reader=await cmd.ExecuteReaderAsync(ct);
-            while(await reader.ReadAsync(ct))policies.Upsert(reader.GetString(0),reader.GetString(1),reader.GetString(2));
+            while(await reader.ReadAsync(ct))
+            {
+                try { policies.Upsert(reader.GetString(0),reader.GetString(1),reader.GetString(2)); }
+                catch (ArgumentException ex) { logger.LogWarning(ex, "Ignoring invalid persisted IP policy {Policy}", reader.GetString(0)); }
+            }
         }catch(Exception ex){logger.LogWarning(ex,"IP policy restoration failed; run 004_security_controls.sql");}
     }
     public Task StopAsync(CancellationToken ct)=>Task.CompletedTask;

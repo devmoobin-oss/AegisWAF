@@ -94,6 +94,27 @@ public static class GatewayApp
     });
     }
 
+    private static async Task<IResult> DeleteIpPolicy(string? ip, IpAccessPolicy policies, IConfiguration cfg, HttpContext ctx, CancellationToken ct)
+    {
+        if (!Cidr.TryNormalize(ip ?? "", out var policy)) return Results.BadRequest(new { error = "Provide a valid IP or CIDR" });
+        try
+        {
+            await using var db = new NpgsqlConnection(cfg.GetConnectionString("Postgres"));
+            await db.OpenAsync(ct);
+            await using var tx = await db.BeginTransactionAsync(ct);
+            await using (var cmd = new NpgsqlCommand("DELETE FROM waf_ip_policies WHERE ip=@ip", db, tx))
+            {
+                cmd.Parameters.AddWithValue("ip", policy);
+                await cmd.ExecuteNonQueryAsync(ct);
+            }
+            await Audit.Write(db, tx, "ip-policy.delete", policy, ct, ctx.Actor(), ctx.ClientIp());
+            await tx.CommitAsync(ct);
+            policies.Remove(policy);
+            return Results.NoContent();
+        }
+        catch (Exception) { return Results.Problem("Database unavailable", statusCode: 503); }
+    }
+
     /// <summary>Middleware and endpoints. Must run after <c>builder.Build()</c> and after <c>Bootstrap.RunAsync</c>.</summary>
     public static void MapPipeline(WebApplication app)
     {
@@ -156,29 +177,22 @@ public static class GatewayApp
     app.MapGet("/api/ip-policies", (IpAccessPolicy policies) => Results.Ok(policies.List())).Require(Roles.Viewer);
     app.MapPut("/api/ip-policies", async (IpPolicyInput input, IpAccessPolicy policies, IConfiguration cfg, HttpContext ctx, CancellationToken ct) =>
     {
-        if (!IPAddress.TryParse(input.Ip, out var address) || (input.Action != "allow" && input.Action != "block")) return Results.BadRequest(new { error = "Provide a valid single IP and allow/block action" });
+        if (!Cidr.TryNormalize(input.Ip, out var policy) || (input.Action != "allow" && input.Action != "block")) return Results.BadRequest(new { error = "Provide a valid IP or CIDR and allow/block action" });
         var cs = cfg.GetConnectionString("Postgres");
         if (string.IsNullOrWhiteSpace(cs)) return Results.Problem("Database unavailable", statusCode:503);
         try {
             await using var db = new NpgsqlConnection(cs); await db.OpenAsync(ct);
             await using var tx = await db.BeginTransactionAsync(ct);
             await using (var cmd = new NpgsqlCommand("INSERT INTO waf_ip_policies(ip,action,reason) VALUES (@ip,@action,@reason) ON CONFLICT(ip) DO UPDATE SET action=excluded.action,reason=excluded.reason,updated_at=now()",db,tx)) {
-                cmd.Parameters.AddWithValue("ip",address.ToString());cmd.Parameters.AddWithValue("action",input.Action);cmd.Parameters.AddWithValue("reason",input.Reason??"");await cmd.ExecuteNonQueryAsync(ct);
+                cmd.Parameters.AddWithValue("ip",policy);cmd.Parameters.AddWithValue("action",input.Action);cmd.Parameters.AddWithValue("reason",input.Reason??"");await cmd.ExecuteNonQueryAsync(ct);
             }
-            await Audit.Write(db,tx,"ip-policy.upsert",address.ToString(),ctx.RequestAborted,ctx.Actor(),ctx.ClientIp());
-            await tx.CommitAsync(ct); policies.Upsert(address.ToString(),input.Action,input.Reason??""); return Results.NoContent();
+            await Audit.Write(db,tx,"ip-policy.upsert",policy,ctx.RequestAborted,ctx.Actor(),ctx.ClientIp());
+            await tx.CommitAsync(ct); policies.Upsert(policy,input.Action,input.Reason??""); return Results.NoContent();
         } catch (Exception) { return Results.Problem("IP policy could not be persisted",statusCode:503); }
     }).Require(Roles.Operator);
-    app.MapDelete("/api/ip-policies/{ip}", async (string ip, IpAccessPolicy policies, IConfiguration cfg, HttpContext ctx, CancellationToken ct) =>
-    {
-        if (!IPAddress.TryParse(ip,out var address)) return Results.BadRequest();
-        try { await using var db=new NpgsqlConnection(cfg.GetConnectionString("Postgres"));await db.OpenAsync(ct);
-            await using var tx=await db.BeginTransactionAsync(ct);
-            await using(var cmd=new NpgsqlCommand("DELETE FROM waf_ip_policies WHERE ip=@ip",db,tx)){cmd.Parameters.AddWithValue("ip",address.ToString());await cmd.ExecuteNonQueryAsync(ct);}
-            await Audit.Write(db,tx,"ip-policy.delete",address.ToString(),ct,ctx.Actor(),ctx.ClientIp());await tx.CommitAsync(ct);
-            policies.Remove(address.ToString());return Results.NoContent();
-        } catch(Exception) { return Results.Problem("Database unavailable",statusCode:503); }
-    }).Require(Roles.Operator);
+    app.MapDelete("/api/ip-policies/{ip}", DeleteIpPolicy).Require(Roles.Operator);
+    app.MapDelete("/api/ip-policies", (HttpContext ctx, IpAccessPolicy policies, IConfiguration cfg, CancellationToken ct) =>
+        DeleteIpPolicy(ctx.Request.Query["ip"].ToString(), policies, cfg, ctx, ct)).Require(Roles.Operator);
     app.MapGet("/api/audit", async (IConfiguration cfg, CancellationToken ct) =>
     {
         try { var result=new List<object>(); await using var db=new NpgsqlConnection(cfg.GetConnectionString("Postgres"));await db.OpenAsync(ct);
