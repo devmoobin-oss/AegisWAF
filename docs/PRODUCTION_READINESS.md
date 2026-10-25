@@ -22,6 +22,7 @@
 - `/ready` verifies the shared rate-limit table exists when `Store=postgres`; traffic should not be admitted until this migration check is healthy.
 - Security events are emitted as structured `aegiswaf.security_event` JSON logs with client, request, status and OWASP mapping fields, allowing a SIEM/agent to ingest events even when database persistence is temporarily unavailable.
 - Structured events include the originating `requestId`, enabling correlation across WAF, SIEM and upstream traces without changing the existing database schema.
+- A failed `/api/audit/integrity` check emits a deduplicated `Audit Integrity Failure` security event with the first invalid row id and request id; it does not write into the compromised audit chain.
 - If the bounded event queue fills, the WAF emits a throttled `WAF_SECURITY_EVENT_DROPPED` alert with the event payload and counter so SIEM can detect observability loss.
 - Production-enforced sessions always set the cookie `Secure` flag, including deployments behind a TLS-terminating reverse proxy.
 - If the shared PostgreSQL limiter is unavailable, request admission fails closed instead of bypassing rate limiting or returning an unhandled middleware error.
@@ -63,7 +64,7 @@ Never configure `0.0.0.0/0` as a trusted proxy. Only infrastructure proxies belo
 
 - MFA/WebAuthn or OIDC for administrators (intentionally skipped per project instruction).
 - Independent multi-instance concurrency validation for distributed authentication and route-aware rate limiting.
-- SIEM export and alerting when audit-chain verification fails.
+- Independent SIEM delivery/retention and operational response validation for audit-chain alerts.
 - WebSocket/Upgrade regression tests and a full external DNS-rebinding assessment between validation and connection establishment.
 - Continuous SAST/secret scanning, independent load-test review and external penetration testing. Deterministic fuzz regression coverage and a local load-test harness are included; external evidence is still pending.
 - A least-privilege PostgreSQL deployment account instead of a superuser.

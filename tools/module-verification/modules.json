@@ -62,6 +62,16 @@
       ]
     },
     {
+      "id": "audit-integrity-alerting",
+      "name": "Audit integrity alerting",
+      "gates": [
+        { "id": "gateway-build", "kind": "build", "weight": 25, "timeoutSeconds": 120, "command": "dotnet build src/AegisWAF.Gateway/AegisWAF.Gateway.csproj --no-restore --disable-build-servers -m:1 --verbosity minimal" },
+        { "id": "audit-integrity-tests", "kind": "test", "weight": 25, "timeoutSeconds": 120, "command": "dotnet build tools/module-verification/xunit-inproc-runner/XunitInProcRunner.csproj --no-restore --disable-build-servers -m:1 --verbosity minimal; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; dotnet run --project tools/module-verification/xunit-inproc-runner/XunitInProcRunner.csproj --no-build --no-restore -- AuditIntegrityAlertTests" },
+        { "id": "security-event-tests", "kind": "test", "weight": 25, "timeoutSeconds": 120, "command": "dotnet build tools/module-verification/xunit-inproc-runner/XunitInProcRunner.csproj --no-restore --disable-build-servers -m:1 --verbosity minimal; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; dotnet run --project tools/module-verification/xunit-inproc-runner/XunitInProcRunner.csproj --no-build --no-restore -- SecurityEventLoggingTests" },
+        { "id": "audit-alert-documentation", "kind": "contract", "weight": 25, "timeoutSeconds": 30, "command": "if ((Select-String -Path docs/PRODUCTION_READINESS.md -Pattern 'Audit Integrity Failure' -Quiet) -and (Select-String -Path docs/SECURITY.md -Pattern 'audit-chain integrity alerting' -Quiet) -and (Test-Path docs/superpowers/specs/2026-10-25-audit-integrity-alerting-design.md)) { exit 0 } else { exit 1 }" }
+      ]
+    },
+    {
       "id": "auth-rbac-audit",
       "name": "Authentication / RBAC / audit",
       "gates": [

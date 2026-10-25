@@ -74,7 +74,7 @@ function Invoke-ModuleVerification($Manifest, $SelectedModule, [switch]$SkipTest
         id = $SelectedModule.id
         name = $SelectedModule.name
         percentage = $passedWeight
-        target = 99
+        target = 100
         gates = @($results)
         passed = @($results | Where-Object { $_.status -eq 'passed' }).Count
         unverified = @($results | Where-Object { $_.status -in @('timeout', 'skipped') }).Count
@@ -136,10 +136,10 @@ function Update-Handoff {
     }
     $beforeText = if ($before -eq [Math]::Truncate($before)) { '{0}%' -f [int]$before } else { '{0:0.##}%' -f $before }
     $afterText = if ($after -eq [Math]::Truncate($after)) { '{0}%' -f [int]$after } else { '{0:0.##}%' -f $after }
-    $status = if ($after -gt 98 -and [int]$Verification.failed -eq 0 -and [int]$Verification.unverified -eq 0) { 'passed >98%' } else { 'in progress' }
+    $status = if ($after -eq 100 -and [int]$Verification.failed -eq 0 -and [int]$Verification.unverified -eq 0) { 'passed 100%' } else { 'in progress' }
     $summary = "report=$EvidencePath; passed=$($Verification.passed); failed=$($Verification.failed); unverified=$($Verification.unverified)"
     $ordinal = ([regex]::Match($lines[$rowIndex], '^\|\s*(\d+)\.')).Groups[1].Value
-    $lines[$rowIndex] = "| $ordinal. $($Module.name) | $beforeText | $afterText | >98% | $summary | $status |"
+    $lines[$rowIndex] = "| $ordinal. $($Module.name) | $beforeText | $afterText | 100% | $summary | $status |"
 
     $historyIndex = -1
     for ($i = 0; $i -lt $lines.Count; $i++) {
@@ -151,7 +151,7 @@ function Update-Handoff {
     }
     $lines.Add('')
     $lines.Add("### $([DateTimeOffset]::Now.ToString('yyyy-MM-dd HH:mm:ss zzz')) -- $($Module.name)")
-    $lines.Add("- Before: $beforeText; After: $afterText; Target: >98%")
+    $lines.Add("- Before: $beforeText; After: $afterText; Target: 100%")
     $lines.Add("- Evidence: $EvidencePath")
     $lines.Add("- Gates: passed=$($Verification.passed), failed=$($Verification.failed), unverified=$($Verification.unverified)")
     [System.IO.File]::WriteAllLines($HandoffPath, $lines, $utf8)

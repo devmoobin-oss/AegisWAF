@@ -77,6 +77,7 @@ public static class GatewayApp
     builder.Services.AddHostedService<RuleStateLoader>();
     builder.Services.AddSingleton<TrafficCounters>();
     builder.Services.AddSingleton<SecurityEvents>();
+    builder.Services.AddSingleton<AuditIntegrityAlertState>();
     builder.Services.AddSingleton<SlidingRateLimiter>();
     builder.Services.AddSingleton<UpstreamEgressPolicy>(sp =>
         new UpstreamEgressPolicy(UpstreamEgressOptions.From(sp.GetRequiredService<IConfiguration>()), new SystemUpstreamAddressResolver()));
@@ -201,13 +202,25 @@ public static class GatewayApp
                 actor=reader.IsDBNull(3)?null:reader.GetString(3),clientIp=reader.IsDBNull(4)?null:reader.GetString(4),outcome=reader.GetString(5) });return Results.Ok(result);
         } catch(Exception) { return Results.Problem("Audit database unavailable",statusCode:503); }
     }).Require(Roles.Analyst);
-    app.MapGet("/api/audit/integrity", async (IConfiguration cfg, CancellationToken ct) =>
+    app.MapGet("/api/audit/integrity", async (IConfiguration cfg, SecurityEvents events, AuditIntegrityAlertState alerts, HttpContext ctx, CancellationToken ct) =>
     {
         try
         {
             await using var db = new NpgsqlConnection(cfg.GetConnectionString("Postgres"));
             await db.OpenAsync(ct);
             var result = await Audit.VerifyAsync(db, ct);
+            if (!result.Valid && result.BadId is long invalidId && alerts.TryClaim(invalidId))
+            {
+                var alert = new SecurityEvent(
+                    DateTimeOffset.UtcNow,
+                    "system",
+                    ctx.Request.Method,
+                    ctx.Request.Path,
+                    $"Audit Integrity Failure (firstInvalidId={invalidId})",
+                    StatusCodes.Status500InternalServerError,
+                    ctx.TraceIdentifier);
+                if (!events.TryWrite(alert)) alerts.Release(invalidId);
+            }
             return Results.Ok(new { valid = result.Valid, checkedEntries = result.Checked, firstInvalidId = result.BadId });
         }
         catch (Exception) { return Results.Problem("Audit integrity check unavailable", statusCode: 503); }

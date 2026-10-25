@@ -57,7 +57,7 @@ Unrelated line must remain.
     Assert-True ($updated -match '\| 4\. Client API / Desktop UI \| 30% \| 50% \|') 'The old after percentage should become the new before percentage'
     Assert-True ($updated -match 'Verification history') 'A verification history section should be appended'
     Assert-True ($updated -match 'Unrelated line must remain') 'Unrelated handoff content should remain'
-    Assert-True ($updated -notmatch '\| 4\. Client API / Desktop UI \| 30% \| 99% \|') 'A failed gate must not be reported above the target'
+    Assert-True ($updated -notmatch '\| 4\. Client API / Desktop UI \| 30% \| 100% \|') 'A failed gate must not be reported as complete'
 } finally {
     Remove-Item -LiteralPath $fixtureRoot -Recurse -Force
 }

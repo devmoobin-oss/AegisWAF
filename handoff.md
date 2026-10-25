@@ -7,13 +7,13 @@
 
 - วันที่ตรวจสอบ: 2026-10-25 (Asia/Bangkok)
 - สาขา: `codex/modular-development-handoff`
-- สถานะ snapshot: implementation commit `870b4c0` ผ่านการตรวจแล้ว; worktree สำรอง `D:\AegisWAF\.worktrees\multi-site-gateway` มีการแก้ไขเดิมของผู้ใช้และยังไม่ได้แตะต้อง
+- สถานะ snapshot: กำลังพัฒนาโมดูล `Audit integrity alerting`; implementation commit ก่อนรอบนี้ `870b4c0` ผ่านการตรวจแล้ว; worktree สำรอง `D:\AegisWAF\.worktrees\multi-site-gateway` มีการแก้ไขเดิมของผู้ใช้และยังไม่ได้แตะต้อง
 - `handoff.md`: อ่านแล้วและใช้เป็น baseline ของรอบนี้
-- เป้าหมาย: พัฒนาแต่ละโมดูลให้มีความคืบหน้า **มากกว่า 98%** โดยต้องมีหลักฐานรองรับก่อนรายงาน
+- เป้าหมายรอบปัจจุบัน: พัฒนาและตรวจสอบแต่ละโมดูลให้มีความสำเร็จ **100%** โดยทุก gate ต้องผ่านและมีหลักฐานรองรับ
 
 ## Current continuation snapshot
 
-- รอบล่าสุดตรวจสอบครบ 10 โมดูล: ทุกโมดูลได้ 100% จาก gate `4/4` (รวม 40/40 gates) และสูงกว่าเป้าหมาย >98%
+- รอบล่าสุดก่อนเริ่มโมดูลนี้ตรวจสอบครบ 10 โมดูล: ทุกโมดูลได้ 100% จาก gate `4/4` (รวม 40/40 gates); โมดูล 11 เริ่มที่ 0% จาก gap การแจ้งเตือน audit-chain ไปยัง SIEM
 - หลักฐานล่าสุด: `D:\AegisWAF\artifacts\module-verification\20261025-163021560.json`
 - Full test suite ล่าสุด: `231/231` ผ่าน; opaque-content focused regression: `33/33` ผ่าน; Desktop build: 0 warning, 0 error
 - Implementation ล่าสุด: `870b4c0 feat: inspect text-like opaque content`
@@ -24,23 +24,24 @@
 1. แบ่งงานเป็นโมดูลตามขอบเขตที่แยกทดสอบได้
 2. ก่อนเริ่มโมดูล บันทึกเปอร์เซ็นต์ก่อนทำและรายการ gap ที่ตรวจพบ
 3. หลังทำโมดูล บันทึกเปอร์เซ็นต์หลังทำ พร้อมคำสั่งตรวจสอบและผลจริง
-4. จะรายงานโมดูลว่าเกิน 98% ก็ต่อเมื่อ build/test/runtime gate ของโมดูลผ่าน และไม่มี gap สำคัญค้างอยู่
+4. จะรายงานโมดูลว่า 100% ก็ต่อเมื่อ build/test/runtime gate ของโมดูลผ่านครบทุก gate และไม่มี gap สำคัญค้างอยู่
 5. ความคืบหน้าในเอกสารนี้เป็น implementation readiness ไม่ใช่การรับรองความปลอดภัยโดยหน่วยงานอิสระ
 
 ## Module ledger
 
 | โมดูล | ก่อนรอบนี้ | หลังรอบนี้ | เป้าหมาย | หลักฐานล่าสุด | สถานะ |
 |---|---:|---:|---:|---|---|
-| 1. WAF inspection engine | 100% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-163021560.json; passed=4; failed=0; unverified=0 | passed >98% |
-| 2. Gateway / perimeter security | 100% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-163021560.json; passed=4; failed=0; unverified=0 | passed >98% |
-| 3. Authentication / RBAC / audit | 100% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-163021560.json; passed=4; failed=0; unverified=0 | passed >98% |
-| 4. Client API / Desktop UI | 100% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-163021560.json; passed=4; failed=0; unverified=0 | passed >98% |
-| 5. Database / migrations / operations | 100% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-163021560.json; passed=4; failed=0; unverified=0 | passed >98% |
-| 6. Documentation / handoff / verification | 100% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-163021560.json; passed=4; failed=0; unverified=0 | passed >98% |
-| 7. Admin perimeter hardening | 100% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-163021560.json; passed=4; failed=0; unverified=0 | passed >98% |
-| 8. Identity hardening | 100% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-163021560.json; passed=4; failed=0; unverified=0 | passed >98% |
-| 9. CIDR-aware IP policy | 100% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-163021560.json; passed=4; failed=0; unverified=0 | passed >98% |
-| 10. Opaque content inspection | 0% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-163021560.json; passed=4; failed=0; unverified=0 | passed >98% |
+| 1. WAF inspection engine | 100% | 100% | 100% | report=D:\AegisWAF\artifacts\module-verification\20261025-163021560.json; passed=4; failed=0; unverified=0 | passed 100% |
+| 2. Gateway / perimeter security | 100% | 100% | 100% | report=D:\AegisWAF\artifacts\module-verification\20261025-163021560.json; passed=4; failed=0; unverified=0 | passed 100% |
+| 3. Authentication / RBAC / audit | 100% | 100% | 100% | report=D:\AegisWAF\artifacts\module-verification\20261025-163021560.json; passed=4; failed=0; unverified=0 | passed 100% |
+| 4. Client API / Desktop UI | 100% | 100% | 100% | report=D:\AegisWAF\artifacts\module-verification\20261025-163021560.json; passed=4; failed=0; unverified=0 | passed 100% |
+| 5. Database / migrations / operations | 100% | 100% | 100% | report=D:\AegisWAF\artifacts\module-verification\20261025-163021560.json; passed=4; failed=0; unverified=0 | passed 100% |
+| 6. Documentation / handoff / verification | 100% | 100% | 100% | report=D:\AegisWAF\artifacts\module-verification\20261025-163021560.json; passed=4; failed=0; unverified=0 | passed 100% |
+| 7. Admin perimeter hardening | 100% | 100% | 100% | report=D:\AegisWAF\artifacts\module-verification\20261025-163021560.json; passed=4; failed=0; unverified=0 | passed 100% |
+| 8. Identity hardening | 100% | 100% | 100% | report=D:\AegisWAF\artifacts\module-verification\20261025-163021560.json; passed=4; failed=0; unverified=0 | passed 100% |
+| 9. CIDR-aware IP policy | 100% | 100% | 100% | report=D:\AegisWAF\artifacts\module-verification\20261025-163021560.json; passed=4; failed=0; unverified=0 | passed 100% |
+| 10. Opaque content inspection | 0% | 100% | 100% | report=D:\AegisWAF\artifacts\module-verification\20261025-163021560.json; passed=4; failed=0; unverified=0 | passed 100% |
+| 11. Audit integrity alerting | 50% | 100% | 100% | report=D:\AegisWAF\artifacts\module-verification\20261025-220212698.json; passed=4; failed=0; unverified=0 | passed 100% |
 
 ## หลักฐานรอบล่าสุด
 
@@ -51,6 +52,9 @@
 - `dotnet test tests/AegisWAF.Tests/AegisWAF.Tests.csproj --no-build --no-restore --disable-build-servers` เริ่ม testhost ได้แต่ถูก abort หลัง 90 วินาทีเพราะ testhost เชื่อมต่อไม่สำเร็จ จึงยังไม่มีผล pass/fail ที่ใช้รับรองโมดูลได้
 - Desktop และ test project build ล่าสุดผ่านแบบ single-node: 0 warning, 0 error
 - `verify-modules.ps1 -Module desktop-ui -SkipTests -UpdateHandoff` ผ่านในโหมด read-only gates: 3 ผ่าน, 1 skipped, ได้ 75%
+- โมดูลปัจจุบัน `Audit integrity alerting`: implementation เชื่อม structured event แล้ว และ dedup state ถูกจำกัด 1,024 id พร้อม concurrency regression test; build, focused tests และ documentation contract ผ่านครบ 4/4 gates จึงปรับจาก 50% เป็น 100% ตามรายงาน `20261025-220212698.json`
+- เนื่องจาก `vstest` ของสภาพแวดล้อมนี้เชื่อมต่อ testhost/data collector ไม่สำเร็จหลัง 90 วินาที จึงเพิ่ม `tools/module-verification/xunit-inproc-runner/` เป็น fallback verifier แบบ deterministic ซึ่งค้นหาและรันเฉพาะ test case ของคลาสเป้าหมาย; ผลล่าสุด AuditIntegrityAlertTests 5/5 และ SecurityEventLoggingTests 1/1 ผ่าน
+- มี executable probe แยกจาก xUnit ผ่านสำหรับ first/new-id, retry หลัง delivery failure และ 32-way concurrent deduplication ใช้เป็นหลักฐานเสริม ไม่ได้ใช้แทน focused test gates
 
 ## แผนต่อเนื่องเมื่อเริ่มรอบถัดไป
 
@@ -497,4 +501,34 @@
 ### 2026-10-25 16:30:21 +07:00 -- Documentation / handoff / verification
 - Before: 100%; After: 100%; Target: >98%
 - Evidence: D:\AegisWAF\artifacts\module-verification\20261025-163021560.json
+- Gates: passed=4, failed=0, unverified=0
+
+### 2026-10-25 16:39:09 +07:00 -- Audit integrity alerting
+- Before: 0%; After: 50%; Target: >98%
+- Evidence: D:\AegisWAF\artifacts\module-verification\20261025-163909489.json
+- Gates: passed=2, failed=0, unverified=2
+
+### 2026-10-25 18:19:32 +07:00 -- Audit integrity alerting
+- Before: 50%; After: 50%; Target: >98%
+- Evidence: D:\AegisWAF\artifacts\module-verification\20261025-181932391.json
+- Gates: passed=2, failed=0, unverified=2
+
+### 2026-10-25 18:20:28 +07:00 -- Audit integrity alerting
+- Before: 50%; After: 50%; Target: >98%
+- Evidence: D:\AegisWAF\artifacts\module-verification\20261025-182027952.json
+- Gates: passed=2, failed=0, unverified=2
+
+### 2026-10-25 21:53:16 +07:00 -- Audit integrity alerting
+- Before: 50%; After: 50%; Target: >98%
+- Evidence: D:\AegisWAF\artifacts\module-verification\20261025-215316733.json
+- Gates: passed=2, failed=0, unverified=2
+
+### 2026-10-25 21:53:33 +07:00 -- Audit integrity alerting
+- Before: 50%; After: 50%; Target: 100%
+- Evidence: D:\AegisWAF\artifacts\module-verification\20261025-215333541.json
+- Gates: passed=2, failed=0, unverified=2
+
+### 2026-10-25 22:02:12 +07:00 -- Audit integrity alerting
+- Before: 50%; After: 100%; Target: 100%
+- Evidence: D:\AegisWAF\artifacts\module-verification\20261025-220212698.json
 - Gates: passed=4, failed=0, unverified=0

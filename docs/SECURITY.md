@@ -42,7 +42,7 @@ Password hashing, lockout, session handling and the forced change of administrat
 * Optional `appsettings.local.json` (see README) stores the DB password and optionally the bootstrap password **in clear text on disk**; it is a convenience for single-user Windows machines, not a secrets manager. Restrict file permissions and remove the bootstrap password after first login.
 * The bootstrap password is read from the environment (or `Bootstrap:AdminPassword`), never logged, and used only when no users exist. Change it after first login.
 * Dependency scan (2026-10-17, `dotnet list package --vulnerable --include-transitive`): no known vulnerable packages. This is a one-off check; continuous scanning in CI is not yet configured.
-* Parser-aware inspection, bounded decompression, explicit upstream egress policy, shared authentication throttling, and a local security/load-test harness were added in the 2026-10-18 production-elevation work. These controls still require independent penetration testing and multi-instance operational validation.
+* Parser-aware inspection, bounded decompression, explicit upstream egress policy, shared authentication throttling, audit-chain integrity alerting, and a local security/load-test harness were added in the 2026-10-18 production-elevation work. These controls still require independent penetration testing, SIEM delivery/retention validation, and multi-instance operational validation.
 
 ## Testing policy
 All tests use synthetic requests against a throw-away database. Security fixes must ship with a regression test (see `tests/AegisWAF.Tests`).
