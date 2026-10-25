@@ -76,7 +76,7 @@ internal static class AuthEndpoints
             await sharedThrottle.RecordSuccessAsync(ip, username, ct);
             await store.RecordLoginSuccessAsync(user.Id, ct);
             var (token, csrf) = await store.CreateSessionAsync(user.Id, ip, ctx.Request.Headers.UserAgent.ToString(), ct);
-            var secureCookie = ctx.Request.IsHttps || ctx.RequestServices.GetRequiredService<IConfiguration>().GetValue("Waf:Deployment:Enforce", false);
+            var secureCookie = AdminPerimeterPolicy.IsSecureRequest(ctx, ctx.RequestServices.GetRequiredService<IConfiguration>());
             ctx.Response.Cookies.Append(AdminGuard.CookieName, token, new CookieOptions
             {
                 HttpOnly = true, SameSite = SameSiteMode.Strict, Secure = secureCookie, Path = "/", IsEssential = true,
@@ -96,7 +96,7 @@ internal static class AuthEndpoints
         ctx.Response.Cookies.Delete(AdminGuard.CookieName, new CookieOptions
         {
             Path = "/", SameSite = SameSiteMode.Strict, HttpOnly = true,
-            Secure = ctx.Request.IsHttps || ctx.RequestServices.GetRequiredService<IConfiguration>().GetValue("Waf:Deployment:Enforce", false)
+            Secure = AdminPerimeterPolicy.IsSecureRequest(ctx, ctx.RequestServices.GetRequiredService<IConfiguration>())
         });
         return Results.NoContent();
     }

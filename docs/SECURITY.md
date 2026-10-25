@@ -13,13 +13,13 @@ See also [PROTECTION.md](PROTECTION.md) for exactly which attack classes the gat
 | 4 | Dashboard unreachable: static files shadowed by the proxy catch-all (found by running the app) | Medium | **Fixed** – middleware order; regression test |
 | 5 | IP-policy delete was not audited; audit rows had no actor | Medium | **Fixed** |
 | 6 | No migration tracking; scripts applied by hand | Medium | **Fixed** – `schema_migrations` with checksums |
-| 7 | GUI/admin API and protected-app traffic share one listener; protected apps cannot use `/`, `/assets`, `/api` paths | High (design) | **Open** – dedicated admin listener planned v0.8 |
+| 7 | GUI/admin API and protected-app traffic share one listener; protected apps cannot use `/`, `/assets`, `/api` paths | High (design) | **Improved** – optional dual-listener path isolation is enforced when `Admin:ListenerPort` and `Gateway:ListenerPort` are configured; separate processes remain an infrastructure option |
 | 8 | Inspection worked on raw, non-normalised URL/query; headers/cookies and non-JSON/form bodies were not inspected | High | **Largely fixed (v0.7.1 + v0.9)** — `Normalizer` percent-decodes (incl. double encoding), `+`→space, HTML-entity-decodes, strips SQL comments, lowercases **and NFKC-folds Unicode / strips zero-width** before matching; headers, cookies and all textual body types (incl. multipart/chunked) are inspected; signature set expanded to 16 groups (+NoSQL/XXE/SSTI); an optional anomaly scorer and outbound **response-leak inspection** were added. Verified by `CatalogVerificationTests` + `EngineUpgradeTests`. Remaining gaps are documented in `PROTECTION.md` (MySQL versioned comments, http-RFI, unlisted headers, octet-stream request/response bodies, responses > 256 KiB, type-juggling NoSQL). **New risk:** the aggressive rules raise the false-positive rate (e.g. `sleep(` in ordinary text); rules are individually toggleable and the anomaly scorer is off by default |
 | 9 | Explicit IP "allow" bypasses all inspection and rate limiting | Medium | **Open** (v0.4 design; revisit) |
-| 10 | Client IP comes from the socket only; behind a load balancer all clients share one IP (rate limit, blocklist); no trusted-proxy model | High | **Open** – v0.8 / v0.11 |
+| 10 | Client IP comes from the socket only; behind a load balancer all clients share one IP (rate limit, blocklist); no trusted-proxy model | High | **Improved** – client address and forwarded scheme/host honor only explicitly trusted direct peers; production still requires correct proxy CIDRs |
 | 11 | Rate limiter is a fixed window (named "sliding"), hard-coded 300/min, per process | Medium | **Open** – v0.11 |
 | 12 | Event writer opens a connection per event; no batching, retention or partitioning; counters are in memory only | Medium | **Open** – v0.10 |
-| 13 | No TLS termination/management; session cookie is `Secure` only when the request itself is HTTPS | High | **Open** – v0.8; if `Admin:AllowRemote` is ever enabled, put HTTPS in front |
+| 13 | No TLS termination/management; session cookie is `Secure` only when the request itself is HTTPS | High | **Improved** – trusted forwarded HTTPS is recognized for admin enforcement and cookie flags; certificate lifecycle is still infrastructure-owned |
 | 14 | Dev DB account is the `postgres` superuser | Medium | **Open** – create a least-privilege role for production |
 | 15 | Audit log is append-only by convention, not tamper-evident | Low | **Open** |
 
@@ -33,7 +33,7 @@ The empty-password and 128-character limits remain because an empty password cou
 ## v0.7 limitations (known)
 * No MFA (column reserved) and no email-based self-service reset; reset is administrator-initiated and the user must change the password at next login.
 * Login attempts are throttled per account only (lockout), not per source IP. Because the admin API is loopback-only by default, only a local user could use lockout to deny an account.
-* CSRF relies on the synchroniser token plus `SameSite=Strict`; there is no `Origin` check.
+* CSRF uses the synchroniser token, `SameSite=Strict`, and effective-origin validation; the effective host/scheme are proxy-aware only for explicitly trusted peers.
 * Session lookups hit PostgreSQL on every admin request (fine at admin request rates; add caching before scaling).
 * The session cookie is not `__Host-` prefixed because plain-HTTP loopback use is supported.
 

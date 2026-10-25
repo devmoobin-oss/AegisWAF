@@ -109,10 +109,23 @@ public static class GatewayApp
         }
         await next();
     });
+    app.Use(async (ctx, next) =>
+    {
+        var configuration = ctx.RequestServices.GetRequiredService<IConfiguration>();
+        var perimeterError = AdminPerimeterPolicy.ValidateRequest(ctx, configuration);
+        if (perimeterError is not null)
+        {
+            ctx.Response.StatusCode = StatusCodes.Status404NotFound;
+            await ctx.Response.WriteAsJsonAsync(new { error = "Not found" });
+            return;
+        }
+        await next();
+    });
     // Harden management responses. GUI and APIs are loopback-only in this single-process prototype.
     app.Use(async (ctx, next) =>
     {
-        AdminSecurityHeaders.Apply(ctx);
+        var configuration = ctx.RequestServices.GetRequiredService<IConfiguration>();
+        AdminSecurityHeaders.Apply(ctx, configuration);
         if ((ctx.Request.Path == "/" || ctx.Request.Path == "/index.html" || ctx.Request.Path.StartsWithSegments("/assets")) &&
             !ctx.RequestServices.GetRequiredService<IConfiguration>().GetValue("Admin:AllowRemote", false) && !AdminGuard.IsLocalClient(ctx))
         { ctx.Response.StatusCode = 403; return; }

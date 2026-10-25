@@ -14,6 +14,7 @@ public static class ProductionReadinessPolicy
         if (!configuration.GetValue("Waf:Deployment:Enforce", false)) return [];
 
         var errors = new List<string>();
+        errors.AddRange(AdminPerimeterPolicy.ValidateConfiguration(configuration));
         Require(configuration.GetValue("Database:RequireLeastPrivilege", false),
             "Database:RequireLeastPrivilege must be true", errors);
         Require(!configuration.GetValue("Database:AutoMigrate", true),

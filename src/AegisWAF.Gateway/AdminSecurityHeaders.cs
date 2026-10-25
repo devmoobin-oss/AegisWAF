@@ -4,9 +4,9 @@ namespace AegisWAF.Gateway;
 
 public static class AdminSecurityHeaders
 {
-    public static bool IsAdminOwned(PathString path) => path == "/" || path == "/index.html" || path.StartsWithSegments("/assets") || path.StartsWithSegments("/api");
+    public static bool IsAdminOwned(PathString path) => AdminPerimeterPolicy.IsAdminOwned(path);
 
-    public static void Apply(HttpContext context)
+    public static void Apply(HttpContext context, IConfiguration? configuration = null)
     {
         if (!IsAdminOwned(context.Request.Path)) return;
         context.Response.Headers["X-Content-Type-Options"] = "nosniff";
@@ -16,7 +16,8 @@ public static class AdminSecurityHeaders
         context.Response.Headers["Cross-Origin-Opener-Policy"] = "same-origin";
         context.Response.Headers["Cross-Origin-Resource-Policy"] = "same-origin";
         context.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=()";
-        if (context.Request.IsHttps) context.Response.Headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains";
+        var secure = configuration is not null ? AdminPerimeterPolicy.IsSecureRequest(context, configuration) : context.Request.IsHttps;
+        if (secure) context.Response.Headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains";
         context.Response.Headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'";
         context.Response.Headers.CacheControl = "no-store";
     }

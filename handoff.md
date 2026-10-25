@@ -31,12 +31,13 @@
 
 | โมดูล | ก่อนรอบนี้ | หลังรอบนี้ | เป้าหมาย | หลักฐานล่าสุด | สถานะ |
 |---|---:|---:|---:|---|---|
-| 1. WAF inspection engine | 50% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-153137865.json; passed=4; failed=0; unverified=0 | passed >98% |
-| 2. Gateway / perimeter security | 50% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-153137865.json; passed=4; failed=0; unverified=0 | passed >98% |
-| 3. Authentication / RBAC / audit | 50% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-153137865.json; passed=4; failed=0; unverified=0 | passed >98% |
-| 4. Client API / Desktop UI | 75% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-153137865.json; passed=4; failed=0; unverified=0 | passed >98% |
-| 5. Database / migrations / operations | 75% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-153137865.json; passed=4; failed=0; unverified=0 | passed >98% |
-| 6. Documentation / handoff / verification | 75% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-153137865.json; passed=4; failed=0; unverified=0 | passed >98% |
+| 1. WAF inspection engine | 100% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-155523819.json; passed=4; failed=0; unverified=0 | passed >98% |
+| 2. Gateway / perimeter security | 100% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-155523819.json; passed=4; failed=0; unverified=0 | passed >98% |
+| 3. Authentication / RBAC / audit | 100% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-155523819.json; passed=4; failed=0; unverified=0 | passed >98% |
+| 4. Client API / Desktop UI | 100% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-155523819.json; passed=4; failed=0; unverified=0 | passed >98% |
+| 5. Database / migrations / operations | 100% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-155523819.json; passed=4; failed=0; unverified=0 | passed >98% |
+| 6. Documentation / handoff / verification | 100% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-155523819.json; passed=4; failed=0; unverified=0 | passed >98% |
+| 7. Admin perimeter hardening | 100% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-155523819.json; passed=4; failed=0; unverified=0 | passed >98% |
 
 ## หลักฐานรอบล่าสุด
 
@@ -133,4 +134,79 @@
 ### 2026-10-25 15:31:38 +07:00 -- Documentation / handoff / verification
 - Before: 75%; After: 100%; Target: >98%
 - Evidence: D:\AegisWAF\artifacts\module-verification\20261025-153137865.json
+- Gates: passed=4, failed=0, unverified=0
+
+### 2026-10-25 15:51:04 +07:00 -- Admin perimeter hardening
+- Before: 0%; After: 100%; Target: >98%
+- Evidence: D:\AegisWAF\artifacts\module-verification\20261025-155104920.json
+- Gates: passed=4, failed=0, unverified=0
+
+### 2026-10-25 15:54:48 +07:00 -- WAF inspection engine
+- Before: 100%; After: 100%; Target: >98%
+- Evidence: D:\AegisWAF\artifacts\module-verification\20261025-155447914.json
+- Gates: passed=4, failed=0, unverified=0
+
+### 2026-10-25 15:54:48 +07:00 -- Gateway / perimeter security
+- Before: 100%; After: 100%; Target: >98%
+- Evidence: D:\AegisWAF\artifacts\module-verification\20261025-155447914.json
+- Gates: passed=4, failed=0, unverified=0
+
+### 2026-10-25 15:54:48 +07:00 -- Admin perimeter hardening
+- Before: 100%; After: 100%; Target: >98%
+- Evidence: D:\AegisWAF\artifacts\module-verification\20261025-155447914.json
+- Gates: passed=4, failed=0, unverified=0
+
+### 2026-10-25 15:54:48 +07:00 -- Authentication / RBAC / audit
+- Before: 100%; After: 100%; Target: >98%
+- Evidence: D:\AegisWAF\artifacts\module-verification\20261025-155447914.json
+- Gates: passed=4, failed=0, unverified=0
+
+### 2026-10-25 15:54:48 +07:00 -- Client API / Desktop UI
+- Before: 100%; After: 100%; Target: >98%
+- Evidence: D:\AegisWAF\artifacts\module-verification\20261025-155447914.json
+- Gates: passed=4, failed=0, unverified=0
+
+### 2026-10-25 15:54:48 +07:00 -- Database / migrations / operations
+- Before: 100%; After: 100%; Target: >98%
+- Evidence: D:\AegisWAF\artifacts\module-verification\20261025-155447914.json
+- Gates: passed=4, failed=0, unverified=0
+
+### 2026-10-25 15:54:48 +07:00 -- Documentation / handoff / verification
+- Before: 100%; After: 100%; Target: >98%
+- Evidence: D:\AegisWAF\artifacts\module-verification\20261025-155447914.json
+- Gates: passed=4, failed=0, unverified=0
+
+### 2026-10-25 15:55:23 +07:00 -- WAF inspection engine
+- Before: 100%; After: 100%; Target: >98%
+- Evidence: D:\AegisWAF\artifacts\module-verification\20261025-155523819.json
+- Gates: passed=4, failed=0, unverified=0
+
+### 2026-10-25 15:55:23 +07:00 -- Gateway / perimeter security
+- Before: 100%; After: 100%; Target: >98%
+- Evidence: D:\AegisWAF\artifacts\module-verification\20261025-155523819.json
+- Gates: passed=4, failed=0, unverified=0
+
+### 2026-10-25 15:55:23 +07:00 -- Admin perimeter hardening
+- Before: 100%; After: 100%; Target: >98%
+- Evidence: D:\AegisWAF\artifacts\module-verification\20261025-155523819.json
+- Gates: passed=4, failed=0, unverified=0
+
+### 2026-10-25 15:55:23 +07:00 -- Authentication / RBAC / audit
+- Before: 100%; After: 100%; Target: >98%
+- Evidence: D:\AegisWAF\artifacts\module-verification\20261025-155523819.json
+- Gates: passed=4, failed=0, unverified=0
+
+### 2026-10-25 15:55:23 +07:00 -- Client API / Desktop UI
+- Before: 100%; After: 100%; Target: >98%
+- Evidence: D:\AegisWAF\artifacts\module-verification\20261025-155523819.json
+- Gates: passed=4, failed=0, unverified=0
+
+### 2026-10-25 15:55:23 +07:00 -- Database / migrations / operations
+- Before: 100%; After: 100%; Target: >98%
+- Evidence: D:\AegisWAF\artifacts\module-verification\20261025-155523819.json
+- Gates: passed=4, failed=0, unverified=0
+
+### 2026-10-25 15:55:23 +07:00 -- Documentation / handoff / verification
+- Before: 100%; After: 100%; Target: >98%
+- Evidence: D:\AegisWAF\artifacts\module-verification\20261025-155523819.json
 - Gates: passed=4, failed=0, unverified=0

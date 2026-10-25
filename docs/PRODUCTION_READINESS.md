@@ -37,6 +37,8 @@
 - Production upstreams require explicit HTTPS host/port/scheme allowlists and are checked against DNS-resolved private, loopback, metadata, multicast, reserved, and link-local targets before proxying.
 - Production authentication throttling uses shared PostgreSQL state for normalized source and username keys; the WAF limiter also includes bounded route keys and the readiness check verifies the distributed authentication migration.
 - A safe local security/load-test harness is available at `tools/security-loadtest/loadtest.ps1`; it emits JSON/CSV latency, throughput, status, block, and error evidence without destructive payloads.
+- Optional listener isolation is available for production: bind `Admin:ListenerPort` and `Gateway:ListenerPort` to different ports. Admin paths (`/`, `/assets`, `/api`, `/health`, `/ready`) are then rejected on the gateway listener and protected-app paths are rejected on the admin listener. The default zero-port Desktop profile remains single-listener compatible.
+- When a trusted TLS-terminating proxy is configured, forwarded scheme and host are honored only if the direct peer matches `Security:TrustedProxies`; remote-admin HTTPS and session-cookie `Secure` decisions use that same effective scheme.
 
 ## Required deployment configuration
 

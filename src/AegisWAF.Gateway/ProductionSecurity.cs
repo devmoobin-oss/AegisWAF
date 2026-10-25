@@ -7,6 +7,9 @@ namespace AegisWAF.Gateway;
 /// <summary>Resolves the originating client only when the direct peer is explicitly trusted.</summary>
 internal static class ClientAddress
 {
+    public static bool IsTrustedPeer(HttpContext ctx, IConfiguration cfg) =>
+        ctx.Connection.RemoteIpAddress is not null && IsTrusted(ctx.Connection.RemoteIpAddress, cfg);
+
     public static string Resolve(HttpContext ctx, IConfiguration cfg)
     {
         var peer = ctx.Connection.RemoteIpAddress;

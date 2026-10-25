@@ -27,7 +27,7 @@ internal static class AdminGuard
         var cfg = ctx.RequestServices.GetRequiredService<IConfiguration>();
         var remoteAdmin = cfg.GetValue("Admin:AllowRemote", false);
         if (!remoteAdmin && !IsLocalClient(ctx)) { await Deny(ctx, 403, "Administration is restricted to the local host"); return; }
-        if (remoteAdmin && cfg.GetValue("Admin:RequireHttps", true) && !ctx.Request.IsHttps)
+        if (remoteAdmin && cfg.GetValue("Admin:RequireHttps", true) && !AdminPerimeterPolicy.IsSecureRequest(ctx, cfg))
         { await Deny(ctx, 400, "Remote administration requires HTTPS"); return; }
         ctx.Response.Headers.CacheControl = "no-store";
 
@@ -57,7 +57,7 @@ internal static class AdminGuard
         if (!HttpMethods.IsGet(ctx.Request.Method) && !HttpMethods.IsHead(ctx.Request.Method) && !HttpMethods.IsOptions(ctx.Request.Method))
         {
             var origin = ctx.Request.Headers.Origin.ToString();
-            if (!string.IsNullOrWhiteSpace(origin) && !OriginMatchesHost(origin, ctx.Request.Host))
+            if (!string.IsNullOrWhiteSpace(origin) && !AdminPerimeterPolicy.OriginMatchesRequest(origin, ctx, cfg))
             { await Deny(ctx, 403, "Origin validation failed"); return; }
             var provided = Encoding.UTF8.GetBytes(ctx.Request.Headers["X-CSRF-Token"].ToString());
             var expected = Encoding.UTF8.GetBytes(session.CsrfToken);
@@ -65,11 +65,6 @@ internal static class AdminGuard
         }
         await next();
     }
-
-    private static bool OriginMatchesHost(string origin, HostString host)
-        => Uri.TryCreate(origin, UriKind.Absolute, out var uri) &&
-           string.Equals(uri.Host, host.Host, StringComparison.OrdinalIgnoreCase) &&
-           (uri.IsDefaultPort || uri.Port == host.Port);
 
     private static async Task SafeAudit(AuthStore store, string? actor, HttpContext ctx, string action, string target, string outcome)
     {

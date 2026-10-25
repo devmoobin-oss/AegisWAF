@@ -15,6 +15,8 @@ public sealed class ProductionReadinessPolicyTests
         ["Database:AutoMigrate"] = "false",
         ["Admin:RequireHttps"] = "true",
         ["Admin:AllowRemote"] = "false",
+        ["Admin:ListenerPort"] = "8443",
+        ["Gateway:ListenerPort"] = "8080",
         ["Waf:AllowProtocolUpgrade"] = "false",
         ["Waf:AllowUnsafeMethods"] = "false",
         ["Waf:ResponseOverflowAction"] = "block",
