@@ -7,7 +7,7 @@
 
 - วันที่ตรวจสอบ: 2026-10-25 (Asia/Bangkok)
 - สาขา: `codex/modular-development-handoff`
-- สถานะ snapshot: รอบนี้เพิ่ม Opaque Content Inspection ต่อจาก implementation commit `9a9933a`; การเปลี่ยนแปลงรอบนี้ยังอยู่ใน working tree ก่อน commit; worktree สำรอง `D:\AegisWAF\.worktrees\multi-site-gateway` มีการแก้ไขเดิมของผู้ใช้และยังไม่ได้แตะต้อง
+- สถานะ snapshot: implementation commit `870b4c0` ผ่านการตรวจแล้ว; worktree สำรอง `D:\AegisWAF\.worktrees\multi-site-gateway` มีการแก้ไขเดิมของผู้ใช้และยังไม่ได้แตะต้อง
 - `handoff.md`: อ่านแล้วและใช้เป็น baseline ของรอบนี้
 - เป้าหมาย: พัฒนาแต่ละโมดูลให้มีความคืบหน้า **มากกว่า 98%** โดยต้องมีหลักฐานรองรับก่อนรายงาน
 
@@ -16,7 +16,7 @@
 - รอบล่าสุดตรวจสอบครบ 10 โมดูล: ทุกโมดูลได้ 100% จาก gate `4/4` (รวม 40/40 gates) และสูงกว่าเป้าหมาย >98%
 - หลักฐานล่าสุด: `D:\AegisWAF\artifacts\module-verification\20261025-163021560.json`
 - Full test suite ล่าสุด: `231/231` ผ่าน; opaque-content focused regression: `33/33` ผ่าน; Desktop build: 0 warning, 0 error
-- Implementation ล่าสุด: Opaque Content Inspection (รอ commit รอบนี้; baseline 0% → 100%)
+- Implementation ล่าสุด: `870b4c0 feat: inspect text-like opaque content`
 - GitHub sync: ยังไม่สำเร็จ เนื่องจาก safety review ขอการยืนยันการส่งข้อมูล repository ออกไปยัง `origin`; remote branch ยังไม่พบ
 
 ## หลักเกณฑ์วัดความคืบหน้า
