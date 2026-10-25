@@ -38,7 +38,7 @@
 | 5. Database / migrations / operations | 100% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-160944108.json; passed=4; failed=0; unverified=0 | passed >98% |
 | 6. Documentation / handoff / verification | 100% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-160944108.json; passed=4; failed=0; unverified=0 | passed >98% |
 | 7. Admin perimeter hardening | 100% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-160944108.json; passed=4; failed=0; unverified=0 | passed >98% |
-| 8. Identity hardening | 100% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-160944108.json; passed=4; failed=0; unverified=0 | passed >98% |
+| 8. Identity hardening | 0% | 100% | >98% | report=D:\AegisWAF\artifacts\module-verification\20261025-160944108.json; passed=4; failed=0; unverified=0 | passed >98% |
 
 ## หลักฐานรอบล่าสุด
 
