@@ -1,6 +1,8 @@
 # AegisWAF Security Notes (v0.7)
 
-Status: **development prototype, not production-ready.** No independent security testing or load testing has been done. Do not expose the proxy or admin interface to untrusted networks.
+Status: **Production Candidate / not production-certified.** The Multi-Site worktree has local parser, egress, health/failover, distributed-control and real-socket evidence, but external penetration testing, independent load testing, DNS-rebinding assessment and continuous SAST/secret/SBOM scanning remain open gates. See [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md) for the authoritative deployment gate.
+
+The v0.7 findings below are historical baseline findings. Where later Production-elevation work superseded a finding, the current implementation and readiness document take precedence.
 
 See also [PROTECTION.md](PROTECTION.md) for exactly which attack classes the gateway does and does not stop (each claim is verified by automated tests).
 
@@ -42,6 +44,8 @@ Password hashing, lockout, session handling and the forced change of administrat
 * Optional `appsettings.local.json` (see README) stores the DB password and optionally the bootstrap password **in clear text on disk**; it is a convenience for single-user Windows machines, not a secrets manager. Restrict file permissions and remove the bootstrap password after first login.
 * The bootstrap password is read from the environment (or `Bootstrap:AdminPassword`), never logged, and used only when no users exist. Change it after first login.
 * Dependency scan (2026-10-17, `dotnet list package --vulnerable --include-transitive`): no known vulnerable packages. This is a one-off check; continuous scanning in CI is not yet configured.
+* Parser-aware inspection, bounded decompression, explicit upstream egress policy, shared authentication throttling, audit-chain integrity alerting, and a local security/load-test harness were added in the 2026-10-18 production-elevation work. These controls still require independent penetration testing, SIEM delivery/retention validation, and multi-instance operational validation.
+* Dependency scan (2026-10-19, `dotnet list package --vulnerable --include-transitive`): no known vulnerable packages from the configured NuGet source. A repeatable CI workflow now runs dependency audit, CodeQL, Gitleaks and SBOM generation; the workflow itself still requires a successful hosted run before its evidence is considered complete.
 * Parser-aware inspection, bounded decompression, explicit upstream egress policy, shared authentication throttling, audit-chain integrity alerting, and a local security/load-test harness were added in the 2026-10-18 production-elevation work. These controls still require independent penetration testing, SIEM delivery/retention validation, and multi-instance operational validation.
 
 ## Testing policy

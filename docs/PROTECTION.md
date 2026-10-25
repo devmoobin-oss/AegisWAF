@@ -228,3 +228,6 @@ XXE แบบ parse จริง (ตรวจด้วยลายเซ็น�
 * อยากตรวจเข้มขึ้นให้เปิด `anomaly-01` แล้วสังเกต false positive ก่อนใช้จริง
 * ใช้ปุ่ม **ทดสอบระบบป้องกัน** ในหน้าภาพรวมเพื่อเช็กว่ากฎยังทำงาน
 * ขั้นต่อไป (v0.10+): batching/partition ของ event store, SIEM, การศึกษาความเข้ากันได้กับ OWASP CRS — ดู `DEVELOPMENT_ROADMAP.md`
+## Production profile note
+
+The compatibility examples above describe the Desktop/local profile. A strict Production deployment must set `Waf:Deployment:Enforce=true`, `Waf:InspectResponses=true`, `Waf:InspectBinaryResponses=true`, and `Waf:ResponseOverflowAction=block`. Under that profile, oversized responses are rejected or the connection is aborted after headers have been committed; binary responses are inspected within the configured bounded budget. Do not treat the compatibility-profile fail-open examples as Production behavior.

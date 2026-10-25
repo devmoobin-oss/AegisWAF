@@ -10,6 +10,7 @@ using AegisWAF.Gateway;
 using AegisWAF.Gateway.Auth;
 using AegisWAF.Gateway.Infrastructure;
 using AegisWAF.Client;
+using AegisWAF.Gateway.Sites;
 
 var builder = GatewayApp.CreateBuilder(args);
 GatewayApp.AddServices(builder);
@@ -90,7 +91,12 @@ static class Audit
 {
     private static byte[] Hash(DateTimeOffset occurred, string action, string target, string? actor, string? ip, string outcome, byte[]? previous)
     {
-        var canonical = string.Join("|", occurred.ToUniversalTime().ToString("O"), action, target, actor ?? "", ip ?? "", outcome,
+        // PostgreSQL timestamptz stores microseconds, while DateTimeOffset.UtcNow has 100ns ticks.
+        // Canonicalise before hashing so the value written and the value read during verification are identical.
+        var utc = occurred.ToUniversalTime();
+        var ticks = utc.Ticks - (utc.Ticks % TimeSpan.TicksPerMicrosecond);
+        var canonicalOccurred = new DateTimeOffset(ticks, TimeSpan.Zero);
+        var canonical = string.Join("|", canonicalOccurred.ToString("O"), action, target, actor ?? "", ip ?? "", outcome,
             previous is null ? "" : Convert.ToHexString(previous));
         return SHA256.HashData(Encoding.UTF8.GetBytes(canonical));
     }
@@ -112,13 +118,18 @@ static class Audit
 
     public static async Task<(bool Valid, long Checked, long? BadId)> VerifyAsync(NpgsqlConnection db, CancellationToken ct)
     {
-        byte[]? previous = null; long checkedRows = 0;
+        byte[]? previous = null; long checkedRows = 0; var chainStarted = false;
         await using var cmd = new NpgsqlCommand("SELECT id,occurred_at,action,target,actor,client_ip,outcome,prev_hash,entry_hash FROM waf_audit ORDER BY id", db);
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))
         {
             var entry = reader.IsDBNull(8) ? null : (byte[])reader[8];
-            if (entry is null) { previous = null; continue; } // legacy rows before integrity chaining
+            if (entry is null)
+            {
+                if (chainStarted) return (false, checkedRows, reader.GetInt64(0));
+                previous = null;
+                continue; // legacy rows are only valid before integrity chaining begins
+            }
             var id = reader.GetInt64(0);
             var occurred = reader.GetFieldValue<DateTimeOffset>(1);
             var action = reader.GetString(2); var target = reader.GetString(3);
@@ -131,6 +142,7 @@ static class Audit
             checkedRows++;
             if (!CryptographicOperations.FixedTimeEquals(expected, entry)) return (false, checkedRows, id);
             previous = entry;
+            chainStarted = true;
         }
         return (true, checkedRows, null);
     }
@@ -146,6 +158,8 @@ static class Bootstrap
         if (string.IsNullOrWhiteSpace(cs)) { log.LogWarning("No PostgreSQL connection configured; administration is unavailable"); return; }
         if (app.Configuration.GetValue("Database:AutoMigrate", true))
             foreach (var v in await Migrator.ApplyAsync(cs)) log.LogInformation("Applied migration {Version}", v);
+        await app.Services.GetRequiredService<SiteDatabaseStore>()
+            .EnsureSeededAsync(app.Services.GetRequiredService<SiteRegistry>().Current.Sites, default);
         if (app.Configuration.GetValue("Database:RequireLeastPrivilege", false))
         {
             await using var securityDb = new NpgsqlConnection(cs);
@@ -181,6 +195,7 @@ public partial class Program { }
 static class Normalizer
 {
     private const int Cap = 65536; // bound the work per field
+    private const int WindowOverlap = 1024; // preserve signatures split across bounded windows
 
     /// <summary>A small, de-duplicated set of canonical forms of <paramref name="raw"/> to run rules against.</summary>
     public static IReadOnlyList<string> Variants(string raw)
@@ -209,6 +224,27 @@ static class Normalizer
         var stripped = CollapseWhitespace(StripSqlComments(unicode));
         AddIfNew(list, stripped);
         return list;
+    }
+
+    /// <summary>
+    /// Produces bounded canonical windows for large values so inspection never silently drops a suffix.
+    /// The overlap preserves signatures and encoded sequences that cross a window boundary.
+    /// </summary>
+    public static IEnumerable<IReadOnlyList<string>> Windows(string raw)
+    {
+        if (raw.Length <= Cap)
+        {
+            yield return Variants(raw);
+            yield break;
+        }
+
+        var step = Cap - WindowOverlap;
+        for (var start = 0; start < raw.Length; start += step)
+        {
+            var length = Math.Min(Cap, raw.Length - start);
+            yield return Variants(raw.Substring(start, length));
+            if (start + length >= raw.Length) break;
+        }
     }
 
     private static void AddIfNew(List<string> list, string value)
@@ -275,7 +311,7 @@ sealed class SecurityRules
     private sealed record Rule(string Id, string Name, string Category, Regex Pattern) { public volatile bool Enabled = true; }
 
     // All patterns are NonBacktracking (linear time, no ReDoS) and run against the Normalizer's canonical forms.
-    private static Regex R(string pattern) => new(pattern, RegexOptions.NonBacktracking | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(50));
+    private static Regex R(string pattern) => new(pattern, RegexOptions.NonBacktracking | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
 
     private readonly List<Rule> _rules =
     [
@@ -335,24 +371,49 @@ sealed class SecurityRules
     }
 
     /// <summary>Runs custom rules then built-in rules against every canonical form of <paramref name="input"/>.</summary>
-    public string? Match(string input, bool checkOversize = true)
+    public string? Match(string input, bool checkOversize = true, InspectionBudget? budget = null, SiteWafPolicy? policy = null)
     {
         if (checkOversize && input.Length > 8192) return "Oversized URL";
-        var variants = Normalizer.Variants(input);
+        if (budget?.Expired == true) return "Inspection Timeout";
+        foreach (var variants in Normalizer.Windows(input))
+        {
+            var result = MatchVariants(variants, budget, policy);
+            if (result is not null) return result;
+        }
+        return null;
+    }
+
+    private string? MatchVariants(IReadOnlyList<string> variants, InspectionBudget? budget, SiteWafPolicy? policy)
+    {
         foreach (var entry in _custom.OrderBy(x => x.Value.Input.Priority))
         {
-            if (!entry.Value.Input.Enabled) continue;
-            try { foreach (var v in variants) if (entry.Value.Pattern.IsMatch(v)) return "Custom: " + entry.Key; }
+            if (!entry.Value.Input.Enabled || policy?.DisabledRuleIds.Contains(entry.Key) == true) continue;
+            try
+            {
+                foreach (var v in variants)
+                {
+                    if (budget?.Expired == true) return "Inspection Timeout";
+                    if (entry.Value.Pattern.IsMatch(v)) return "Custom: " + entry.Key;
+                }
+            }
             catch (RegexMatchTimeoutException) { return "Inspection Timeout"; }
         }
         foreach (var rule in _rules)
         {
-            if (!rule.Enabled) continue;
-            try { foreach (var v in variants) if (rule.Pattern.IsMatch(v)) return rule.Category; }
+            if (!rule.Enabled || policy?.DisabledRuleIds.Contains(rule.Id) == true) continue;
+            try
+            {
+                foreach (var v in variants)
+                {
+                    if (budget?.Expired == true) return "Inspection Timeout";
+                    if (rule.Pattern.IsMatch(v)) return rule.Category;
+                }
+            }
             catch (RegexMatchTimeoutException) { return "Inspection Timeout"; }
         }
-        if (_anomaly.Enabled)
+        if (_anomaly.Enabled && policy?.DisabledRuleIds.Contains("anomaly-01") != true)
         {
+            if (budget?.Expired == true) return "Inspection Timeout";
             try { if (_anomaly.Score(variants) >= _anomaly.Threshold) return "Anomaly Score"; }
             catch (RegexMatchTimeoutException) { return "Inspection Timeout"; }
         }
@@ -360,9 +421,9 @@ sealed class SecurityRules
     }
 
     /// <summary>Scanner / attack-tool fingerprint in the User-Agent (checked separately to avoid body false-positives).</summary>
-    public string? MatchUserAgent(string userAgent)
+    public string? MatchUserAgent(string userAgent, SiteWafPolicy? policy = null)
     {
-        if (!_scanner.Enabled || string.IsNullOrEmpty(userAgent)) return null;
+        if (!_scanner.Enabled || policy?.DisabledRuleIds.Contains(_scanner.Id) == true || string.IsNullOrEmpty(userAgent)) return null;
         try { return _scanner.Pattern.IsMatch(userAgent) ? _scanner.Category : null; }
         catch (RegexMatchTimeoutException) { return "Inspection Timeout"; }
     }
@@ -436,6 +497,19 @@ sealed class ResponseInspector
             try { if (pattern.IsMatch(body)) return name; }
             catch (RegexMatchTimeoutException) { return "Response Inspection Timeout"; }
         return null;
+    }
+
+    /// <summary>
+    /// Scans bounded binary response bytes using a one-to-one Latin-1 projection. This avoids UTF-8 replacement
+    /// semantics while still catching high-signal ASCII leaks when an upstream falsely labels sensitive text binary.
+    /// </summary>
+    public string? InspectBytes(ReadOnlySpan<byte> body) => Inspect(Encoding.Latin1.GetString(body));
+
+    public string? InspectEncoded(ReadOnlySpan<byte> body, string? contentEncoding, InspectionLimits limits, bool textual = true)
+    {
+        var decoded = RequestBodyInspector.Decode(body, contentEncoding?.Trim(), limits);
+        if (!decoded.Success) return "Response Decode — " + decoded.ReasonCode;
+        return textual ? Inspect(InspectionTextDecoder.Decode(decoded.Bytes)) : InspectBytes(decoded.Bytes);
     }
 
     /// <summary>True for known textual content types; opaque content requires the byte-aware overload.</summary>
@@ -531,7 +605,8 @@ sealed class TrafficCounters
     });
     public object TopIps() => _ips.OrderByDescending(x => x.Value).Take(10).Select(x => new { ip = x.Key, blocked = x.Value });
 }
-record SecurityEvent(DateTimeOffset Timestamp, string Ip, string Method, string Path, string Rule, int Status, string? RequestId = null);
+record SecurityEvent(DateTimeOffset Timestamp, string Ip, string Method, string Path, string Rule, int Status, string? RequestId = null,
+    string? SiteId = null, string? Hostname = null, string? UpstreamId = null);
 sealed class SecurityEvents(ILogger<SecurityEvents> logger)
 {
     private readonly Channel<SecurityEvent> _queue = Channel.CreateBounded<SecurityEvent>(new BoundedChannelOptions(10000)
@@ -566,13 +641,16 @@ sealed class EventWriter(SecurityEvents events, IConfiguration config, ILogger<E
             {
                 await using var db = new NpgsqlConnection(connection);
                 await db.OpenAsync(token);
-                await using var cmd = new NpgsqlCommand("INSERT INTO security_events (occurred_at,client_ip,http_method,request_path,rule_name,status_code) VALUES (@t,@ip,@m,@p,@r,@s)", db);
+                await using var cmd = new NpgsqlCommand("INSERT INTO security_events (occurred_at,client_ip,http_method,request_path,rule_name,status_code,site_id,hostname,upstream_id) VALUES (@t,@ip,@m,@p,@r,@s,@site,@host,@upstream)", db);
                 cmd.Parameters.AddWithValue("t", item.Timestamp);
                 cmd.Parameters.AddWithValue("ip", item.Ip);
                 cmd.Parameters.AddWithValue("m", item.Method);
                 cmd.Parameters.AddWithValue("p", item.Path);
                 cmd.Parameters.AddWithValue("r", item.Rule);
                 cmd.Parameters.AddWithValue("s", item.Status);
+                cmd.Parameters.AddWithValue("site", (object?)item.SiteId ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("host", (object?)item.Hostname ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("upstream", (object?)item.UpstreamId ?? DBNull.Value);
                 await cmd.ExecuteNonQueryAsync(token);
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested) { break; }

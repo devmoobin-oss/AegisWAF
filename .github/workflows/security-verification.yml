@@ -1,0 +1,142 @@
+name: Security Verification
+
+on:
+  push:
+    branches: [main, feature/multi-site-gateway]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      load_test_target:
+        description: Authorized synthetic/staging target URI (leave blank to skip)
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dotnet-tests:
+    name: .NET tests and dependency audit
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      AEGISWAF_TEST_PG: Host=localhost;Port=5432;Username=postgres;Password=postgres;Database=postgres
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Restore
+        run: dotnet restore tests/AegisWAF.Tests/AegisWAF.Tests.csproj
+      - name: Test
+        run: dotnet test tests/AegisWAF.Tests/AegisWAF.Tests.csproj --configuration Release --no-restore --logger "console;verbosity=minimal"
+
+  dependency-audit:
+    name: Dependency vulnerability audit
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Restore solution
+        run: dotnet restore AegisWAF.slnx
+      - name: Vulnerability audit
+        run: dotnet list AegisWAF.slnx package --vulnerable --include-transitive
+
+  codeql:
+    name: CodeQL SAST
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: csharp
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Build
+        run: dotnet build AegisWAF.slnx --configuration Release -p:EnableWindowsTargeting=true
+      - name: Analyze
+        uses: github/codeql-action/analyze@v3
+
+  secret-scan:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  sbom:
+    name: SBOM
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Generate CycloneDX SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: cyclonedx-json
+          output-file: aegiswaf-sbom.cyclonedx.json
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: aegiswaf-sbom
+          path: aegiswaf-sbom.cyclonedx.json
+
+  authorized-load-test:
+    name: Authorized security load test
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.load_test_target != '' }}
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Run bounded load test
+        shell: pwsh
+        run: >-
+          ./tools/security-loadtest/loadtest.ps1
+          -TargetUri "${{ inputs.load_test_target }}"
+          -DurationSeconds 60
+          -Concurrency 16
+          -AttackRatioPercent 20
+          -OutputJson security-loadtest.json
+          -OutputCsv security-loadtest.csv
+      - name: Upload load-test evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: aegiswaf-authorized-load-test
+          path: |
+            security-loadtest.json
+            security-loadtest.csv

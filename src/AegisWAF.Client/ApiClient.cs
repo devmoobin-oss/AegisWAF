@@ -68,12 +68,33 @@ public sealed class ApiClient : IDisposable
         SendAsync(HttpMethod.Delete, $"api/custom-rules/{Uri.EscapeDataString(id)}", null, ct);
 
     public Task<List<IpPolicyDto>> GetIpPoliciesAsync(CancellationToken ct = default) => SendAsync<List<IpPolicyDto>>(HttpMethod.Get, "api/ip-policies", null, ct);
+    public Task<List<SiteDto>> GetSitesAsync(CancellationToken ct = default) => SendAsync<List<SiteDto>>(HttpMethod.Get, "api/sites", null, ct);
+    public Task AddSiteAsync(SiteCreateDto site, CancellationToken ct = default) =>
+        SendAsync(HttpMethod.Post, "api/sites", site, ct);
+    public Task UpdateSiteAsync(string id, SiteCreateDto site, CancellationToken ct = default) =>
+        SendAsync(HttpMethod.Put, $"api/sites/{Uri.EscapeDataString(id)}", site, ct);
+    public Task DeleteSiteAsync(string id, CancellationToken ct = default) =>
+        SendAsync(HttpMethod.Delete, $"api/sites/{Uri.EscapeDataString(id)}", null, ct);
+    public Task<SiteHealthCheckDto> CheckSiteHealthAsync(string id, CancellationToken ct = default) =>
+        SendAsync<SiteHealthCheckDto>(HttpMethod.Post, $"api/sites/{Uri.EscapeDataString(id)}/health", null, ct);
     public Task SaveIpPolicyAsync(string ip, string action, string reason, CancellationToken ct = default) =>
         SendAsync(HttpMethod.Put, "api/ip-policies", new { ip, action, reason }, ct);
     public Task DeleteIpPolicyAsync(string ip, CancellationToken ct = default) =>
         SendAsync(HttpMethod.Delete, ip.Contains('/') ? $"api/ip-policies?ip={Uri.EscapeDataString(ip)}" : $"api/ip-policies/{Uri.EscapeDataString(ip)}", null, ct);
 
     public Task<List<AuditEntryDto>> GetAuditAsync(CancellationToken ct = default) => SendAsync<List<AuditEntryDto>>(HttpMethod.Get, "api/audit", null, ct);
+    public Task<CommandCenterSummaryDto> GetCommandCenterSummaryAsync(CancellationToken ct = default) =>
+        SendAsync<CommandCenterSummaryDto>(HttpMethod.Get, "api/command-center/summary", null, ct);
+    public Task<List<CommandCenterTrafficDto>> GetCommandCenterTrafficAsync(CommandCenterTrafficQuery? query = null, CancellationToken ct = default)
+    {
+        query ??= new CommandCenterTrafficQuery();
+        var parameters = new List<string> { "limit=" + query.Limit };
+        if (!string.IsNullOrWhiteSpace(query.Decision)) parameters.Add("decision=" + Uri.EscapeDataString(query.Decision));
+        if (!string.IsNullOrWhiteSpace(query.SiteId)) parameters.Add("siteId=" + Uri.EscapeDataString(query.SiteId));
+        if (!string.IsNullOrWhiteSpace(query.ClientIp)) parameters.Add("ip=" + Uri.EscapeDataString(query.ClientIp));
+        if (!string.IsNullOrWhiteSpace(query.Search)) parameters.Add("q=" + Uri.EscapeDataString(query.Search));
+        return SendAsync<List<CommandCenterTrafficDto>>(HttpMethod.Get, "api/command-center/traffic?" + string.Join('&', parameters), null, ct);
+    }
 
     public Task<List<UserDto>> GetUsersAsync(CancellationToken ct = default) => SendAsync<List<UserDto>>(HttpMethod.Get, "api/users", null, ct);
     public Task CreateUserAsync(string username, string displayName, string password, string role, CancellationToken ct = default) =>

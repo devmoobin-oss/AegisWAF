@@ -24,9 +24,29 @@ public sealed record RuleDto(string Id, string Name, string Category, bool Enabl
 public sealed record CustomRuleDto(string Id, string Name, string Pattern, int Priority, bool Enabled);
 public sealed record OwaspCoverageDto(string Code, string Title, string Coverage, string Description, string Limitations, string[] RuleIds, string OfficialUrl);
 public sealed record IpPolicyDto(string Ip, string Action, string Reason);
+public sealed record SiteUpstreamDto(string Id, string Address, string Scheme, int Port, int Weight, string Health);
+public sealed record SiteDto(string SiteId, bool Enabled, string[] Hostnames, string[] PathPrefixes, string WafPolicy, string Health, SiteUpstreamDto[] Upstreams);
+public sealed record SiteCreateDto(string Id, string[] Hostnames, string[] PathPrefixes, string UpstreamAddress, string WafPolicy, string[] AllowedHosts, int[] AllowedPorts, string[] AllowedSchemes, bool Enabled = true);
+public sealed record SiteHealthUpstreamDto(string Id, string Address, string Health);
+public sealed record SiteHealthCheckDto(string SiteId, string Health, bool PendingRestart, DateTimeOffset CheckedAt, SiteHealthUpstreamDto[] Upstreams);
 public sealed record AuditEntryDto(DateTimeOffset OccurredAt, string Action, string Target, string? Actor, string? ClientIp, string Outcome)
 {
     public string LocalTime => OccurredAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");
+}
+public sealed record CommandCenterSummaryDto(DateTimeOffset GeneratedAt, long ActiveConnections, long RequestsPerMinute,
+    long Allowed, long Blocked, long RateLimited, long UpstreamErrors, int BufferedEvents, long DroppedEvents);
+public sealed record CommandCenterTrafficQuery(int Limit = 100, string? Decision = null, string? SiteId = null, string? ClientIp = null, string? Search = null);
+public sealed record CommandCenterTrafficDto(DateTimeOffset Time, string TraceId, string ClientIp, string? SiteId, string? Hostname,
+    string Method, string Path, string? UpstreamId, string? UpstreamAddress, string Decision, int StatusCode, string? Rule,
+    string[] OwaspCodes, long DurationMs)
+{
+    public string LocalTime => Time.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");
+    public bool PassedSecurity => Decision == "ALLOWED";
+    public string SiteHostDisplay => string.Join(" / ", new[] { SiteId ?? "UNMATCHED", Hostname }.Where(x => !string.IsNullOrWhiteSpace(x)));
+    public string RequestDisplay => Method + " " + Path;
+    public string UpstreamDisplay => string.Join(" / ", new[] { UpstreamId, UpstreamAddress }.Where(x => !string.IsNullOrWhiteSpace(x))) is { Length: > 0 } value ? value : "NOT FORWARDED";
+    public string DurationDisplay => DurationMs.ToString("N0") + " ms";
+    public string SecurityDisplay => string.Join(" • ", new[] { Rule, OwaspCodes.Length == 0 ? null : string.Join(", ", OwaspCodes) }.Where(x => !string.IsNullOrWhiteSpace(x)));
 }
 public sealed record RuleTestResult(bool Matched, string? Rule, string Action, bool DryRun);
 public sealed record UserDto(Guid Id, string Username, string DisplayName, string Role, bool Enabled, bool Locked, bool MustChangePassword,

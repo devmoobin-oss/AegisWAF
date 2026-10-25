@@ -6,8 +6,8 @@ The v0.6 code base is one ASP.NET Core project (`src/AegisWAF.Gateway`). The mas
 ## Components (current)
 | Area | Location | Notes |
 |---|---|---|
-| Reverse proxy | YARP, `appsettings.json` `ReverseProxy` | Static single route/cluster; no per-site config yet |
-| WAF inspection | `Program.cs` (`Normalizer`, `SecurityRules`, `AnomalyScorer`, `ResponseInspector`) + inspection middleware in `GatewayApp.cs` | **v0.9:** `Normalizer` canonicalises each field (percent-decode incl. double-encoding, `+`→space, HTML-entity decode, SQL `/**/` strip, whitespace collapse, lowercase, **NFKC Unicode fold + zero-width stripping**) before matching. 16 NonBacktracking rule groups (SQLi×3, XSS×3, path×2, LFI/RFI, cmd×2, SSRF, protocol anomaly, **NoSQL, XXE, SSTI**) + a scanner User-Agent rule + an **optional additive anomaly scorer** (`anomaly-01`, off by default, `Waf:AnomalyScoring:*`) + custom regex rules. Inspects URL/query, selected headers, cookies, and request bodies of all textual types up to `Waf:MaxBodyInspectBytes` (default 128 KiB, fail-closed above), **and the upstream response** (`ResponseInspector`: buffers ≤ `Waf:MaxResponseInspectBytes` = 256 KiB, suppresses passwd/key/SQL-error/stack-trace leaks with a 502; larger or binary responses stream through = fail-open). Tuned for detection → higher false-positive rate; every rule toggleable. Coverage verified by `CatalogVerificationTests` + `EngineUpgradeTests`; see `PROTECTION.md` and `OWASP_CRS_COMPATIBILITY.md` |
+| Reverse proxy | YARP, generated from `Sites` or legacy `ReverseProxy` | Multi-Site host/path routes and clusters are generated from a validated snapshot; legacy config migrates to `default-site` |
+| WAF inspection | `Program.cs` (`Normalizer`, `SecurityRules`, `AnomalyScorer`, `ResponseInspector`) + inspection middleware in `GatewayApp.cs` | **Current:** `Normalizer` canonicalises each field (percent-decode incl. double-encoding, `+`→space, HTML-entity decode, SQL `/**/` strip, whitespace collapse, lowercase, **NFKC Unicode fold + zero-width stripping**) before matching. 16 NonBacktracking rule groups (SQLi×3, XSS×3, path×2, LFI/RFI, cmd×2, SSRF, protocol anomaly, **NoSQL, XXE, SSTI**) + scanner User-Agent rule + optional additive anomaly scorer + custom regex rules. Inspects URL/query, selected headers, cookies, and request bodies of all textual types within bounded budgets, **and upstream responses**. Strict Production requires response inspection, binary inspection and `ResponseOverflowAction=block`; Desktop compatibility may stream oversized responses. Coverage is verified by the automated and real-socket suites; see `PROTECTION.md` and `OWASP_CRS_COMPATIBILITY.md` |
 | Rate limiting / IP policy | `Program.cs` | In-process; fixed 60 s window, 300 req/IP; exact-match IP allow/block |
 | Event pipeline | `SecurityEvents` + `EventWriter` | Bounded channel (10 000), drop counter; one DB connection per event (needs batching) |
 | **Auth / RBAC (v0.7)** | `Auth/` | See below |
@@ -20,7 +20,7 @@ The v0.6 code base is one ASP.NET Core project (`src/AegisWAF.Gateway`). The mas
 2. `UseDefaultFiles` / `UseStaticFiles` — **must precede routing**: static files yield to any matched endpoint and the YARP catch-all matches everything. v0.6 had this wrong, so the dashboard was proxied upstream instead of served.
 3. `UseRouting`
 4. `AdminGuard` for `/api/*`: local-network check → unknown route 404 → route without `AdminAccess` metadata 403 (closes the catch-all bypass) → session → must-change-password gate → role level → CSRF (non-GET)
-5. WAF inspection middleware (skips `/api`, `/health`, GUI paths): inspects the request, then — for proxied paths — swaps `Response.Body` for a `ResponseBufferStream` so the upstream response can be scanned for leaks before the client sees it (large/binary responses overflow the buffer and stream through unmodified)
+5. WAF inspection middleware (skips `/api`, `/health`, GUI paths): inspects the request, then — for proxied paths — swaps `Response.Body` for a `ResponseBufferStream` so the upstream response can be scanned for leaks before the client sees it. Production enables bounded binary scanning and aborts fail-closed overflow after headers are committed; the Desktop compatibility profile may explicitly retain streaming behavior.
 6. Endpoints / YARP proxy
 
 ## Authentication & RBAC design
@@ -45,6 +45,10 @@ The v0.6 code base is one ASP.NET Core project (`src/AegisWAF.Gateway`). The mas
 
 ## Database (v0.7 additions, `006_auth_rbac.sql`)
 `roles`, `users`, `user_roles`, `sessions` (FKs, CHECK on username, partial index on live sessions); `waf_audit` gains `actor`, `client_ip`, `outcome`. The existing `waf_audit` table is kept as the audit store instead of adding a second `audit_logs` table.
+
+## Multi-Site request model
+
+`SiteConfigurationLoader` validates and normalizes Site definitions before services start. `SiteMatcher` resolves exact Host plus longest path prefix; `SiteContext` is attached before WAF inspection. SiteId is included in rate-limit keys, egress policy and security events. Generated YARP clusters use active/passive health checks, and production outbound connections pass through a bounded egress connection guard before socket creation. `/api/sites` and `/ready` read YARP runtime destination health. Legacy `ReverseProxy` configuration remains supported as `default-site` when Production enforcement is disabled.
 
 ## Target architecture (not yet built)
 Dedicated admin listener → project split → per-site policies (v0.8) → normalising rule engine with anomaly scoring (v0.9) → batched/partitioned event store, SignalR, SIEM (v0.10) → Redis (v0.11). See `DEVELOPMENT_ROADMAP.md`.

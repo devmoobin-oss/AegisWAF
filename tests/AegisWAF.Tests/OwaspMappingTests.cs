@@ -15,6 +15,7 @@ public sealed class OwaspMappingTests
 
     [Theory]
     [InlineData("sqli-01", "A03")]
+    [InlineData("SQL Injection", "A03")]
     [InlineData("xss-01", "A03")]
     [InlineData("ssrf-01", "A10")]
     [InlineData("scanner-01", "A06")]

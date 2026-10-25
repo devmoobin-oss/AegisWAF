@@ -1,4 +1,34 @@
-# Progress Report — v0.7
+# Current Production WAF Progress Snapshot
+
+Updated against the latest Production guardrail commit in the `feature/multi-site-gateway` worktree on 2026-10-19.
+
+## Verified local evidence
+
+| Evidence | Result |
+|---|---|
+| Full automated security/regression suite | **328 passed, 0 failed, 0 skipped** |
+| Release solution build | **4 projects, 0 warnings, 0 errors** |
+| Dependency vulnerability scan | **No vulnerable packages reported** by NuGet sources |
+| Healthy-upstream real-socket load test | **82 requests; 78 blocked, 4 proxied, 0 errors** |
+| Local synthetic load test without an upstream | **92 requests; 76 blocked (403), 16 upstream 502s, 0 client errors; JSON/CSV evidence recorded** |
+| Worktree integrity | **`git diff --check` passed; source changes are present in this worktree and not yet committed** |
+
+## Workstream progress
+
+| Workstream | Progress | Evidence boundary |
+|---|---:|---|
+| Multi-Site routing and isolation | 99% | Real-socket site isolation and unknown-host rejection tested; external multi-instance validation pending |
+| Runtime egress enforcement | 97% | Startup DNS preflight and connection-boundary checks tested, including IPv6 documentation-range rejection; infrastructure ACL and external rebinding assessment pending |
+| Upstream health/failover | 96% | Active/passive YARP health and local failover tested; external capacity/failure testing pending |
+| Distributed rate limiting/auth throttling | 100% local evidence | PostgreSQL shared state and two-gateway tests pass; multi-instance deployment validation pending |
+| Parser-aware hardening | 98% | Structured parsing, decompression limits, duplicate-key and fuzz regressions pass; independent bypass testing pending |
+| Secure production guardrails | 100% local evidence | Fail-closed configuration/readiness checks pass; deployment operation review pending |
+| Audit/SIEM integrity | 98% | Structured events, chain verification and tamper alert pass; SIEM routing/alert policy pending |
+| External security assessment | 25% | Local harness and dependency scan exist; independent penetration, SAST/secret/SBOM and external load review pending |
+
+These percentages describe implementation and local evidence only. They are not a certification or an OWASP compliance claim. The remaining gates are tracked in [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md).
+
+# Historical Progress Report — v0.7
 
 ## Iteration summary
 * **Version**: v0.7 (from the v0.6 baseline)
@@ -47,10 +77,10 @@ Goal: finish the detection items listed as "not done" after v0.7.1.
 * **Deep Unicode normalisation** (`Normalizer`): added an NFKC compatibility fold (collapses fullwidth/compatibility code points such as `＜script＞` to ASCII) and zero-width/BOM stripping (defeats `un​ion`), as extra canonical variants alongside the existing decode/entity/comment passes. Never mutates the forwarded request.
 * **New signature classes** (`SecurityRules`): NoSQL operator injection (`nosql-01`: `$ne/$gt/$where/…`, `user[$ne]=`), XXE (`xxe-01`: DOCTYPE/ENTITY, SYSTEM/PUBLIC to file/http), SSTI (`ssti-01`: `{{7*7}}`, `${…}`, `<%…%>`, `#{…}`, dangerous template keywords). 13 → 16 groups. Some payloads overlap earlier broader rules (a `file://` entity is attributed to LFI, `${…}` to shell) — still blocked, just under the earlier rule.
 * **Anomaly scoring** (`AnomalyScorer`, rule `anomaly-01`): additive weak-signal scoring; blocks when one value's score ≥ threshold (default 7). **Off by default** (raises false positives); toggleable in the rules grid and via `Waf:AnomalyScoring:Enabled`/`Threshold`.
-* **Response/leak inspection** (`ResponseInspector` + `ResponseBufferStream`): buffers textual and text-like opaque upstream responses up to `Waf:MaxResponseInspectBytes` (256 KiB) and replaces the body with a 502 if it leaks a passwd/shadow file, private key, raw DB error, or stack trace. Genuine binary/invalid-UTF8 responses or responses exceeding the cap retain the configured overflow behavior. On by default (`Waf:InspectResponses`).
+* **Response/leak inspection** (`ResponseInspector` + `ResponseBufferStream`): buffers textual and text-like opaque upstream responses within `Waf:MaxResponseInspectBytes` (256 KiB default) and replaces the body with a 502 if it leaks a passwd/shadow file, private key, raw DB error, or stack trace. In the strict Production profile, `Waf:InspectResponses=true`, `Waf:InspectBinaryResponses=true`, and `Waf:ResponseOverflowAction=block` make malformed, binary, or oversized responses fail closed; the Desktop compatibility profile may use `stream` for controlled local testing.
 * **OWASP CRS**: a compatibility **study/decision record** (`OWASP_CRS_COMPATIBILITY.md`), not an import — CRS SecLang cannot load into .NET; decision is to adopt CRS *concepts* now (scoring, response rules, transform parity) and record a Coraza+CRS sidecar as the path to real CRS coverage once a multi-process deployment exists.
 * **Deferred** from the v0.9 scope: rule exclusions (per-path/param allowlisting) and rule versioning.
-* **Tests**: 101 → **125** (24 new in `EngineUpgradeTests`): Unicode fold/zero-width, each new signature class and its documented bypass, anomaly scoring on/off/threshold and the toggle/count, and five response-inspection integration tests over a scripted upstream (passwd leak → 502, DB-error leak → 502, clean HTML passes, binary fail-open, > cap streams through intact). `dotnet test`: **125 passed, 0 failed**.
+* **Tests**: 101 → **125** (24 new in `EngineUpgradeTests`): Unicode fold/zero-width, each new signature class and its documented bypass, anomaly scoring on/off/threshold and the toggle/count, and response-inspection integration tests over a scripted upstream. The current full suite is maintained separately in the Production readiness evidence.
 * **Not done / not verified**: no independent pen-test; no benchmark against OWASP CRS on a shared corpus (that benchmark is itself a documented follow-up); the new rules/response path were not re-driven through the WPF UI (underlying calls are covered by tests).
 
 ## Verified results

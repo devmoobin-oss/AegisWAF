@@ -1,9 +1,16 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Logging;
+using AegisWAF.Gateway.Traffic;
 
 namespace AegisWAF.Gateway;
 
-public sealed record EmbeddedGatewayOptions(Uri ListenUrl, string ConnectionString, string? BootstrapAdminPassword, string? UpstreamUrl, string? ContentRoot = null);
+public sealed record EmbeddedGatewayOptions(
+    Uri ListenUrl,
+    string ConnectionString,
+    string? BootstrapAdminPassword,
+    string? UpstreamUrl,
+    string? ContentRoot = null,
+    IReadOnlyDictionary<string, string?>? ConfigurationOverrides = null);
 
 /// <summary>
 /// Runs the gateway inside the host process (the desktop app) on background threads: no child process and no console window.
@@ -16,6 +23,7 @@ public sealed class EmbeddedGateway : IAsyncDisposable
     private WebApplication? _app;
 
     public bool Running => _app is not null;
+    internal TrafficTelemetry? Telemetry => _app?.Services.GetService<TrafficTelemetry>();
 
     /// <summary>Most recent warning/error log lines, for diagnostics shown in the UI.</summary>
     public string RecentLog { get { lock (_log) return string.Join(Environment.NewLine, _log); } }
@@ -27,6 +35,8 @@ public sealed class EmbeddedGateway : IAsyncDisposable
         var overrides = new Dictionary<string, string?> { ["ConnectionStrings:Postgres"] = o.ConnectionString };
         if (!string.IsNullOrEmpty(o.BootstrapAdminPassword)) overrides["Bootstrap:AdminPassword"] = o.BootstrapAdminPassword;
         if (!string.IsNullOrWhiteSpace(o.UpstreamUrl)) overrides["ReverseProxy:Clusters:appcluster:Destinations:app1:Address"] = o.UpstreamUrl;
+        if (o.ConfigurationOverrides is not null)
+            foreach (var pair in o.ConfigurationOverrides) overrides[pair.Key] = pair.Value;
 
         var builder = GatewayApp.CreateBuilder([], contentRoot: o.ContentRoot ?? AppContext.BaseDirectory, overrides);
         builder.WebHost.UseUrls(o.ListenUrl.GetLeftPart(UriPartial.Authority));

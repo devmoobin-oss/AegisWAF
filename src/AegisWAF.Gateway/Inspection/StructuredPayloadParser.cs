@@ -13,6 +13,8 @@ internal sealed record StructuredPayloadResult(bool Success, IReadOnlyList<Inspe
 
 internal static class StructuredPayloadParser
 {
+    private static readonly Encoding FormUtf8 = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
+
     public static StructuredPayloadResult Parse(string? contentType, string body, InspectionLimits limits)
     {
         if (string.IsNullOrWhiteSpace(contentType)) return StructuredPayloadResult.Clean([InspectionValue.Create("body", body, 65_536)]);
@@ -48,8 +50,10 @@ internal static class StructuredPayloadParser
             switch (element.ValueKind)
             {
                 case JsonValueKind.Object:
+                    var keys = new HashSet<string>(StringComparer.Ordinal);
                     foreach (var property in element.EnumerateObject())
                     {
+                        if (!keys.Add(property.Name)) throw new PayloadLimitException("json_duplicate_key");
                         var next = path + "." + property.Name;
                         values.Add(InspectionValue.Create(next + ".key", property.Name, 65_536));
                         WalkJson(property.Value, next, depth + 1);
@@ -75,22 +79,33 @@ internal static class StructuredPayloadParser
     private static StructuredPayloadResult ParseForm(string body, InspectionLimits limits)
     {
         var values = new List<InspectionValue>();
-        foreach (var pair in body.Split('&', StringSplitOptions.RemoveEmptyEntries))
+        var start = 0;
+        var pairs = 0;
+        while (start <= body.Length)
         {
-            var separator = pair.IndexOf('=');
-            var key = DecodeForm(separator < 0 ? pair : pair[..separator]);
-            var value = DecodeForm(separator < 0 ? string.Empty : pair[(separator + 1)..]);
+            var end = body.IndexOf('&', start);
+            if (end < 0) end = body.Length;
+            if (end > start)
+            {
+                if (++pairs > limits.MaxMembers) return StructuredPayloadResult.Reject("form_limit");
+                var length = end - start;
+                var separator = body.IndexOf('=', start, length);
+                var keyText = separator < 0 ? body[start..end] : body[start..separator];
+                var valueText = separator < 0 ? string.Empty : body[(separator + 1)..end];
+                if (!TryDecodeForm(keyText, out var key) || !TryDecodeForm(valueText, out var value))
+                    return StructuredPayloadResult.Reject("form_malformed");
             values.Add(InspectionValue.Create("form." + key + ".key", key, 65_536));
             values.Add(InspectionValue.Create("form." + key, value, 65_536));
-            if (values.Count / 2 > limits.MaxMembers) return StructuredPayloadResult.Reject("form_limit");
+            }
+            if (end == body.Length) break;
+            start = end + 1;
         }
         return StructuredPayloadResult.Clean(values);
     }
 
     private static StructuredPayloadResult ParseXml(string body, InspectionLimits limits)
     {
-        if (body.Contains("<!ENTITY", StringComparison.OrdinalIgnoreCase) ||
-            System.Text.RegularExpressions.Regex.IsMatch(body, @"(?is)<!DOCTYPE\b[^>]*(?:SYSTEM|PUBLIC)\b"))
+        if (body.Contains("<!ENTITY", StringComparison.OrdinalIgnoreCase) || HasExternalDtd(body))
             return StructuredPayloadResult.Reject("xml_dtd_or_entity");
         var values = new List<InspectionValue>();
         using var reader = XmlReader.Create(new StringReader(body), new XmlReaderSettings
@@ -121,17 +136,44 @@ internal static class StructuredPayloadParser
         return StructuredPayloadResult.Clean(values);
     }
 
+    private static bool HasExternalDtd(string body)
+    {
+        var cursor = 0;
+        while ((cursor = body.IndexOf("<!DOCTYPE", cursor, StringComparison.OrdinalIgnoreCase)) >= 0)
+        {
+            var end = body.IndexOf('>', cursor + 9);
+            if (end < 0) return true;
+            var declaration = body.AsSpan(cursor, end - cursor);
+            if (declaration.Contains("SYSTEM", StringComparison.OrdinalIgnoreCase) ||
+                declaration.Contains("PUBLIC", StringComparison.OrdinalIgnoreCase))
+                return true;
+            cursor = end + 1;
+        }
+        return false;
+    }
+
     private static StructuredPayloadResult ParseMultipart(string contentType, string body, InspectionLimits limits)
     {
         var boundary = ExtractBoundary(contentType);
         if (string.IsNullOrWhiteSpace(boundary)) return StructuredPayloadResult.Reject("multipart_boundary");
         var values = new List<InspectionValue>();
         var marker = "--" + boundary;
-        var parts = body.Split(marker, StringSplitOptions.RemoveEmptyEntries);
         var count = 0;
-        foreach (var raw in parts)
+        var cursor = 0;
+        while (cursor < body.Length)
         {
-            if (raw is "--\r\n" or "--" || string.IsNullOrWhiteSpace(raw)) continue;
+            var markerStart = body.IndexOf(marker, cursor, StringComparison.Ordinal);
+            if (markerStart < 0) break;
+            var partStart = markerStart + marker.Length;
+            var nextMarker = body.IndexOf(marker, partStart, StringComparison.Ordinal);
+            var raw = nextMarker < 0 ? body[partStart..] : body[partStart..nextMarker];
+            if (raw.StartsWith("--", StringComparison.Ordinal)) break;
+            if (raw is "--\r\n" or "--" || string.IsNullOrWhiteSpace(raw))
+            {
+                if (nextMarker < 0) break;
+                cursor = nextMarker;
+                continue;
+            }
             if (++count > limits.MaxMultipartParts) return StructuredPayloadResult.Reject("multipart_limit");
             var part = raw.Trim('\r', '\n', '-');
             var headerEnd = part.IndexOf("\r\n\r\n", StringComparison.Ordinal);
@@ -143,11 +185,51 @@ internal static class StructuredPayloadParser
             values.Add(InspectionValue.Create("multipart." + name + ".key", name, 65_536));
             if (filename is not null) values.Add(InspectionValue.Create("multipart." + name + ".filename", filename, 65_536));
             values.Add(InspectionValue.Create("multipart." + name, value, 65_536));
+            if (nextMarker < 0) break;
+            cursor = nextMarker;
         }
         return StructuredPayloadResult.Clean(values);
     }
 
-    private static string DecodeForm(string value) => Uri.UnescapeDataString(value.Replace('+', ' '));
+    private static bool TryDecodeForm(string value, out string decoded)
+    {
+        var bytes = new List<byte>(value.Length);
+        for (var i = 0; i < value.Length; i++)
+        {
+            if (value[i] == '%')
+            {
+                if (i + 2 >= value.Length || !Uri.IsHexDigit(value[i + 1]) || !Uri.IsHexDigit(value[i + 2]))
+                {
+                    decoded = string.Empty;
+                    return false;
+                }
+                bytes.Add(Convert.ToByte(value.Substring(i + 1, 2), 16));
+                i += 2;
+                continue;
+            }
+
+            if (value[i] == '+')
+            {
+                bytes.Add((byte)' ');
+                continue;
+            }
+
+            var charLength = char.IsHighSurrogate(value[i]) && i + 1 < value.Length && char.IsLowSurrogate(value[i + 1]) ? 2 : 1;
+            bytes.AddRange(FormUtf8.GetBytes(value.AsSpan(i, charLength).ToArray()));
+            i += charLength - 1;
+        }
+
+        try
+        {
+            decoded = FormUtf8.GetString(bytes.ToArray());
+            return true;
+        }
+        catch (DecoderFallbackException)
+        {
+            decoded = string.Empty;
+            return false;
+        }
+    }
 
     private static string? ExtractBoundary(string contentType)
     {
