@@ -1,0 +1,561 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-18T00:00:00Z",
+  "title": "Design System: AegisWAF Desktop Console",
+  "extensions": {
+    "colorMeta": {
+      "midnight-ground": {
+        "role": "neutral",
+        "displayName": "Midnight Enamel",
+        "canonical": "oklch(19.6% 0.060 270)",
+        "tonalRamp": [
+          "#040724",
+          "#192241",
+          "#333E60",
+          "#505C80",
+          "#6F7CA2",
+          "#909DC5",
+          "#B5C3EC",
+          "#DEEDFF"
+        ]
+      },
+      "rail-ink": {
+        "role": "neutral",
+        "displayName": "Rail Ink",
+        "canonical": "oklch(18.3% 0.054 268)",
+        "tonalRamp": [
+          "#030822",
+          "#19223E",
+          "#333F5D",
+          "#505D7D",
+          "#6F7D9E",
+          "#909EC1",
+          "#B5C4E8",
+          "#DFEEFF"
+        ]
+      },
+      "enamel-panel": {
+        "role": "neutral",
+        "displayName": "Enamel Panel",
+        "canonical": "oklch(23.7% 0.072 269)",
+        "tonalRamp": [
+          "#030629",
+          "#162146",
+          "#303D66",
+          "#4D5C86",
+          "#6C7CA9",
+          "#8C9DCC",
+          "#B1C3F4",
+          "#DBEDFF"
+        ]
+      },
+      "plate-raised": {
+        "role": "neutral",
+        "displayName": "Raised Plate",
+        "canonical": "oklch(26.9% 0.081 269)",
+        "tonalRamp": [
+          "#02042C",
+          "#14204B",
+          "#2E3D6A",
+          "#4B5B8C",
+          "#697BAE",
+          "#899DD2",
+          "#AEC3FA",
+          "#D8EDFF"
+        ]
+      },
+      "line-divider": {
+        "role": "neutral",
+        "displayName": "Line Divider",
+        "canonical": "oklch(34.4% 0.096 270)",
+        "tonalRamp": [
+          "#030132",
+          "#131D51",
+          "#2C3B72",
+          "#495A93",
+          "#677AB6",
+          "#879CDA",
+          "#ACC2FF",
+          "#D5ECFF"
+        ]
+      },
+      "line-strong": {
+        "role": "neutral",
+        "displayName": "Line Strong",
+        "canonical": "oklch(39.9% 0.095 270)",
+        "tonalRamp": [
+          "#030132",
+          "#141D51",
+          "#2D3B71",
+          "#495A93",
+          "#677AB6",
+          "#889CDA",
+          "#ACC2FF",
+          "#D6ECFF"
+        ]
+      },
+      "edge": {
+        "role": "neutral",
+        "displayName": "Edge",
+        "canonical": "oklch(48.0% 0.093 271)",
+        "tonalRamp": [
+          "#030131",
+          "#141E50",
+          "#2E3B70",
+          "#4A5A92",
+          "#687AB5",
+          "#889CD9",
+          "#ADC2FF",
+          "#D7ECFF"
+        ]
+      },
+      "porcelain": {
+        "role": "neutral",
+        "displayName": "Porcelain",
+        "canonical": "oklch(96.4% 0.007 97)",
+        "tonalRamp": [
+          "#0C0B08",
+          "#252420",
+          "#41403C",
+          "#5E5E59",
+          "#7E7D79",
+          "#9F9E9A",
+          "#C5C4BF",
+          "#EFEEEA"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted",
+        "canonical": "oklch(77.8% 0.035 271)",
+        "tonalRamp": [
+          "#060A1A",
+          "#1E2335",
+          "#393F53",
+          "#565D72",
+          "#757D93",
+          "#969EB5",
+          "#BBC3DC",
+          "#E5EEFF"
+        ]
+      },
+      "faint": {
+        "role": "neutral",
+        "displayName": "Faint",
+        "canonical": "oklch(65.7% 0.046 272)",
+        "tonalRamp": [
+          "#06091E",
+          "#1C223A",
+          "#373E58",
+          "#545C78",
+          "#737C99",
+          "#949DBC",
+          "#B9C3E3",
+          "#E3EDFF"
+        ]
+      },
+      "input-well": {
+        "role": "neutral",
+        "displayName": "Input Well",
+        "canonical": "oklch(21.7% 0.071 269)",
+        "tonalRamp": [
+          "#030628",
+          "#162146",
+          "#313D65",
+          "#4D5C86",
+          "#6C7CA8",
+          "#8C9DCB",
+          "#B1C3F3",
+          "#DBEDFF"
+        ]
+      },
+      "hover": {
+        "role": "neutral",
+        "displayName": "Hover",
+        "canonical": "oklch(29.5% 0.088 269)",
+        "tonalRamp": [
+          "#03032F",
+          "#131F4E",
+          "#2D3C6E",
+          "#495B8F",
+          "#687BB2",
+          "#889CD6",
+          "#ADC2FE",
+          "#D6EDFF"
+        ]
+      },
+      "selected": {
+        "role": "neutral",
+        "displayName": "Selected",
+        "canonical": "oklch(31.7% 0.104 268)",
+        "tonalRamp": [
+          "#020036",
+          "#101D55",
+          "#293B76",
+          "#455A98",
+          "#637ABB",
+          "#839CE0",
+          "#A7C2FF",
+          "#D1EDFF"
+        ]
+      },
+      "cobalt": {
+        "role": "primary",
+        "displayName": "Cobalt Line",
+        "canonical": "oklch(54.7% 0.250 264)",
+        "tonalRamp": [
+          "#1B0075",
+          "#10009A",
+          "#000AC0",
+          "#0A42E7",
+          "#2A6AFF",
+          "#4A8FFF",
+          "#6EB8FF",
+          "#C2EEFF"
+        ]
+      },
+      "cobalt-hover": {
+        "role": "primary",
+        "displayName": "Cobalt Lit",
+        "canonical": "oklch(59.4% 0.221 265)",
+        "tonalRamp": [
+          "#150068",
+          "#09008C",
+          "#0520B1",
+          "#1C4AD7",
+          "#396FFE",
+          "#5893FF",
+          "#7CBBFF",
+          "#C3EDFF"
+        ]
+      },
+      "cobalt-text": {
+        "role": "primary",
+        "displayName": "Cobalt Signal Text",
+        "canonical": "oklch(72.5% 0.142 267)",
+        "tonalRamp": [
+          "#050045",
+          "#081467",
+          "#1E3689",
+          "#3957AC",
+          "#5778D1",
+          "#769AF6",
+          "#9BC0FF",
+          "#C7ECFF"
+        ]
+      },
+      "amber": {
+        "role": "secondary",
+        "displayName": "Amber Line",
+        "canonical": "oklch(84.6% 0.172 85)",
+        "tonalRamp": [
+          "#270000",
+          "#470E00",
+          "#673000",
+          "#885000",
+          "#AB7100",
+          "#CE9300",
+          "#F6B900",
+          "#FFE883"
+        ]
+      },
+      "line-green": {
+        "role": "secondary",
+        "displayName": "Line Green",
+        "canonical": "oklch(66.7% 0.183 148)",
+        "tonalRamp": [
+          "#001800",
+          "#003600",
+          "#005600",
+          "#007606",
+          "#009833",
+          "#33BC56",
+          "#62E37C",
+          "#B1FFBC"
+        ]
+      },
+      "green-text": {
+        "role": "secondary",
+        "displayName": "Signal Green",
+        "canonical": "oklch(74.6% 0.181 150)",
+        "tonalRamp": [
+          "#001800",
+          "#003600",
+          "#005600",
+          "#007714",
+          "#00993A",
+          "#29BC5C",
+          "#5CE481",
+          "#AEFFBF"
+        ]
+      },
+      "violet": {
+        "role": "secondary",
+        "displayName": "Violet Line",
+        "canonical": "oklch(60.8% 0.161 294)",
+        "tonalRamp": [
+          "#180046",
+          "#2E0067",
+          "#49218A",
+          "#6644AD",
+          "#8565D2",
+          "#A587F7",
+          "#CBAEFF",
+          "#F3DDFF"
+        ]
+      },
+      "slate": {
+        "role": "secondary",
+        "displayName": "Slate Line",
+        "canonical": "oklch(62.7% 0.051 272)",
+        "tonalRamp": [
+          "#050820",
+          "#1B223D",
+          "#363E5B",
+          "#535C7B",
+          "#727C9C",
+          "#939DBF",
+          "#B8C3E6",
+          "#E2EDFF"
+        ]
+      },
+      "scarlet": {
+        "role": "tertiary",
+        "displayName": "Alarm Scarlet",
+        "canonical": "oklch(58.4% 0.224 25)",
+        "tonalRamp": [
+          "#440000",
+          "#6C0000",
+          "#940000",
+          "#BC0002",
+          "#E4212F",
+          "#FF5151",
+          "#FF7C76",
+          "#FFCCC2"
+        ]
+      },
+      "alert-text": {
+        "role": "tertiary",
+        "displayName": "Alert Coral",
+        "canonical": "oklch(72.3% 0.172 28)",
+        "tonalRamp": [
+          "#390000",
+          "#5E0000",
+          "#840000",
+          "#A9221D",
+          "#D0493F",
+          "#F76D5F",
+          "#FF9484",
+          "#FFCCBE"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Top-bar page title."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Inspection-line panel heading."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Panel headings (H2); no kicker above."
+      },
+      "figure": {
+        "displayName": "Figure",
+        "purpose": "Station counts and headline numbers, tabular numerals."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Sentences, inputs, grid cells."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Field labels, captions, hints in Muted."
+      },
+      "mono": {
+        "displayName": "Mono",
+        "purpose": "IPs, URLs, rule IDs."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "station-ripple",
+        "value": "scale 1 to 2.6, opacity 0.9 to 0, 900ms, exponential ease-out (exponent 4)",
+        "purpose": "One ring at a station whose count rose; amber, or scarlet when the attack state is live. Skipped when Windows client-area animation is off."
+      },
+      {
+        "name": "refresh-cadence",
+        "value": "5s",
+        "purpose": "Dashboard and state pill refresh interval."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "min-window",
+        "value": "1180x700"
+      },
+      {
+        "name": "default-window",
+        "value": "1520x940"
+      },
+      {
+        "name": "chart-dense-labels",
+        "value": "520px chart width"
+      }
+    ],
+    "elevation": {
+      "panelEdge": "#F4F3EE at 30% opacity, 1px",
+      "levels": 1,
+      "note": "Flat; no shadows anywhere."
+    },
+    "focus": {
+      "value": "2px #7EA2FF ring, 3px outset, 6px corners",
+      "textFields": "stroke turns #7EA2FF at 1.5px"
+    },
+    "icons": "Segoe Fluent Icons (fallback Segoe MDL2 Assets)",
+    "fonts": {
+      "embedded": "Noto Sans Thai SemiBold/Bold, SIL OFL 1.1, src/AegisWAF.Desktop/Fonts/OFL.txt"
+    },
+    "platform": "Windows desktop (WPF/XAML); tokens derive from src/AegisWAF.Desktop/Theme.xaml resources.",
+    "outOfScope": "src/AegisWAF.Gateway/wwwroot web dashboard keeps its own older look and is not covered."
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Cobalt default action; one per cluster.",
+      "html": "<button class=\"ds-btn-primary\">ทดสอบระบบป้องกัน</button>",
+      "css": ".ds-btn-primary{background:#1E5BFF;color:#fff;border:1px solid #1E5BFF;border-radius:4px;min-height:34px;padding:8px 16px;font:600 13.5px Bahnschrift, 'Noto Sans Thai', 'Leelawadee UI', sans-serif;cursor:pointer}.ds-btn-primary:hover{background:#3A70FF;border-color:#3A70FF}.ds-btn-primary:active{opacity:.85}.ds-btn-primary:focus-visible{outline:2px solid #7EA2FF;outline-offset:3px}"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Secondary action: Edge outline, porcelain text.",
+      "html": "<button class=\"ds-btn-ghost\">คัดลอกที่อยู่</button>",
+      "css": ".ds-btn-ghost{background:transparent;color:#F4F3EE;border:1px solid #4A5A92;border-radius:4px;min-height:34px;padding:8px 16px;font:600 13.5px Bahnschrift, 'Noto Sans Thai', 'Leelawadee UI', sans-serif;cursor:pointer}.ds-btn-ghost:hover{background:#1B2858;border-color:#F4F3EE}.ds-btn-ghost:active{opacity:.85}.ds-btn-ghost:focus-visible{outline:2px solid #7EA2FF;outline-offset:3px}"
+    },
+    {
+      "name": "Danger Button",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "Destructive action: a ghost at rest, Alert Coral only under the pointer. Never scarlet.",
+      "html": "<button class=\"ds-btn-danger\">ลบผู้ใช้</button>",
+      "css": ".ds-btn-danger{background:transparent;color:#F4F3EE;border:1px solid #4A5A92;border-radius:4px;min-height:34px;padding:8px 16px;font:600 13.5px Bahnschrift, 'Noto Sans Thai', 'Leelawadee UI', sans-serif;cursor:pointer}.ds-btn-danger:hover{color:#FF7466;border-color:#FF7466}.ds-btn-danger:focus-visible{outline:2px solid #7EA2FF;outline-offset:3px}"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "34px input well; Cobalt Signal stroke on focus.",
+      "html": "<input class=\"ds-input\" placeholder=\"ชื่อผู้ใช้\">",
+      "css": ".ds-input{background:#0D163A;color:#F4F3EE;border:1px solid #34437A;border-radius:4px;height:34px;padding:2px 10px;font:400 13px 'Segoe UI Variable Text', 'Segoe UI', 'Leelawadee UI', sans-serif;outline:none}.ds-input::placeholder{color:#8790AE}.ds-input:hover{border-color:#4A5A92}.ds-input:focus-visible{border:1.5px solid #7EA2FF}"
+    },
+    {
+      "name": "Enamel Panel",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "The single elevation: flat enamel plate with a porcelain edge at 30%, no shadow.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-h\">ทราฟฟิกรายชั่วโมง</div><div class=\"ds-card-b\">ตัวเลขจริงตั้งแต่ Gateway เริ่มทำงาน</div></div>",
+      "css": ".ds-card{background:#111B40;border:1px solid rgba(244,243,238,.30);border-radius:6px;padding:18px 20px;color:#F4F3EE;max-width:360px}.ds-card-h{font:600 16px Bahnschrift, 'Noto Sans Thai', 'Leelawadee UI', sans-serif;margin-bottom:14px}.ds-card-b{font:400 12.5px 'Segoe UI Variable Text', 'Segoe UI', 'Leelawadee UI', sans-serif;color:#AEB6CE}"
+    },
+    {
+      "name": "Station Nav",
+      "kind": "nav",
+      "refersTo": "nav-item-active",
+      "description": "Pages as stations on a thin line; the current page is the interchange ring.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-i ds-on\" tabindex=\"0\"><i></i>ภาพรวม</a><a class=\"ds-nav-i\" tabindex=\"0\"><i></i>เหตุการณ์ที่ถูกบล็อก</a><a class=\"ds-nav-i\" tabindex=\"0\"><i></i>กฎการป้องกัน</a></nav>",
+      "css": ".ds-nav{background:#08102A;padding:8px 12px;width:232px}.ds-nav-i{position:relative;display:flex;align-items:center;height:42px;padding-left:58px;color:#AEB6CE;font:400 13.5px 'Segoe UI Variable Text', 'Segoe UI', 'Leelawadee UI', sans-serif;cursor:pointer}.ds-nav-i::before{content:'';position:absolute;left:14px;top:0;bottom:0;width:2px;background:#2C3A70}.ds-nav-i i{position:absolute;left:10px;top:16px;width:6px;height:6px;border-radius:50%;background:#08102A;border:2px solid #4A5A92}.ds-nav-i:hover{color:#F4F3EE}.ds-nav-i:hover i{border-color:#F4F3EE}.ds-nav-i:focus-visible{outline:2px solid #7EA2FF;outline-offset:3px}.ds-on{background:#111B40;color:#F4F3EE;font-weight:600}.ds-on i{left:6px;top:12px;width:10px;height:10px;background:#F4F3EE;border:4px solid #1E5BFF}"
+    },
+    {
+      "name": "State Pill",
+      "kind": "custom",
+      "refersTo": "state-pill-attack",
+      "description": "The glance answer. Calm is an outline; watch fills amber; only a live attack fills scarlet.",
+      "html": "<div class=\"ds-pills\"><span class=\"ds-pill ds-calm\"><i></i><b>ปกติ</b><small>ไม่มีการบล็อกใน 5 นาทีล่าสุด</small></span><span class=\"ds-pill ds-watch\"><i></i><b>มีการบล็อก</b><small>บล็อก 3 ครั้งใน 5 นาทีล่าสุด</small></span><span class=\"ds-pill ds-attack\"><i></i><b>กำลังถูกโจมตี</b><small>บล็อก 20+ ครั้งใน 5 นาที</small></span></div>",
+      "css": ".ds-pills{display:flex;gap:12px;background:#0B1230;padding:12px}.ds-pill{display:grid;grid-template-columns:19px auto;align-items:center;border:1px solid;border-radius:4px;padding:7px 12px;cursor:pointer}.ds-pill i{width:10px;height:10px;border-radius:50%;grid-row:span 2}.ds-pill b{font:600 14px Bahnschrift, 'Noto Sans Thai', 'Leelawadee UI', sans-serif}.ds-pill small{font:400 11.5px 'Segoe UI Variable Text', 'Segoe UI', 'Leelawadee UI', sans-serif}.ds-calm{border-color:#3FCB6A;color:#F4F3EE}.ds-calm i{background:#3FCB6A}.ds-watch{background:#FFC20E;border-color:#FFC20E;color:#0B1230}.ds-watch i{background:#0B1230}.ds-attack{background:#E21D2D;border-color:#E21D2D;color:#fff}.ds-attack i{background:#fff}"
+    },
+    {
+      "name": "Line Roundel",
+      "kind": "chip",
+      "refersTo": "roundel",
+      "description": "Category ink disc with its two-letter code.",
+      "html": "<div class=\"ds-rds\"><span class=\"ds-rd\" style=\"background:#1E5BFF;color:#fff\">SQ</span><span class=\"ds-rd\" style=\"background:#FFC20E;color:#0B1230\">XS</span><span class=\"ds-rd\" style=\"background:#22B14C;color:#0B1230\">PT</span><span class=\"ds-rd\" style=\"background:#8A6BD8;color:#fff\">CM</span><span class=\"ds-rd\" style=\"background:#7D87A8;color:#0B1230\">SC</span></div>",
+      "css": ".ds-rds{display:flex;gap:8px;background:#111B40;padding:12px}.ds-rd{width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font:600 10.5px Bahnschrift, 'Noto Sans Thai', 'Leelawadee UI', sans-serif}"
+    },
+    {
+      "name": "Inspection Line",
+      "kind": "custom",
+      "refersTo": "",
+      "description": "Signature: cobalt track through station rings; idle Edge, active porcelain, recent amber, live attack scarlet.",
+      "html": "<div class=\"ds-line\"><div class=\"ds-track\"></div><div class=\"ds-st\"><span>ผู้ใช้เข้าสาย</span><em class=\"ds-term\"></em><b>184</b></div><div class=\"ds-st\"><span>IP / Rate limit</span><em class=\"ds-ring\"></em><b class=\"ds-zero\">0</b></div><div class=\"ds-st\"><span>Signatures</span><em class=\"ds-ring ds-live\"></em><b class=\"ds-hot\">34</b></div><div class=\"ds-st\"><span>เว็บจริง</span><em class=\"ds-ix\"></em><b>150</b></div><div class=\"ds-st\"><span>ตรวจขาออก</span><em class=\"ds-ring ds-seen\"></em><b>5</b></div></div>",
+      "css": ".ds-line{position:relative;display:grid;grid-template-columns:repeat(5,1fr);background:#111B40;padding:16px 0;color:#F4F3EE}.ds-track{position:absolute;left:10%;right:10%;top:61px;height:8px;background:#1E5BFF}.ds-st{position:relative;display:flex;flex-direction:column;align-items:center;gap:8px}.ds-st span{font:600 13px Bahnschrift, 'Noto Sans Thai', 'Leelawadee UI', sans-serif;height:20px}.ds-st em{height:34px;display:flex;align-items:center}.ds-ring::before{content:'';width:14px;height:14px;border-radius:50%;background:#111B40;border:5px solid #4A5A92}.ds-seen::before{border-color:#F4F3EE}.ds-live::before{border-color:#E21D2D}.ds-term::before{content:'';width:12px;height:34px;border-radius:3px;background:#F4F3EE}.ds-ix::before{content:'';width:20px;height:20px;border-radius:50%;background:#F4F3EE;outline:6px solid #0B1230}.ds-st b{font:600 22px Bahnschrift, 'Noto Sans Thai', 'Leelawadee UI', sans-serif;font-variant-numeric:tabular-nums}.ds-zero{color:#8790AE}.ds-hot{color:#FF7466}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Midnight Transit Diagram",
+    "overview": "The WAF is a line every request rides. It enters at the gateway address, passes the inspection stations, and is either stopped at a station or reaches the real site. The console draws that line live. Everything else (navigation, panels, roundels, checkboxes) borrows from the same night-time wayfinding sheet: midnight enamel ground, porcelain ink and edges, a small set of line inks that say what kind of thing you are looking at, and the DIN signage face for every label and number.\n\nIt is an all-day operations console for SOC analysts, so density is moderate and calm is the default. The one question the screen answers at a glance is \"are we under attack right now\". That answer has its own colour, and nothing else may borrow it. The world rejects the neon-on-black hacker console, the generic KPI-card SaaS grid, and a console that is permanently red.",
+    "keyCharacteristics": [
+      "Midnight enamel ground with flat panels framed in porcelain at 30%; one elevation, no shadows.",
+      "Four line inks plus slate carry category and series meaning; scarlet carries only the live attack state.",
+      "Bahnschrift (Noto Sans Thai for Thai) for headings, labels and figures; Segoe UI / Leelawadee UI for body; Cascadia Mono for IPs, URLs and rule IDs.",
+      "Station rings and line roundels are the shared vocabulary: nav, checkboxes, OWASP coverage and event rows all speak it.",
+      "Every control that takes input or triggers an action stands 34px tall."
+    ],
+    "rules": [
+      {
+        "name": "The One Job Rule",
+        "body": "Scarlet (#E21D2D) appears only when the live attack state is on: the state pill fill and the stopping station's ring. Primary buttons are cobalt, destructive buttons are Edge-outlined ghosts that turn Alert Coral only under the pointer, and \"not covered\" is a hollow slate ring. If scarlet is on screen while the state pill says ปกติ, something is wrong.",
+        "section": "colors"
+      },
+      {
+        "name": "The Line Ink Rule",
+        "body": "Category inks are fixed by `Lines.Of`: cobalt = SQLi/NoSQL, amber = XSS/SSTI, green = path/LFI/XXE, violet = command/SSRF/protocol/response leak, slate = scanner/limits/anomaly/IP/custom. A category always wears the same ink and two-letter roundel code on every page. Outside category views the inks also serve as series colours (requests cobalt, blocked amber; the HTTP-method bar takes cobalt, amber, green, violet, slate in order).",
+        "section": "colors"
+      },
+      {
+        "name": "The Calm Default Rule",
+        "body": "Calm reads as an outline (green edge, porcelain text, transparent fill). Only watch (amber) and attack (scarlet) fill the pill.",
+        "section": "colors"
+      },
+      {
+        "name": "The Signage Rule",
+        "body": "Anything counted or wayfinding (headings, buttons, station names, figures, nav labels in the active state, roundel codes) is set in the signage face at SemiBold. Sentences are set in the body face.",
+        "section": "typography"
+      },
+      {
+        "name": "The Machine Text Rule",
+        "body": "IPs, URLs and rule IDs are always mono so they can be read and compared character by character.",
+        "section": "typography"
+      },
+      {
+        "name": "The Enamel Plate Rule",
+        "body": "Panels are flat enamel with a porcelain edge at 30%. Line Divider (#26346A) is never a panel frame; it is for dividers inside and between regions only.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do keep scarlet (#E21D2D) for the live attack state only: the state pill fill and the stopping station's ring.",
+      "Do make primary actions cobalt (#1E5BFF) and keep one primary per action cluster.",
+      "Do build destructive actions as Edge-outlined ghosts that turn Alert Coral (#FF7466) only on hover.",
+      "Do frame every panel in porcelain at 30% (PanelEdge) on Enamel Panel (#111B40) at a single elevation.",
+      "Do give inputs, buttons and dropdowns the same 34px height (26px for the small toolbar variant).",
+      "Do colour attack categories only through `Lines.Of`, with the matching two-letter roundel.",
+      "Do set IPs, URLs and rule IDs in Cascadia Mono, and counts in the signage face with tabular numerals.",
+      "Do draw icons with Segoe Fluent Icons."
+    ],
+    "donts": [
+      "Don't use scarlet for buttons, errors, \"not covered\", offline, or decoration; a permanently red console is a rejected outcome.",
+      "Don't add drop shadows, glows or a second elevation level.",
+      "Don't use Line Divider (#26346A) as a panel frame; it is for internal dividers only.",
+      "Don't put a small uppercase kicker or eyebrow above a panel heading; the heading carries itself.",
+      "Don't mark the active nav item with a coloured side bar; the active station is the interchange ring.",
+      "Don't prefix status messages with text glyphs (✓ ⚠ ✗); use a Fluent icon or the message colour alone."
+    ]
+  }
+}

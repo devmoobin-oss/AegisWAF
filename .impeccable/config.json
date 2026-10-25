@@ -1,0 +1,62 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "low-contrast",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/assigned.html"
+        ],
+        "createdAt": "2026-10-18T10:38:02.874Z",
+        "reason": "Claude: closed decision-round sketch (unchosen card), not shipped; the shipped WPF app is not HTML"
+      },
+      {
+        "rule": "skipped-heading",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/canon.html"
+        ],
+        "createdAt": "2026-10-18T10:38:02.964Z",
+        "reason": "Claude: closed decision-round sketch (unchosen canon card), not shipped; the shipped WPF app is not HTML"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "segoe ui variable",
+        "files": [
+          ".impeccable/mocks/decision/assigned.html"
+        ],
+        "createdAt": "2026-10-18T10:48:32.421Z",
+        "reason": "Claude: closed decision-round sketch, not shipped; DESIGN.md declares Segoe UI Variable Text for the WPF app"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "segoe ui variable",
+        "files": [
+          ".impeccable/mocks/decision/model-pick.html"
+        ],
+        "createdAt": "2026-10-18T10:48:32.509Z",
+        "reason": "Claude: closed decision-round sketch, not shipped; DESIGN.md declares Segoe UI Variable Text for the WPF app"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "segoe ui variable",
+        "files": [
+          ".impeccable/mocks/decision/challenger-transit.html"
+        ],
+        "createdAt": "2026-10-18T10:48:32.594Z",
+        "reason": "Claude: closed decision-round sketch, not shipped; DESIGN.md declares Segoe UI Variable Text for the WPF app"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "segoe ui variable",
+        "files": [
+          ".impeccable/mocks/decision/canon.html"
+        ],
+        "createdAt": "2026-10-18T10:48:32.684Z",
+        "reason": "Claude: closed decision-round sketch, not shipped; DESIGN.md declares Segoe UI Variable Text for the WPF app"
+      }
+    ]
+  }
+}

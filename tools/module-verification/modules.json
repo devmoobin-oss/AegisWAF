@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "modules": [
+    {
+      "id": "waf-engine",
+      "name": "WAF inspection engine",
+      "gates": [
+        { "id": "gateway-build", "kind": "build", "weight": 25, "timeoutSeconds": 120, "command": "dotnet build src/AegisWAF.Gateway/AegisWAF.Gateway.csproj --no-restore --disable-build-servers -m:1 --verbosity minimal" },
+        { "id": "engine-tests", "kind": "test", "weight": 25, "timeoutSeconds": 120, "command": "dotnet test tests/AegisWAF.Tests/AegisWAF.Tests.csproj --no-build --no-restore --disable-build-servers -m:1 --filter FullyQualifiedName~EngineUpgradeTests --logger \"console;verbosity=minimal\"" },
+        { "id": "catalog-tests", "kind": "test", "weight": 25, "timeoutSeconds": 120, "command": "dotnet test tests/AegisWAF.Tests/AegisWAF.Tests.csproj --no-build --no-restore --disable-build-servers -m:1 --filter FullyQualifiedName~CatalogVerificationTests --logger \"console;verbosity=minimal\"" },
+        { "id": "engine-documentation", "kind": "contract", "weight": 25, "timeoutSeconds": 30, "command": "if ((Select-String -Path docs/PROTECTION.md -Pattern 'v0.9' -Quiet) -and (Select-String -Path docs/ARCHITECTURE.md -Pattern 'ResponseInspector' -Quiet)) { exit 0 } else { exit 1 }" }
+      ]
+    },
+    {
+      "id": "gateway-security",
+      "name": "Gateway / perimeter security",
+      "gates": [
+        { "id": "gateway-build", "kind": "build", "weight": 25, "timeoutSeconds": 120, "command": "dotnet build src/AegisWAF.Gateway/AegisWAF.Gateway.csproj --no-restore --disable-build-servers -m:1 --verbosity minimal" },
+        { "id": "security-tests", "kind": "test", "weight": 25, "timeoutSeconds": 120, "command": "dotnet test tests/AegisWAF.Tests/AegisWAF.Tests.csproj --no-build --no-restore --disable-build-servers -m:1 --filter FullyQualifiedName~ProductionSecurityTests --logger \"console;verbosity=minimal\"" },
+        { "id": "health-tests", "kind": "test", "weight": 25, "timeoutSeconds": 120, "command": "dotnet test tests/AegisWAF.Tests/AegisWAF.Tests.csproj --no-build --no-restore --disable-build-servers -m:1 --filter FullyQualifiedName~ProductionHealthTests --logger \"console;verbosity=minimal\"" },
+        { "id": "security-documentation", "kind": "contract", "weight": 25, "timeoutSeconds": 30, "command": "if ((Select-String -Path docs/PRODUCTION_READINESS.md -Pattern 'Deployment' -Quiet) -and (Select-String -Path docs/SECURITY.md -Pattern 'fail' -Quiet)) { exit 0 } else { exit 1 }" }
+      ]
+    },
+    {
+      "id": "auth-rbac-audit",
+      "name": "Authentication / RBAC / audit",
+      "gates": [
+        { "id": "gateway-build", "kind": "build", "weight": 25, "timeoutSeconds": 120, "command": "dotnet build src/AegisWAF.Gateway/AegisWAF.Gateway.csproj --no-restore --disable-build-servers -m:1 --verbosity minimal" },
+        { "id": "authentication-tests", "kind": "test", "weight": 25, "timeoutSeconds": 120, "command": "dotnet test tests/AegisWAF.Tests/AegisWAF.Tests.csproj --no-build --no-restore --disable-build-servers -m:1 --filter FullyQualifiedName~AuthenticationTests --logger \"console;verbosity=minimal\"" },
+        { "id": "authorization-tests", "kind": "test", "weight": 25, "timeoutSeconds": 120, "command": "dotnet test tests/AegisWAF.Tests/AegisWAF.Tests.csproj --no-build --no-restore --disable-build-servers -m:1 --filter FullyQualifiedName~AuthorizationTests --logger \"console;verbosity=minimal\"" },
+        { "id": "audit-documentation", "kind": "contract", "weight": 25, "timeoutSeconds": 30, "command": "if ((Select-String -Path docs/ARCHITECTURE.md -Pattern 'Authorization matrix' -Quiet) -and (Select-String -Path docs/SECURITY.md -Pattern 'audit' -Quiet)) { exit 0 } else { exit 1 }" }
+      ]
+    },
+    {
+      "id": "desktop-ui",
+      "name": "Client API / Desktop UI",
+      "gates": [
+        { "id": "client-build", "kind": "build", "weight": 15, "timeoutSeconds": 120, "command": "dotnet build src/AegisWAF.Client/AegisWAF.Client.csproj --no-restore --disable-build-servers -m:1 --verbosity minimal" },
+        { "id": "desktop-build", "kind": "build", "weight": 30, "timeoutSeconds": 120, "command": "dotnet build src/AegisWAF.Desktop/AegisWAF.Desktop.csproj --no-restore --disable-build-servers -m:1 --verbosity minimal" },
+        { "id": "ui-contract-tests", "kind": "test", "weight": 25, "timeoutSeconds": 120, "command": "dotnet test tests/AegisWAF.Tests/AegisWAF.Tests.csproj --no-build --no-restore --disable-build-servers -m:1 --filter FullyQualifiedName~UiContractTests --logger \"console;verbosity=minimal\"" },
+        { "id": "desktop-documentation", "kind": "contract", "weight": 30, "timeoutSeconds": 30, "command": "if ((Select-String -Path docs/PROGRESS.md -Pattern 'Desktop app' -Quiet) -and (Test-Path src/AegisWAF.Desktop/App.xaml)) { exit 0 } else { exit 1 }" }
+      ]
+    },
+    {
+      "id": "database-operations",
+      "name": "Database / migrations / operations",
+      "gates": [
+        { "id": "migration-assets", "kind": "contract", "weight": 25, "timeoutSeconds": 30, "command": "if ((Get-ChildItem database -Filter '*.sql').Count -ge 9) { exit 0 } else { exit 1 }" },
+        { "id": "gateway-build", "kind": "build", "weight": 25, "timeoutSeconds": 120, "command": "dotnet build src/AegisWAF.Gateway/AegisWAF.Gateway.csproj --no-restore --disable-build-servers -m:1 --verbosity minimal" },
+        { "id": "operations-tests", "kind": "test", "weight": 25, "timeoutSeconds": 120, "command": "dotnet test tests/AegisWAF.Tests/AegisWAF.Tests.csproj --no-build --no-restore --disable-build-servers -m:1 --filter FullyQualifiedName~GatewaySetupTests --logger \"console;verbosity=minimal\"" },
+        { "id": "loadtest-harness", "kind": "contract", "weight": 25, "timeoutSeconds": 30, "command": "if ((Test-Path tools/security-loadtest/loadtest.ps1) -and (Test-Path tools/security-loadtest/README.md)) { exit 0 } else { exit 1 }" }
+      ]
+    },
+    {
+      "id": "documentation-verification",
+      "name": "Documentation / handoff / verification",
+      "gates": [
+        { "id": "handoff", "kind": "contract", "weight": 25, "timeoutSeconds": 30, "command": "if ((Test-Path handoff.md) -and (Select-String -Path handoff.md -Pattern 'Module ledger' -Quiet)) { exit 0 } else { exit 1 }" },
+        { "id": "design", "kind": "contract", "weight": 25, "timeoutSeconds": 30, "command": "if (Test-Path docs/superpowers/specs/2026-10-25-modular-development-handoff-design.md) { exit 0 } else { exit 1 }" },
+        { "id": "plan", "kind": "contract", "weight": 25, "timeoutSeconds": 30, "command": "if (Test-Path docs/superpowers/plans/2026-10-25-modular-development-handoff-plan.md) { exit 0 } else { exit 1 }" },
+        { "id": "verifier-tests", "kind": "test", "weight": 25, "timeoutSeconds": 120, "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/module-verification/verify-modules.tests.ps1" }
+      ]
+    }
+  ]
+}
