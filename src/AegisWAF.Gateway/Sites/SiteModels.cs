@@ -11,7 +11,7 @@ public sealed record SiteEgressPolicy(
     bool AllowPrivateExceptions = false);
 
 public sealed record SiteHealthPolicy(
-    string Path = "/health",
+    string Path = "/",
     int IntervalSeconds = 10,
     int TimeoutSeconds = 3,
     int PassiveReactivationSeconds = 30);

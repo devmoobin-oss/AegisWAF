@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Configuration;
+using System.Globalization;
 
 namespace AegisWAF.Gateway;
 
@@ -101,6 +102,21 @@ public static class ProductionReadinessPolicy
         var requestHeadersBytes = configuration.GetValue("Waf:Limits:MaxRequestHeadersBytes", 64 * 1024);
         Require(requestHeadersBytes is >= 4 * 1024 and <= 256 * 1024,
             "Waf:Limits:MaxRequestHeadersBytes must be between 4 KiB and 256 KiB", errors);
+        var maxConcurrentConnections = configuration.GetValue("Waf:Limits:MaxConcurrentConnections", 10_000L);
+        Require(maxConcurrentConnections is >= 1 and <= 1_000_000,
+            "Waf:Limits:MaxConcurrentConnections must be between 1 and 1000000", errors);
+        var minRequestBodyRate = configuration.GetValue("Waf:Limits:MinRequestBodyBytesPerSecond", 240d);
+        Require(minRequestBodyRate is >= 1 and <= 1_000_000,
+            "Waf:Limits:MinRequestBodyBytesPerSecond must be between 1 and 1000000", errors);
+        var requestBodyRateGrace = configuration.GetValue("Waf:Limits:RequestBodyDataRateGraceSeconds", 10);
+        Require(requestBodyRateGrace is >= 1 and <= 120,
+            "Waf:Limits:RequestBodyDataRateGraceSeconds must be between 1 and 120 seconds", errors);
+        var minResponseRate = configuration.GetValue("Waf:Limits:MinResponseBytesPerSecond", 240d);
+        Require(minResponseRate is >= 1 and <= 1_000_000,
+            "Waf:Limits:MinResponseBytesPerSecond must be between 1 and 1000000", errors);
+        var responseRateGrace = configuration.GetValue("Waf:Limits:ResponseDataRateGraceSeconds", 10);
+        Require(responseRateGrace is >= 1 and <= 120,
+            "Waf:Limits:ResponseDataRateGraceSeconds must be between 1 and 120 seconds", errors);
 
         var inspection = InspectionLimits.From(configuration);
         Require(configuration.GetValue("Waf:Inspection:MaxCompressedBytes", 131_072) is >= 1 and <= 16 * 1024 * 1024,
@@ -126,6 +142,8 @@ public static class ProductionReadinessPolicy
             var egress = UpstreamEgressOptions.From(configuration);
             Require(egress.AllowedHosts.Count > 0,
                 "Waf:Egress:AllowedHosts must contain at least one explicit upstream host", errors);
+            Require(egress.AllowedHosts.All(IsExplicitHost),
+                "Waf:Egress:AllowedHosts must contain only explicit hostnames or IP literals; wildcards are not allowed", errors);
             Require(egress.AllowedPorts.Count > 0 && egress.AllowedPorts.All(port => port is >= 1 and <= 65535),
                 "Waf:Egress:AllowedPorts must contain valid explicit ports", errors);
             Require(egress.AllowedSchemes.Count > 0 && egress.AllowedSchemes.All(s => string.Equals(s, "https", StringComparison.OrdinalIgnoreCase)),
@@ -133,6 +151,10 @@ public static class ProductionReadinessPolicy
             Require(!egress.AllowPrivateExceptions,
                 "Waf:Egress:AllowPrivateExceptions must be false; private destinations need an explicit reviewed exception model", errors);
         }
+
+        var maxConnectionsPerServer = configuration.GetValue("Waf:Egress:MaxConnectionsPerServer", 256);
+        Require(maxConnectionsPerServer is >= 1 and <= 10_000,
+            "Waf:Egress:MaxConnectionsPerServer must be between 1 and 10000", errors);
 
         var connection = configuration.GetConnectionString("Postgres") ?? string.Empty;
         if (connection.Contains("Username=postgres", StringComparison.OrdinalIgnoreCase) ||
@@ -147,6 +169,24 @@ public static class ProductionReadinessPolicy
         {
             Require(!cluster.GetValue("HttpClient:DangerousAcceptAnyServerCertificate", false),
                 $"ReverseProxy cluster {cluster.Key} must not enable DangerousAcceptAnyServerCertificate", errors);
+            if (cluster.GetSection("HttpClient:WebProxy").Exists())
+                errors.Add($"ReverseProxy cluster {cluster.Key} HttpClient:WebProxy must not be configured in Production; use the reviewed infrastructure egress path");
+            Require(!cluster.GetValue("HttpClient:UseProxy", false),
+                $"ReverseProxy cluster {cluster.Key} HttpClient:UseProxy must be false in Production", errors);
+            Require(!cluster.GetValue("HttpClient:AllowAutoRedirect", false),
+                $"ReverseProxy cluster {cluster.Key} HttpClient:AllowAutoRedirect must be false in Production", errors);
+            var clusterMaxConnectionsText = cluster["HttpClient:MaxConnectionsPerServer"];
+            if (!string.IsNullOrWhiteSpace(clusterMaxConnectionsText) &&
+                (!int.TryParse(clusterMaxConnectionsText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var clusterMaxConnections) ||
+                 clusterMaxConnections is < 1 or > 10_000))
+                errors.Add($"ReverseProxy cluster {cluster.Key} HttpClient:MaxConnectionsPerServer must be between 1 and 10000");
+            var activityTimeoutText = cluster["HttpRequest:ActivityTimeout"];
+            if (!string.IsNullOrWhiteSpace(activityTimeoutText))
+            {
+                if (!TimeSpan.TryParse(activityTimeoutText, CultureInfo.InvariantCulture, out var activityTimeout) ||
+                    activityTimeout < TimeSpan.FromSeconds(1) || activityTimeout > TimeSpan.FromMinutes(5))
+                    errors.Add($"ReverseProxy cluster {cluster.Key} HttpRequest:ActivityTimeout must be between 1 second and 5 minutes");
+            }
         foreach (var destination in cluster.GetSection("Destinations").GetChildren())
         {
             var address = destination["Address"];
@@ -174,5 +214,12 @@ public static class ProductionReadinessPolicy
     private static void Require(bool condition, string message, ICollection<string> errors)
     {
         if (!condition) errors.Add(message);
+    }
+
+    private static bool IsExplicitHost(string value)
+    {
+        var host = value.Trim().TrimEnd('.');
+        return host.Length > 0 && !string.Equals(host, "*", StringComparison.Ordinal) &&
+               Uri.CheckHostName(host) != UriHostNameType.Unknown;
     }
 }

@@ -23,6 +23,19 @@ public class ApiClientTests(GatewayFixture fx)
     }
 
     [Fact]
+    public async Task Command_center_contract_deserialises_summary_and_empty_traffic()
+    {
+        using var c = NewClient();
+        await c.LoginAsync(GatewayFixture.AdminUser, GatewayFixture.AdminPassword);
+
+        var summary = await c.GetCommandCenterSummaryAsync();
+        var traffic = await c.GetCommandCenterTrafficAsync(new CommandCenterTrafficQuery(1, Search: "secret"));
+
+        Assert.True(summary.ActiveConnections >= 0);
+        Assert.NotNull(traffic);
+    }
+
+    [Fact]
     public async Task Bad_credentials_throw_ApiException_401_without_a_session()
     {
         using var c = NewClient();

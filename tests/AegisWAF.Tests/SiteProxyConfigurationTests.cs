@@ -75,7 +75,7 @@ public sealed class SiteProxyConfigurationTests
         var values = SiteProxyConfiguration.Build(new SiteConfigurationSnapshot([site], false));
 
         Assert.Equal("true", values["ReverseProxy:Clusters:site-site-a:HealthCheck:Active:Enabled"]);
-        Assert.Equal("/health", values["ReverseProxy:Clusters:site-site-a:HealthCheck:Active:Path"]);
+        Assert.Equal("/", values["ReverseProxy:Clusters:site-site-a:HealthCheck:Active:Path"]);
         Assert.Equal("HealthyAndUnknown", values["ReverseProxy:Clusters:site-site-a:HealthCheck:AvailableDestinationsPolicy"]);
         Assert.Equal("true", values["ReverseProxy:Clusters:site-site-a:HealthCheck:Passive:Enabled"]);
         Assert.Equal("TransportFailureRate", values["ReverseProxy:Clusters:site-site-a:HealthCheck:Passive:Policy"]);
@@ -95,6 +95,31 @@ public sealed class SiteProxyConfigurationTests
         Assert.Equal("00:00:15", values["ReverseProxy:Clusters:site-site-a:HealthCheck:Active:Interval"]);
         Assert.Equal("00:00:04", values["ReverseProxy:Clusters:site-site-a:HealthCheck:Active:Timeout"]);
         Assert.Equal("00:00:45", values["ReverseProxy:Clusters:site-site-a:HealthCheck:Passive:ReactivationPeriod"]);
+    }
+
+    [Fact]
+    public void Removes_an_upstream_base_path_once_to_avoid_duplicate_path_forwarding()
+    {
+        var site = new GatewaySite("site-a", true, ["app-a.example.com"], ["/"],
+            [new SiteUpstream("primary", new Uri("http://127.0.0.1:8080/a/"))], "default",
+            new SiteRateLimitPolicy(), new SiteEgressPolicy(["127.0.0.1"], [8080], ["http"]));
+
+        var values = SiteProxyConfiguration.Build(new SiteConfigurationSnapshot([site], false));
+
+        Assert.Equal("/a", values["ReverseProxy:Routes:site-site-a:Transforms:0:PathRemovePrefix"]);
+    }
+
+    [Fact]
+    public void Different_public_prefix_is_removed_and_health_is_anchored_to_origin()
+    {
+        var site = new GatewaySite("login", true, ["localhost"], ["/donsak-i"],
+            [new SiteUpstream("primary", new Uri("http://localhost:3000/login/"))], "default",
+            new SiteRateLimitPolicy(), new SiteEgressPolicy(["localhost"], [3000], ["http"]),
+            new SiteHealthPolicy("/login"));
+        var values = SiteProxyConfiguration.Build(new SiteConfigurationSnapshot([site], false));
+        Assert.Equal("http://localhost:3000/", values["ReverseProxy:Clusters:site-login:Destinations:primary:Health"]);
+        Assert.Equal("http://localhost:3000/login", values["ReverseProxy:Clusters:site-login:Destinations:primary:Address"]);
+        Assert.Contains(values, x => x.Key.EndsWith(":Transforms:0:PathRemovePrefix") && x.Value == "/donsak-i");
     }
 
     [Fact]

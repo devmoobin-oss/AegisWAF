@@ -7,7 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>AegisWAF</AssemblyName>
     <RootNamespace>AegisWAF.Desktop</RootNamespace>
-    <Version>0.10.0</Version>
+    <Version>0.10.3</Version>
   </PropertyGroup>
   <ItemGroup>
     <!-- The gateway runs inside this process (Kestrel on background threads), so the exe is self-sufficient. -->

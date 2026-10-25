@@ -16,7 +16,7 @@ Status labels: NOT STARTED / IN PROGRESS / IMPLEMENTED (code, untested) / TESTED
 
 ## Next three tasks
 1. Run independent multi-instance, DNS-rebinding and authorised penetration tests.
-2. Add continuous gitleaks, Semgrep and SBOM generation to the deployment pipeline.
+2. Run the new CI Security Verification workflow and remediate any CodeQL, Gitleaks or SBOM findings.
 3. Establish an external load-test baseline, review capacity/latency results, and document operational SLOs.
 
 Deferred from v0.9 (fold into a later engine pass): rule exclusions (per-path/param allowlisting to tame false positives before raising the anomaly-scoring default) and rule versioning. The Coraza+CRS sidecar prototype is gated on a multi-process deployment model (see `OWASP_CRS_COMPATIBILITY.md`).

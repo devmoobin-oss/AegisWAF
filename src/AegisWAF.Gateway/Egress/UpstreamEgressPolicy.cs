@@ -130,6 +130,7 @@ internal sealed class UpstreamEgressPolicy(UpstreamEgressOptions options, IUpstr
         else
         {
             var b = address.GetAddressBytes();
+            if (IsSpecialUseIpv6(b)) return new(false, "special_use_target", address.ToString());
             var blocked = address.IsIPv6LinkLocal || address.IsIPv6SiteLocal || b[0] == 0xff || (b[0] & 0xfe) == 0xfc || address.Equals(IPAddress.IPv6Any);
             if (blocked && !allowPrivate) return new(false, "private_target", address.ToString());
         }
@@ -144,6 +145,10 @@ internal sealed class UpstreamEgressPolicy(UpstreamEgressOptions options, IUpstr
         (value & 0xffffff00) == 0xc6336400 || // TEST-NET-2
         (value & 0xffffff00) == 0xcb007100 || // TEST-NET-3
         (value & 0xffffff00) == 0xc0586300; // deprecated 6to4 relay anycast
+
+    private static bool IsSpecialUseIpv6(byte[] value) =>
+        value.Length >= 4 &&
+        value[0] == 0x20 && value[1] == 0x01 && value[2] == 0x0d && value[3] == 0xb8; // RFC 3849 documentation range
 }
 
 internal static class EgressConnectionGuard

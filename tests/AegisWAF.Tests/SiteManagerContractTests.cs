@@ -14,6 +14,12 @@ public sealed class SiteManagerContractTests
         Assert.Contains("Health", xaml, StringComparison.Ordinal);
         Assert.Contains("OWASP", xaml, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("restart", xaml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("AddSiteButton", xaml, StringComparison.Ordinal);
+        Assert.Contains("OnAddSite", xaml, StringComparison.Ordinal);
+        Assert.Contains("OnEditSite", xaml, StringComparison.Ordinal);
+        Assert.Contains("OnDeleteSite", xaml, StringComparison.Ordinal);
+        Assert.Contains("Multi-Site Gateway", File.ReadAllText(Path.Combine(root, "src", "AegisWAF.Desktop", "Views", "SettingsView.xaml")), StringComparison.Ordinal);
+        Assert.DoesNotContain("x:Name=\"Upstream\"", File.ReadAllText(Path.Combine(root, "src", "AegisWAF.Desktop", "Views", "SettingsView.xaml")), StringComparison.Ordinal);
     }
 
     private static string FindRepoRoot()

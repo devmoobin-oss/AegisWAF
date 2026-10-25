@@ -106,3 +106,44 @@ const legacyEventRows=eventRows;eventRows=function(items){const list=items||[];i
 const legacyLoadSection=loadSection;loadSection=async function(){if(active!=='owasp'){await legacyLoadSection();if(['events','logs'].includes(active)){const head=$('sectionContent').querySelector('thead tr');if(head&&!head.querySelector('.owasp-head'))head.insertAdjacentHTML('beforeend','<th class="owasp-head">OWASP</th>');}return;}const el=$('sectionContent');$('sectionTitle').textContent=titles.owasp;$('sectionNote').textContent='Coverage map · OWASP Top 10:2021';try{const r=await authFetch('/api/owasp-coverage',{cache:'no-store'});if(!r.ok)throw Error('HTTP '+r.status);renderOwaspCoverage(el,await r.json());}catch(e){el.innerHTML='<div class="notice error">ไม่สามารถโหลด OWASP coverage ได้ กรุณาลองใหม่อีกครั้ง</div>';toast('โหลด OWASP coverage ไม่สำเร็จ',e.message,'error');}};
 ensureOwaspNav();document.querySelectorAll('[data-page]').forEach(x=>x.addEventListener('click',()=>page(x.dataset.page)));document.querySelectorAll('[data-go]').forEach(x=>x.addEventListener('click',()=>page(x.dataset.go)));$('refresh').addEventListener('click',refresh);boot();
 const sectionWithOwaspRuleBadges=loadSection;loadSection=async function(){await sectionWithOwaspRuleBadges();if(active!=='rules')return;try{const r=await authFetch('/api/rules',{cache:'no-store'});if(!r.ok)return;const rules=await r.json();$('sectionContent').querySelectorAll('tbody tr').forEach(row=>{const item=rules.find(x=>x.id===row.cells[0]?.textContent.trim());if(item&&row.cells[1])row.cells[1].insertAdjacentHTML('beforeend',` <span class="rule-owasp-badges">${renderOwaspBadges(item.owaspCodes)}</span>`);});}catch(e){console.warn('OWASP rule badges unavailable',e);}};
+// Multi-Site CRUD extension is appended below.
+async function loadSitesCrud(){
+  const el=$('sectionContent');
+  $('sectionTitle').textContent='Multi-Site Gateway';
+  $('sectionNote').textContent='AegisWAF v0.10.1 · Health Check enabled';
+  let editing=null, siteMap=new Map();
+  const split=value=>String(value||'').split(/[,;\n\r]+/).map(x=>x.trim()).filter(Boolean);
+  const status=(message,tone='info')=>{const node=$('siteStatus');if(node){node.textContent=message;node.className=`notice ${tone}`;}};
+  const reset=()=>{editing=null;$('siteForm').reset();$('sitePath').value='/';$('sitePolicy').value='default';$('siteId').readOnly=false;$('siteSubmit').textContent='เพิ่ม Site';$('siteCancel').hidden=true;status('เพิ่ม Site ใหม่ หรือเลือก “แก้ไข” จากตาราง ระบบจะตรวจสอบก่อนบันทึกและต้อง Restart Gateway เพื่อเปิดใช้งาน route ใหม่');};
+  const render=items=>{
+    siteMap=new Map(items.map(item=>[item.siteId,item]));
+    $('siteTable').innerHTML=items.map(site=>{
+      const upstreams=(site.upstreams||[]).map(up=>`${escapeHtml(up.address||`${up.scheme}://${up.id}:${up.port}/`)} (${escapeHtml(up.health)})`).join('<br>');
+      const state=site.pendingRestart?'pending-restart':site.health;
+      return `<tr><td>${escapeHtml(site.siteId)}</td><td>${escapeHtml((site.hostnames||[]).join(', '))}</td><td>${upstreams}</td><td>${escapeHtml(state)}</td><td>${escapeHtml(site.wafPolicy)}</td><td><button type="button" data-site-health="${escapeHtml(site.siteId)}">เช็ค Healthy</button> <button type="button" data-site-edit="${escapeHtml(site.siteId)}">แก้ไข</button> <button type="button" class="danger" data-site-delete="${escapeHtml(site.siteId)}">ลบ</button></td></tr>`;
+    }).join('')||'<tr><td colspan="6" class="empty">ยังไม่มี Site ที่กำลังทำงาน</td></tr>';
+  };
+  const load=async()=>{const response=await authFetch('/api/sites',{cache:'no-store'});if(!response.ok)throw Error(`HTTP ${response.status}`);render(await response.json());};
+  el.innerHTML=`<div id="siteStatus" class="notice">กำลังโหลดรายการ Site...</div><div class="notice site-restart-warning" role="alert"><strong>คำเตือน:</strong> บันทึก Site ได้ทันที แต่ต้อง Restart โปรแกรมหรือ Gateway ก่อนจึงจะเริ่มใช้งาน route และป้องกัน Site นี้</div><form id="siteForm" class="policy-form" autocomplete="off"><input id="siteId" required maxlength="64" placeholder="Site ID เช่น shop-prod"><input id="siteHosts" required placeholder="Hostname(s) คั่นด้วย comma"><input id="sitePath" required value="/" placeholder="Path prefix"><input id="siteUpstream" required placeholder="Upstream URL เช่น https://origin.example.com/"><input id="siteEgress" placeholder="Egress allowed host(s)"><input id="sitePolicy" value="default" placeholder="WAF policy"><button id="siteSubmit" type="submit">เพิ่ม Site</button><button id="siteCancel" type="button" hidden>ยกเลิกแก้ไข</button></form><div class="table-wrap"><table><thead><tr><th>SiteId</th><th>Hostnames</th><th>Upstreams</th><th>Health</th><th>OWASP</th><th>จัดการ</th></tr></thead><tbody id="siteTable"></tbody></table></div>`;
+  $('siteCancel').onclick=reset;
+  $('siteForm').onsubmit=async event=>{
+    event.preventDefault();
+    const id=$('siteId').value.trim(),hosts=split($('siteHosts').value),paths=split($('sitePath').value),address=$('siteUpstream').value.trim();
+    let upstream;try{upstream=new URL(address);}catch{upstream=null;}
+    if(!id||!hosts.length||!paths.length||!upstream||!['http:','https:'].includes(upstream.protocol)||upstream.username||upstream.password){status('กรุณาตรวจสอบ Site ID, Hostname, Path และ Upstream URL (ต้องเป็น HTTP(S) และห้ามมี credential)','error');return;}
+    const allowedHosts=split($('siteEgress').value),port=Number(upstream.port||(upstream.protocol==='https:'?443:80));
+    const body={id,hostnames:hosts,pathPrefixes:paths,upstreamAddress:address,wafPolicy:$('sitePolicy').value.trim()||'default',allowedHosts:allowedHosts.length?allowedHosts:[upstream.hostname],allowedPorts:[port],allowedSchemes:[upstream.protocol.slice(0,-1)],enabled:true};
+    const button=$('siteSubmit');button.disabled=true;
+    try{const method=editing?'PUT':'POST',url=editing?`/api/sites/${encodeURIComponent(editing)}`:'/api/sites';const response=await authFetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});if(!response.ok){const detail=await response.json().catch(()=>({}));throw Error(detail.error||`HTTP ${response.status}`);}const action=editing?'แก้ไข':'เพิ่ม';reset();status(`${action} Site ลง PostgreSQL สำเร็จแล้ว — Restart Gateway เพื่อเปิดใช้งาน route ใหม่`,'success');await load();}
+    catch(error){status('บันทึก Site ไม่สำเร็จ: '+error.message,'error');}
+    finally{button.disabled=false;}
+  };
+  el.addEventListener('click',event=>{
+    const health=event.target.closest('[data-site-health]'),edit=event.target.closest('[data-site-edit]'),remove=event.target.closest('[data-site-delete]');
+    if(health){const id=health.dataset.siteHealth;health.disabled=true;status(`กำลังตรวจสอบ Healthy ของ ${id}...`);(async()=>{try{const response=await authFetch(`/api/sites/${encodeURIComponent(id)}/health`,{method:'POST'});if(!response.ok){const detail=await response.json().catch(()=>({}));throw Error(detail.error||`HTTP ${response.status}`);}const result=await response.json();status(`${id}: ${result.health}${result.pendingRestart?' — ต้อง Restart Gateway ก่อนใช้งานจริง':''}`,result.health==='healthy'?'success':'error');await load();}catch(error){status(`ตรวจสอบ Healthy ไม่สำเร็จ: ${error.message}`,'error');}finally{health.disabled=false;}})();return;}
+    if(edit){const site=siteMap.get(edit.dataset.siteEdit);if(!site)return;editing=site.siteId;$('siteId').value=site.siteId;$('siteId').readOnly=true;$('siteHosts').value=(site.hostnames||[]).join(', ');$('sitePath').value=(site.pathPrefixes||['/']).join(', ');const upstream=site.upstreams?.[0];$('siteUpstream').value=upstream?.address||'';$('siteEgress').value=upstream?.address?new URL(upstream.address).hostname:'';$('sitePolicy').value=site.wafPolicy||'default';$('siteSubmit').textContent='บันทึกการแก้ไข';$('siteCancel').hidden=false;status(`กำลังแก้ไข ${site.siteId}`);}
+    if(remove){const id=remove.dataset.siteDelete;if(!confirm(`ลบ Site ${id}? การเปลี่ยนแปลงจะมีผลหลัง Restart Gateway`))return;remove.disabled=true;(async()=>{try{const response=await authFetch(`/api/sites/${encodeURIComponent(id)}`,{method:'DELETE'});if(!response.ok){const detail=await response.json().catch(()=>({}));throw Error(detail.error||`HTTP ${response.status}`);}reset();status('ลบ Site สำเร็จแล้ว — Restart Gateway เพื่อใช้การเปลี่ยนแปลง','success');await load();}catch(error){status('ลบ Site ไม่สำเร็จ: '+error.message,'error');}finally{remove.disabled=false;}})();}
+  });
+  try{await load();}catch(error){status('โหลดรายการ Site ไม่สำเร็จ: '+error.message,'error');}
+}
+const loadSectionWithSiteCrud=loadSection;loadSection=async function(){if(active==='sites'){await loadSitesCrud();return;}await loadSectionWithSiteCrud();};

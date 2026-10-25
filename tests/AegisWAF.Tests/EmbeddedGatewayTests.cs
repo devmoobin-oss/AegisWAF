@@ -3,6 +3,9 @@ using System.Net.Sockets;
 using System.Net.Http.Headers;
 using AegisWAF.Client;
 using AegisWAF.Gateway;
+using AegisWAF.Gateway.Sites;
+using AegisWAF.Gateway.Traffic;
+using Microsoft.Extensions.Configuration;
 
 namespace AegisWAF.Tests;
 
@@ -15,6 +18,164 @@ public class EmbeddedGatewayTests(GatewayFixture fx)
         var l = new TcpListener(IPAddress.Loopback, 0); l.Start();
         var port = ((IPEndPoint)l.LocalEndpoint).Port; l.Stop();
         return new Uri($"http://127.0.0.1:{port}/");
+    }
+
+    [Fact]
+    public async Task Login_base_path_health_probe_and_public_prefix_reach_exact_upstream_paths()
+    {
+        await using var upstream = await LoopbackUpstream.StartAsync(onlyLogin: true);
+        var siteId = "login-probe-" + Guid.NewGuid().ToString("N")[..8];
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+            { ["ConnectionStrings:Postgres"] = fx.ConnectionString }).Build();
+        var store = new SiteDatabaseStore(config);
+        var target = Environment.GetEnvironmentVariable("AEGISWAF_PROBE_UPSTREAM") is { Length: > 0 } liveUrl
+            ? new Uri(liveUrl) : new Uri(upstream.Url, "login/");
+        var request = new SiteManagementRequest(siteId, [siteId + ".test"], ["/donsak-i"],
+            target.ToString(), "default", [target.Host], [target.Port], ["http"]);
+        Assert.True(await store.InsertAsync(SiteDatabaseStore.ToGatewaySite(request), "test", default));
+        try
+        {
+            await using var gw = new EmbeddedGateway();
+            var gatewayUrl = FreeUrl();
+            await gw.StartAsync(new EmbeddedGatewayOptions(gatewayUrl, fx.ConnectionString, null, null,
+                ConfigurationOverrides: new Dictionary<string, string?> { ["AllowedHosts"] = "*" }));
+            if (target.Port == upstream.Url.Port)
+            {
+                for (var i = 0; i < 100 && upstream.RequestPaths.IsEmpty; i++) await Task.Delay(50);
+                Assert.Contains("/login", upstream.RequestPaths);
+            }
+            else await Task.Delay(1000);
+            using var api = new ApiClient(gatewayUrl);
+            await api.LoginAsync(GatewayFixture.AdminUser, GatewayFixture.AdminPassword);
+            var health = await api.CheckSiteHealthAsync(siteId);
+            Assert.Equal("healthy", health.Health);
+            using var client = new HttpClient(new HttpClientHandler
+                { AllowAutoRedirect = false, AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Brotli | DecompressionMethods.Deflate }) { BaseAddress = gatewayUrl };
+            using var message = new HttpRequestMessage(HttpMethod.Get, "/donsak-i")
+                { Headers = { Host = siteId + ".test" } };
+            using var response = await client.SendAsync(message);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var body = await response.Content.ReadAsStringAsync();
+            if (target.Port == upstream.Url.Port) Assert.Equal("site-upstream", body);
+            else Assert.Contains("<html", body, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain(upstream.RequestPaths, x => x.Contains("/login/login") || x.Contains("donsak-i"));
+        }
+        finally { await store.DeleteAsync(siteId, default); }
+    }
+
+    [Fact]
+    public async Task Records_allowed_site_request_with_route_and_security_outcome()
+    {
+        await using var upstream = await LoopbackUpstream.StartAsync();
+        var siteId = "telemetry-" + Guid.NewGuid().ToString("N")[..8];
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["ConnectionStrings:Postgres"] = fx.ConnectionString })
+            .Build();
+        var store = new SiteDatabaseStore(config);
+        var site = new GatewaySite(siteId, true, ["127.0.0.1"], ["/"],
+            [new SiteUpstream("primary", upstream.Url)], "default", new SiteRateLimitPolicy(),
+            new SiteEgressPolicy(["127.0.0.1"], [upstream.Url.Port], ["http"]));
+        Assert.True(await store.InsertAsync(site, "telemetry-test", default));
+
+        var gatewayUrl = FreeUrl();
+        try
+        {
+            await using var gw = new EmbeddedGateway();
+            await gw.StartAsync(new EmbeddedGatewayOptions(gatewayUrl, fx.ConnectionString, null, null));
+
+            using var client = new HttpClient { BaseAddress = gatewayUrl };
+            using var response = await client.GetAsync("/command-center-probe");
+            var record = Assert.Single(gw.Telemetry!.Query(new TrafficQuery(10)));
+
+            Assert.Equal((int)response.StatusCode, record.StatusCode);
+            Assert.Equal("/command-center-probe", record.Path);
+            Assert.Equal(TrafficDecision.Allowed, record.Decision);
+            Assert.Equal(siteId, record.SiteId);
+            Assert.Equal("primary", record.UpstreamId);
+            Assert.DoesNotContain("?", record.Path);
+        }
+        finally { await store.DeleteAsync(siteId, default); }
+    }
+
+    [Fact]
+    public async Task Records_blocked_request_with_rule_and_owasp_without_raw_payload()
+    {
+        await using var upstream = await LoopbackUpstream.StartAsync();
+        var siteId = "telemetry-block-" + Guid.NewGuid().ToString("N")[..8];
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["ConnectionStrings:Postgres"] = fx.ConnectionString })
+            .Build();
+        var store = new SiteDatabaseStore(config);
+        var site = new GatewaySite(siteId, true, ["127.0.0.1"], ["/"],
+            [new SiteUpstream("primary", upstream.Url)], "default", new SiteRateLimitPolicy(),
+            new SiteEgressPolicy(["127.0.0.1"], [upstream.Url.Port], ["http"]));
+        Assert.True(await store.InsertAsync(site, "telemetry-test", default));
+
+        try
+        {
+            var gatewayUrl = FreeUrl();
+            await using var gw = new EmbeddedGateway();
+            await gw.StartAsync(new EmbeddedGatewayOptions(gatewayUrl, fx.ConnectionString, null, null));
+
+            using var client = new HttpClient { BaseAddress = gatewayUrl };
+            using var request = new HttpRequestMessage(HttpMethod.Get, "/blocked?q=1%20union%20select%201");
+            var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+            var status = response.StatusCode;
+            response.Dispose();
+            for (var i = 0; i < 20 && gw.Telemetry!.Query(new TrafficQuery(10)).Count == 0; i++)
+                await Task.Delay(10);
+            var records = gw.Telemetry!.Query(new TrafficQuery(10));
+            Assert.True(records.Count > 0, $"status={status}; logs={gw.RecentLog}");
+            var record = Assert.Single(records);
+
+            Assert.Equal(HttpStatusCode.Forbidden, status);
+            Assert.Equal(TrafficDecision.Blocked, record.Decision);
+            Assert.Equal("SQL Injection", record.Rule);
+            Assert.Contains("A03", record.OwaspCodes);
+            Assert.DoesNotContain("union", record.Path, StringComparison.OrdinalIgnoreCase);
+        }
+        finally { await store.DeleteAsync(siteId, default); }
+    }
+
+    [Fact]
+    public async Task Real_socket_forwards_local_listener_port_and_path_to_site_upstream()
+    {
+        await using var upstream = await LoopbackUpstream.StartAsync();
+        var siteId = "e2e-local-" + Guid.NewGuid().ToString("N")[..8];
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["ConnectionStrings:Postgres"] = fx.ConnectionString })
+            .Build();
+        var store = new SiteDatabaseStore(config);
+        var upstreamBase = new Uri(upstream.Url, "a/");
+        var site = new GatewaySite(siteId, true, ["127.0.0.1"], ["/"],
+            [new SiteUpstream("primary", upstreamBase)], "default", new SiteRateLimitPolicy(),
+            new SiteEgressPolicy(["127.0.0.1"], [upstreamBase.Port], ["http"]));
+        Assert.True(await store.InsertAsync(site, "e2e-test", default));
+
+        try
+        {
+            var gatewayUrl = FreeUrl();
+            await using var gw = new EmbeddedGateway();
+            await gw.StartAsync(new EmbeddedGatewayOptions(gatewayUrl, fx.ConnectionString, null, null));
+
+            using var client = new HttpClient { BaseAddress = gatewayUrl };
+            using var response = await client.GetAsync("/a/");
+            var body = await response.Content.ReadAsStringAsync();
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal("site-upstream", body);
+
+            using var api = new ApiClient(gatewayUrl);
+            await api.LoginAsync(GatewayFixture.AdminUser, GatewayFixture.AdminPassword);
+            var health = await api.CheckSiteHealthAsync(siteId);
+            Assert.False(health.PendingRestart);
+            Assert.NotEqual("invalid", health.Health);
+            Assert.Single(health.Upstreams);
+        }
+        finally
+        {
+            await store.DeleteAsync(siteId, default);
+        }
     }
 
     [Fact]
@@ -223,6 +384,7 @@ public class EmbeddedGatewayTests(GatewayFixture fx)
         Assert.Equal(HttpStatusCode.OK, alphaResponse.StatusCode);
         Assert.Equal(HttpStatusCode.OK, betaResponse.StatusCode);
         Assert.Equal((HttpStatusCode)421, unknownResponse.StatusCode);
+
     }
 
     [Fact]
@@ -299,9 +461,12 @@ public class EmbeddedGatewayTests(GatewayFixture fx)
         private readonly CancellationTokenSource _stop = new();
         private readonly Task _loop;
         private readonly byte[] _body;
+        private readonly bool _onlyLogin;
+        public System.Collections.Concurrent.ConcurrentQueue<string> RequestPaths { get; } = new();
 
-        private LoopbackUpstream(TcpListener listener, byte[]? body)
+        private LoopbackUpstream(TcpListener listener, byte[]? body, bool onlyLogin)
         {
+            _onlyLogin = onlyLogin;
             _listener = listener;
             _body = body ?? System.Text.Encoding.UTF8.GetBytes("site-upstream");
             Url = new Uri($"http://127.0.0.1:{((IPEndPoint)listener.LocalEndpoint).Port}/");
@@ -310,11 +475,11 @@ public class EmbeddedGatewayTests(GatewayFixture fx)
 
         public Uri Url { get; }
 
-        public static Task<LoopbackUpstream> StartAsync(byte[]? body = null)
+        public static Task<LoopbackUpstream> StartAsync(byte[]? body = null, bool onlyLogin = false)
         {
             var listener = new TcpListener(IPAddress.Loopback, 0);
             listener.Start();
-            return Task.FromResult(new LoopbackUpstream(listener, body));
+            return Task.FromResult(new LoopbackUpstream(listener, body, onlyLogin));
         }
 
         private async Task AcceptAsync()
@@ -331,13 +496,17 @@ public class EmbeddedGatewayTests(GatewayFixture fx)
             catch (ObjectDisposedException) when (_stop.IsCancellationRequested) { }
         }
 
-        private static async Task RespondAsync(TcpClient client, byte[] body)
+        private async Task RespondAsync(TcpClient client, byte[] body)
         {
             using var owned = client;
             await using var stream = owned.GetStream();
             using var reader = new StreamReader(stream, System.Text.Encoding.ASCII, detectEncodingFromByteOrderMarks: false, bufferSize: 1024, leaveOpen: true);
+            var requestLine = await reader.ReadLineAsync();
+            var requestPath = requestLine?.Split(' ').ElementAtOrDefault(1) ?? "";
+            RequestPaths.Enqueue(requestPath);
             while ((await reader.ReadLineAsync()) is { Length: > 0 }) { }
-            var head = System.Text.Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nContent-Length: {body.Length}\r\nConnection: close\r\nContent-Type: text/plain\r\n\r\n");
+            var status = !_onlyLogin || requestPath == "/login" || requestPath == "/login/" ? "200 OK" : "404 Not Found";
+            var head = System.Text.Encoding.ASCII.GetBytes($"HTTP/1.1 {status}\r\nContent-Length: {body.Length}\r\nConnection: close\r\nContent-Type: text/plain\r\n\r\n");
             await stream.WriteAsync(head);
             await stream.WriteAsync(body);
         }

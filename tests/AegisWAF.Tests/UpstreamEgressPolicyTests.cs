@@ -129,7 +129,8 @@ public sealed class UpstreamEgressPolicyTests
     [InlineData("198.18.0.1")]
     [InlineData("0.1.2.3")]
     [InlineData("192.0.2.1")]
-    public async Task Connection_boundary_rejects_special_use_ipv4_ranges(string address)
+    [InlineData("2001:db8::1")]
+    public async Task Connection_boundary_rejects_special_use_ip_ranges(string address)
     {
         var policy = new UpstreamEgressPolicy(new UpstreamEgressOptions([address], [443], ["https"], true), new FakeResolver([]));
 

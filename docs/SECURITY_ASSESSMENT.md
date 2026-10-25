@@ -16,9 +16,11 @@ Multi-Site `WafPolicy` resolves to an immutable per-request snapshot when `Waf:P
 
 On 2026-10-19, the harness was run against a local raw-TCP synthetic upstream at `http://127.0.0.1:5080`. The run completed with 82 requests, 78 blocked responses (403), 4 clean proxied responses (200), 0 transport errors, 15.6 requests/second, p50 0.982 ms, p95 153.162 ms, and p99 2147.144 ms. This verifies runtime blocking/proxy behavior and machine-readable output; it does not replace a multi-instance, external, or independent security assessment.
 
+A second 15-second run against the Gateway with the configured upstream intentionally unavailable completed with 92 requests, 76 WAF blocks (403), 16 upstream failures (502), 0 client errors, and machine-readable JSON/CSV output under `tools/security-assessment/artifacts/latest-release/`. This confirms fail-safe deny behavior under concurrent synthetic traffic; it is not a healthy-upstream performance baseline.
+
 ### Latest dependency/tooling evidence
 
-On 2026-10-19, `dotnet list AegisWAF.slnx package --vulnerable --include-transitive` completed against `https://api.nuget.org/v3/index.json`; AegisWAF.Client, Gateway, Desktop, and Tests reported no vulnerable packages from that source. The full suite reported 309 passed tests, and the Production-control filter reported 111 passed tests. `gitleaks`, `semgrep`, `syft`, and `trivy` are not installed in the local environment, so secret scanning, SAST, and SBOM generation remain unverified rather than being reported as clean.
+On 2026-10-19, the Release assessment runner completed `dotnet test --configuration Release` with **328 passed, 0 failed, 0 skipped**. `dotnet list AegisWAF.slnx package --vulnerable --include-transitive` completed against `https://api.nuget.org/v3/index.json`; AegisWAF.Client, Gateway, Desktop, and Tests reported no vulnerable packages from that source. The real-socket Multi-Site/distributed-control filter reported **15 passed**. `gitleaks`, `semgrep`, `syft`, and `trivy` are not installed in the local environment, so secret scanning, SAST, and SBOM generation remain unverified rather than being reported as clean.
 
 ## OWASP ZAP / WSTG scope
 

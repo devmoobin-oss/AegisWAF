@@ -32,6 +32,7 @@ public partial class MainWindow : Window
         VersionText.Text = "v" + (typeof(MainWindow).Assembly.GetName().Version?.ToString(3) ?? "0.10.0") + " · OWASP mapped";
 
         _pages[NavDashboard] = ("ภาพรวม", "สถานะการป้องกันและการโจมตีล่าสุดในที่เดียว", () => new DashboardView(api));
+        _pages[NavCommandCenter] = ("Security Command Center", "Live traffic, upstream routing and WAF security decisions", () => new CommandCenterView(api));
         _pages[NavEvents] = ("เหตุการณ์ที่ถูกบล็อก", "รายการคำขอที่ระบบปฏิเสธ พร้อมคำอธิบาย — กด \"บล็อก IP นี้\" เพื่อกันผู้โจมตีถาวร", () => new EventsView(api));
         _pages[NavRules] = ("กฎการป้องกัน", "เปิด/ปิดกฎที่ใช้ตรวจ เพิ่มกฎของคุณเอง และทดลองกฎโดยไม่กระทบเว็บจริง", () => new RulesView(api));
         _pages[NavProtect] = ("ระบบป้องกันอะไรได้บ้าง", "สิ่งที่ป้องกันได้ ป้องกันได้บางส่วน และยังไม่ป้องกัน — พร้อมตัวอย่างจริงที่ลองได้", () => new ProtectionView(api));

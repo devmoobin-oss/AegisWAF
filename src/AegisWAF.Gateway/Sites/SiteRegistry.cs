@@ -43,6 +43,13 @@ public static class SiteProxyConfiguration
         {
             var clusterId = "site-" + site.Id;
             var health = site.Health ?? new SiteHealthPolicy();
+            var upstreamBasePaths = site.Upstreams
+                .Select(x => NormalizeBasePath(x.Address.AbsolutePath))
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+            var sharedUpstreamBasePath = upstreamBasePaths.Length == 1 && upstreamBasePaths[0] != "/"
+                ? upstreamBasePaths[0]
+                : null;
             foreach (var hostname in site.Hostnames)
             {
                 foreach (var prefix in site.PathPrefixes)
@@ -55,11 +62,19 @@ public static class SiteProxyConfiguration
                     values[$"ReverseProxy:Routes:{routeId}:Match:Hosts:0"] = hostname;
                     values[$"ReverseProxy:Routes:{routeId}:Match:Path"] = prefix == "/" ? "{**catch-all}" : prefix + "/{**remainder}";
                     values[$"ReverseProxy:Routes:{routeId}:Order"] = (1000 - prefix.Length).ToString(System.Globalization.CultureInfo.InvariantCulture);
+                    if (prefix != "/")
+                        values[$"ReverseProxy:Routes:{routeId}:Transforms:0:PathRemovePrefix"] = prefix;
+                    else if (sharedUpstreamBasePath is not null)
+                        values[$"ReverseProxy:Routes:{routeId}:Transforms:0:PathRemovePrefix"] = sharedUpstreamBasePath;
                 }
             }
             foreach (var upstream in site.Upstreams)
             {
-                values[$"ReverseProxy:Clusters:{clusterId}:Destinations:{upstream.Id}:Address"] = upstream.Address.ToString();
+                values[$"ReverseProxy:Clusters:{clusterId}:Destinations:{upstream.Id}:Address"] =
+                    upstream.Address.AbsolutePath == "/" ? upstream.Address.ToString() : upstream.Address.ToString().TrimEnd('/');
+                // YARP appends the probe Path to Health (or Address when Health is absent).
+                // Anchor probes at the origin so /login + /login cannot become /login/login.
+                values[$"ReverseProxy:Clusters:{clusterId}:Destinations:{upstream.Id}:Health"] = upstream.Address.GetLeftPart(UriPartial.Authority) + "/";
                 values[$"ReverseProxy:Clusters:{clusterId}:Destinations:{upstream.Id}:Metadata:SiteId"] = site.Id;
             }
             values[$"ReverseProxy:Clusters:{clusterId}:Metadata:EgressHosts"] = string.Join(",", site.Egress.AllowedHosts);
@@ -78,5 +93,12 @@ public static class SiteProxyConfiguration
             values[$"ReverseProxy:Clusters:{clusterId}:LoadBalancingPolicy"] = "PowerOfTwoChoices";
         }
         return values;
+    }
+
+    private static string NormalizeBasePath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || path == "/") return "/";
+        var normalized = path.TrimEnd('/');
+        return normalized.StartsWith("/", StringComparison.Ordinal) ? normalized : "/" + normalized;
     }
 }

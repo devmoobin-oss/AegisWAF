@@ -24,6 +24,16 @@ public static class SiteMatcher
         return best;
     }
 
+    public static SiteMatchResult? MatchHostname(SiteConfigurationSnapshot snapshot, string? hostHeader)
+    {
+        var hostname = NormalizeRequestHost(hostHeader);
+        if (hostname.Length == 0) return null;
+
+        var site = snapshot.Sites.FirstOrDefault(x =>
+            x.Enabled && x.Hostnames.Contains(hostname, StringComparer.OrdinalIgnoreCase));
+        return site is null ? null : new SiteMatchResult(site, hostname, "");
+    }
+
     private static bool PathMatches(string path, string prefix) =>
         prefix == "/" || path.Equals(prefix, StringComparison.Ordinal) || path.StartsWith(prefix + "/", StringComparison.Ordinal);
 
@@ -39,11 +49,8 @@ public static class SiteMatcher
         else
         {
             var colon = host.LastIndexOf(':');
-            if (colon > 0 && int.TryParse(host[(colon + 1)..], out var port))
-            {
-                if (port is not (80 or 443)) return string.Empty;
+            if (colon > 0 && int.TryParse(host[(colon + 1)..], out _))
                 host = host[..colon];
-            }
         }
         return SiteConfigurationValidator.NormalizeHostname(host);
     }

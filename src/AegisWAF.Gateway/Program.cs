@@ -128,6 +128,8 @@ static class Bootstrap
         if (string.IsNullOrWhiteSpace(cs)) { log.LogWarning("No PostgreSQL connection configured; administration is unavailable"); return; }
         if (app.Configuration.GetValue("Database:AutoMigrate", true))
             foreach (var v in await Migrator.ApplyAsync(cs)) log.LogInformation("Applied migration {Version}", v);
+        await app.Services.GetRequiredService<SiteDatabaseStore>()
+            .EnsureSeededAsync(app.Services.GetRequiredService<SiteRegistry>().Current.Sites, default);
         if (app.Configuration.GetValue("Database:RequireLeastPrivilege", false))
         {
             await using var securityDb = new NpgsqlConnection(cs);
@@ -472,6 +474,13 @@ sealed class ResponseInspector
     /// semantics while still catching high-signal ASCII leaks when an upstream falsely labels sensitive text binary.
     /// </summary>
     public string? InspectBytes(ReadOnlySpan<byte> body) => Inspect(Encoding.Latin1.GetString(body));
+
+    public string? InspectEncoded(ReadOnlySpan<byte> body, string? contentEncoding, InspectionLimits limits, bool textual = true)
+    {
+        var decoded = RequestBodyInspector.Decode(body, contentEncoding?.Trim(), limits);
+        if (!decoded.Success) return "Response Decode — " + decoded.ReasonCode;
+        return textual ? Inspect(InspectionTextDecoder.Decode(decoded.Bytes)) : InspectBytes(decoded.Bytes);
+    }
 
     /// <summary>True for content types whose body can be decoded and scanned as text (html, text, json, xml).</summary>
     public static bool IsInspectable(string? contentType)

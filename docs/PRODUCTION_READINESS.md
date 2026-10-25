@@ -2,6 +2,8 @@
 
 ## Runtime baseline enabled
 
+- Deployment is host-native: the Windows Desktop/standalone gateway does not require Docker or a container runtime. Container-based deployment is intentionally out of scope for this release.
+
 - Admin is local-only by default; remote administration requires HTTPS.
 - `X-Forwarded-For` is trusted only when the direct peer matches `Security:TrustedProxies`.
 - IP `allow` is an allowlist decision only; it does not bypass signatures or rate limiting.
@@ -46,6 +48,10 @@
 - Production enforcement also requires `Waf:Limits:MaxRequestBodyBytes` to be positive, bounded to 16 MiB, and no larger than `Waf:MaxBodyInspectBytes`; Kestrel cannot admit a request body larger than the parser inspection budget.
 - Production enforcement bounds `Waf:Limits:RequestHeadersTimeoutSeconds` to 1–120 seconds and `Waf:Limits:KeepAliveSeconds` to 5–600 seconds, preventing an unsafe timeout configuration from weakening slow-client protection.
 - Production enforcement bounds `Waf:Limits:MaxRequestLineBytes` to 1–64 KiB and `Waf:Limits:MaxRequestHeadersBytes` to 4–256 KiB, preventing oversized framing/header limits from becoming a configuration-driven memory/DoS risk.
+- Production enforcement bounds and applies `Waf:Limits:MaxConcurrentConnections` to 1–1,000,000 (runtime default 10,000), preventing an unbounded Kestrel connection pool from becoming a configuration-driven resource-exhaustion risk.
+- Production enforcement bounds and applies `Waf:Limits:MinRequestBodyBytesPerSecond` (1–1,000,000) with a 1–120 second grace period, preventing slow request-body uploads from pinning Kestrel connections indefinitely.
+- Production enforcement bounds and applies `Waf:Limits:MinResponseBytesPerSecond` (1–1,000,000) with a 1–120 second grace period, preventing slow clients from pinning response connections indefinitely.
+- Production enforcement bounds each configured YARP `HttpRequest:ActivityTimeout` to 1 second–5 minutes when specified, preventing an accidentally unbounded upstream request from pinning gateway resources indefinitely.
 - Production enforcement rejects global rate-limit values outside the runtime bounds (`Requests` 1–1,000,000; `WindowSeconds` 1–3,600; `MaxEntries` 100–1,000,000; `GlobalRequests` 1–10,000,000) instead of silently clamping an operator's configuration.
 - Production enforcement also rejects distributed authentication throttle values outside their runtime bounds (`MaxFailures` 1–1,000; `WindowMinutes` 1–1,440; `MaxEntries` 100–1,000,000), keeping shared login-abuse protection explicit across instances.
 - Production enforcement bounds administrative session idle/absolute lifetimes and account lockout settings (`SessionIdleMinutes` 1–1,440; `SessionAbsoluteHours` 1–168; `MaxFailedAttempts` 1–100; `LockoutMinutes` 1–1,440), preventing accidental indefinite sessions or disabled lockout.
@@ -62,6 +68,8 @@
 - The inspection budget is propagated into windowed rule evaluation for raw and structured body values; expiration returns `Inspection Timeout` before additional windows are evaluated.
 - gzip, deflate, and Brotli request bodies are decompressed only within compressed-size, decompressed-size, expansion-ratio, and parser budgets; unknown encodings fail closed.
 - Production upstreams require explicit HTTPS host/port/scheme allowlists and are checked against DNS-resolved private, loopback, metadata, multicast, reserved, and link-local targets before proxying.
+- Production enforcement applies bounded `Waf:Egress:MaxConnectionsPerServer` and per-cluster `HttpClient:MaxConnectionsPerServer` caps (1–10,000; runtime default 256) to outbound YARP handlers, limiting connection amplification against an upstream.
+- Production rejects configured YARP `HttpClient:WebProxy` sections, requires `HttpClient:UseProxy=false`, and disables automatic redirects; outbound traffic must use the reviewed connection-boundary egress path rather than an environment/system proxy or redirect target that could bypass the Site allowlist.
 - Generated Multi-Site YARP clusters enable active `/health` probes and the explicit `TransportFailureRate` passive policy; destination selection uses `HealthyAndUnknown` so unhealthy upstreams are removed while unknown destinations remain eligible until the first probe completes.
 - Each Site may define a bounded `Health` policy (`Path`, `IntervalSeconds`, `TimeoutSeconds`, `PassiveReactivationSeconds`); invalid paths or timing relationships fail configuration validation instead of producing unsafe probes.
 - `/api/sites` projects runtime YARP destination health, so the Desktop view no longer treats an unprobed destination as healthy by default.
@@ -73,12 +81,12 @@
 - Under `Waf:Deployment:Enforce=true`, YARP's outbound `SocketsHttpHandler` connection callback rechecks the exact destination host/port and current DNS answer immediately before opening a socket, then connects to the validated address rather than resolving again after validation. This is defense-in-depth and does not replace infrastructure egress ACLs.
 - Egress DNS validation is bounded to 32 answers per hostname and fails closed with `dns_answer_limit` when a resolver returns an unexpectedly large set.
 - The egress connection guard preserves the complete validated DNS answer set and tries each validated address before failing, without resolving the hostname again after policy validation.
-- Production startup rejects `DangerousAcceptAnyServerCertificate` and the egress classifier rejects special-use IPv4 ranges including unspecified, documentation, benchmark, and deprecated relay ranges.
+- Production startup rejects `DangerousAcceptAnyServerCertificate` and the egress classifier rejects special-use IPv4 ranges including unspecified, documentation, benchmark, and deprecated relay ranges, plus the IPv6 documentation range (`2001:db8::/32`).
 - Production authentication throttling uses shared PostgreSQL state for normalized source and username keys; the WAF limiter also includes bounded route keys and the readiness check verifies the distributed authentication migration.
 - Distributed authentication throttle capacity checks take a transaction-scoped PostgreSQL advisory lock and count missing identity keys before insertion, preventing concurrent instances from exceeding `Auth:Throttle:MaxEntries`.
 - Real-socket integration starts two Gateway instances against one PostgreSQL database and verifies authentication throttling is shared across instances; a second test verifies Site request rate limiting returns `429` after the shared bucket is consumed across both gateways.
 - The PostgreSQL rate limiter uses separate lock/cleanup and count statements; this avoids fragile SQL string slicing and is covered by the two-Gateway regression test.
-- The current verification baseline is 307 passing tests with zero failures/skips; the assessment runner records the Git commit and source configuration SHA-256 fingerprint for each evidence run.
+- The current verification baseline is 328 passing tests with zero failures/skips; the assessment runner records the Git commit and source configuration SHA-256 fingerprint for each evidence run.
 - A safe local security/load-test harness is available at `tools/security-loadtest/loadtest.ps1`; it emits JSON/CSV latency, throughput, status, block, and error evidence without destructive payloads.
 - Local runtime evidence after the logging hardening: 80 requests at concurrency 2, 78 WAF blocks (403), 0 client errors, p95 latency 1.662 ms; 2 clean requests returned 502 because the intentionally absent local upstream was unavailable.
 - Healthy-upstream runtime evidence: 82 requests at concurrency 2, 78 attack requests blocked (403), 4 clean requests proxied successfully (200), 0 errors, throughput 15.6 req/s and p95 latency 153.162 ms. This validates both the deny path and the allow/proxy path over real sockets.
@@ -106,6 +114,7 @@
     "InspectBinaryRequests": true,
     "InspectBinaryResponses": true,
     "ResponseOverflowAction": "block",
+    "Egress": { "MaxConnectionsPerServer": 256 },
     "RateLimit": { "Requests": 300, "GlobalRequests": 10000, "Store": "postgres", "WindowSeconds": 60, "MaxEntries": 10000 },
     "Limits": { "MaxRequestBodyBytes": 1048576 },
     "Policies": {
@@ -150,7 +159,7 @@ Never configure `0.0.0.0/0` as a trusted proxy. Only infrastructure proxies belo
 
 `DisabledRules` is deliberately deny-only at Site scope. Keep the global rule state at its strongest safe baseline and use Site policies only for documented exceptions; a policy is not a replacement for per-Site rule storage or live reload.
 
-The Desktop Site Manager is read-only for the active runtime configuration and indicates that a Gateway restart is required after configuration-file changes. This avoids changing YARP routes without a validated atomic reload.
+The Desktop Site Manager can add a validated Site to `appsettings.local.json` using an atomic write. The active runtime configuration remains immutable until Gateway restart; the UI makes this state explicit and never changes YARP routes without a validated restart.
 
 ## Remaining Production gates
 
@@ -160,7 +169,7 @@ The Desktop Site Manager is read-only for the active runtime configuration and i
 The PostgreSQL route limiter is fail-closed and bounded for long-running deployments: each transaction takes a database advisory lock for the shared capacity check, removes expired bucket rows, and rejects new bucket identities when `Waf:RateLimit:MaxEntries` would be exceeded. Existing identities can continue to be evaluated without allowing unbounded bucket growth. Validate the configured cap against expected Site × route × client cardinality before production rollout.
 - SIEM routing and alert policy configuration for the `aegiswaf.audit_integrity_failure` event.
 - Full external DNS-rebinding assessment between validation and connection establishment; local real-socket coverage now verifies a valid WebSocket upgrade is rejected before proxying unless explicitly enabled for a dedicated route.
-- Continuous SAST/secret scanning, independent load-test review and external penetration testing. Deterministic fuzz regression coverage and a local load-test harness are included; external evidence is still pending.
+- Continuous SAST/secret scanning is configured in `.github/workflows/security-verification.yml` but still needs a successful hosted run. The same workflow provides a manual-only authorized load-test job that requires an operator-supplied synthetic/staging target. Independent load-test review and external penetration testing remain pending; deterministic fuzz regression coverage and a local load-test harness are included.
 - A least-privilege PostgreSQL deployment account instead of a superuser.
 - Set `Database:RequireLeastPrivilege=true` in Production; startup then fails closed when the database role is a superuser.
 

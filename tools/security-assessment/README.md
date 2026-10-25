@@ -2,6 +2,8 @@
 
 `run-assessment.ps1` provides a repeatable, fail-closed evidence wrapper for local or authorized environments.
 
+The assessment is host-native and does not require Docker or a container runtime. Docker is intentionally not a Production gate for the Windows desktop/standalone deployment model.
+
 ```powershell
 .\tools\security-assessment\run-assessment.ps1 -LoadTestTargetUri http://127.0.0.1:5080
 ```

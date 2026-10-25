@@ -162,7 +162,8 @@ public static class SiteConfigurationValidator
                    value < 0x01000000;
         }
         var bytes = address.GetAddressBytes();
-        return address.IsIPv6LinkLocal || address.IsIPv6SiteLocal || bytes[0] == 0xff || (bytes[0] & 0xfe) == 0xfc;
+        return (bytes.Length >= 4 && bytes[0] == 0x20 && bytes[1] == 0x01 && bytes[2] == 0x0d && bytes[3] == 0xb8) ||
+               address.IsIPv6LinkLocal || address.IsIPv6SiteLocal || bytes[0] == 0xff || (bytes[0] & 0xfe) == 0xfc;
     }
 }
 
@@ -207,7 +208,7 @@ public static class SiteConfigurationLoader
                 section.GetValue("RateLimit:GlobalRequests", 10_000)),
             egress,
             new SiteHealthPolicy(
-                section["Health:Path"] ?? "/health",
+                section["Health:Path"] ?? "/",
                 section.GetValue("Health:IntervalSeconds", 10),
                 section.GetValue("Health:TimeoutSeconds", 3),
                 section.GetValue("Health:PassiveReactivationSeconds", 30)));

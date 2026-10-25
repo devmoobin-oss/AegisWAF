@@ -2,6 +2,8 @@
 
 Self-hosted multi-site WAF / reverse proxy (ASP.NET Core .NET 10, YARP, PostgreSQL). The repository includes production guardrails and local security evidence, but it is **not production-certified** until the external gates listed in [docs/PRODUCTION_READINESS.md](docs/PRODUCTION_READINESS.md) are completed.
 
+Deployment model: AegisWAF runs natively on Windows as the self-contained WPF desktop application or the standalone .NET gateway. Docker and container runtime are not required, bundled, or used by the product.
+
 Docs: [ARCHITECTURE](docs/ARCHITECTURE.md) · [SECURITY](docs/SECURITY.md) · [ROADMAP](docs/DEVELOPMENT_ROADMAP.md) · [PROGRESS](docs/PROGRESS.md)
 
 ## Windows desktop app (WPF)
@@ -35,7 +37,8 @@ The full, honest list with real examples is in [docs/PROTECTION.md](docs/PROTECT
 The gateway needs a PostgreSQL connection **with the password**; the shipped `appsettings.json` deliberately has none. If it is missing the program prints why and waits for Enter (it used to close silently). Either set the `ConnectionStrings__Postgres` environment variable, or copy `appsettings.local.json.example` to `appsettings.local.json` beside the exe and fill it in (the `Bootstrap` section creates the first admin when no users exist — delete the password line after first login). Environment variables override the file. Keep `appsettings.local.json` private: it contains a database password in clear text.
 
 ## Requirements
-- .NET 10 SDK, PostgreSQL 18, protected backend on `http://localhost:8080/` (see `ReverseProxy` in `appsettings.json`).
+- Windows for the desktop executable, PostgreSQL 18 for shared production state, and a protected backend on `http://localhost:8080/` (see `ReverseProxy` in `appsettings.json`).
+- Docker/container runtime is intentionally out of scope; installation, startup, testing, and production operation do not depend on Docker.
 
 ## Setup (PowerShell)
 ```powershell
@@ -72,6 +75,8 @@ Set `Database:AutoMigrate=false` to apply `database/*.sql` yourself; a modified,
 dotnet test      # needs PostgreSQL on localhost with postgres/postgres, or set AEGISWAF_TEST_PG
 ```
 Each run creates and drops its own throw-away database. `AEGISWAF_TEST_PG` format: `Host=...;Port=5432;Username=...;Password=...`.
+
+For repeatable Production evidence, use [Security Verification](.github/workflows/security-verification.yml). It runs the PostgreSQL-backed test suite, dependency audit, CodeQL, Gitleaks and SBOM generation. The workflow also exposes a manual-only authorized load-test input; hosted results are evidence only after a successful run against a synthetic or explicitly authorized target.
 
 ## Breaking changes from v0.6
 - `AEGISWAF_ADMIN_TOKEN` and the `X-Aegis-Admin-Token` header are **removed**; use login sessions.

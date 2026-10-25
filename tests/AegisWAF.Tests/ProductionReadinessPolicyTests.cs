@@ -157,6 +157,72 @@ public sealed class ProductionReadinessPolicyTests
     }
 
     [Fact]
+    public void Production_rejects_unbounded_proxy_activity_timeout()
+    {
+        var values = SecureValues();
+        values["ReverseProxy:Clusters:app:HttpRequest:ActivityTimeout"] = "00:05:01";
+
+        var errors = ProductionReadinessPolicy.Validate(Config(values));
+
+        Assert.Contains(errors, e => e.Contains("ActivityTimeout", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Production_rejects_unsafe_outbound_connection_capacity()
+    {
+        var values = SecureValues();
+        values["Waf:Egress:MaxConnectionsPerServer"] = "0";
+
+        var errors = ProductionReadinessPolicy.Validate(Config(values));
+
+        Assert.Contains(errors, e => e.Contains("MaxConnectionsPerServer", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Production_rejects_unreviewed_outbound_web_proxy()
+    {
+        var values = SecureValues();
+        values["ReverseProxy:Clusters:app:HttpClient:WebProxy:Address"] = "http://proxy.example.test:8080";
+
+        var errors = ProductionReadinessPolicy.Validate(Config(values));
+
+        Assert.Contains(errors, e => e.Contains("WebProxy", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Production_rejects_environment_proxy_usage()
+    {
+        var values = SecureValues();
+        values["ReverseProxy:Clusters:app:HttpClient:UseProxy"] = "true";
+
+        var errors = ProductionReadinessPolicy.Validate(Config(values));
+
+        Assert.Contains(errors, e => e.Contains("UseProxy", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Production_rejects_automatic_upstream_redirects()
+    {
+        var values = SecureValues();
+        values["ReverseProxy:Clusters:app:HttpClient:AllowAutoRedirect"] = "true";
+
+        var errors = ProductionReadinessPolicy.Validate(Config(values));
+
+        Assert.Contains(errors, e => e.Contains("AllowAutoRedirect", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Production_rejects_unsafe_cluster_connection_capacity()
+    {
+        var values = SecureValues();
+        values["ReverseProxy:Clusters:app:HttpClient:MaxConnectionsPerServer"] = "0";
+
+        var errors = ProductionReadinessPolicy.Validate(Config(values));
+
+        Assert.Contains(errors, e => e.Contains("MaxConnectionsPerServer", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Production_rejects_unbounded_request_line_and_header_limits()
     {
         var values = SecureValues();
@@ -167,6 +233,43 @@ public sealed class ProductionReadinessPolicyTests
 
         Assert.Contains(errors, e => e.Contains("MaxRequestLineBytes", StringComparison.Ordinal));
         Assert.Contains(errors, e => e.Contains("MaxRequestHeadersBytes", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Production_rejects_unsafe_concurrent_connection_capacity()
+    {
+        var values = SecureValues();
+        values["Waf:Limits:MaxConcurrentConnections"] = "0";
+
+        var errors = ProductionReadinessPolicy.Validate(Config(values));
+
+        Assert.Contains(errors, e => e.Contains("MaxConcurrentConnections", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Production_rejects_unsafe_request_body_data_rate_limits()
+    {
+        var values = SecureValues();
+        values["Waf:Limits:MinRequestBodyBytesPerSecond"] = "0";
+        values["Waf:Limits:RequestBodyDataRateGraceSeconds"] = "0";
+
+        var errors = ProductionReadinessPolicy.Validate(Config(values));
+
+        Assert.Contains(errors, e => e.Contains("MinRequestBodyBytesPerSecond", StringComparison.Ordinal));
+        Assert.Contains(errors, e => e.Contains("RequestBodyDataRateGraceSeconds", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Production_rejects_unsafe_response_data_rate_limits()
+    {
+        var values = SecureValues();
+        values["Waf:Limits:MinResponseBytesPerSecond"] = "0";
+        values["Waf:Limits:ResponseDataRateGraceSeconds"] = "121";
+
+        var errors = ProductionReadinessPolicy.Validate(Config(values));
+
+        Assert.Contains(errors, e => e.Contains("MinResponseBytesPerSecond", StringComparison.Ordinal));
+        Assert.Contains(errors, e => e.Contains("ResponseDataRateGraceSeconds", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -289,6 +392,18 @@ public sealed class ProductionReadinessPolicyTests
 
         Assert.Contains(errors, e => e.Contains("AllowedHosts", StringComparison.Ordinal));
         Assert.Contains(errors, e => e.Contains("AllowedSchemes", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Production_rejects_wildcard_or_malformed_global_egress_hosts()
+    {
+        var values = SecureValues();
+        values["Waf:Egress:AllowedHosts:0"] = "*";
+        values["Waf:Egress:AllowedHosts:1"] = "not a host";
+
+        var errors = ProductionReadinessPolicy.Validate(Config(values));
+
+        Assert.Contains(errors, e => e.Contains("AllowedHosts", StringComparison.Ordinal));
     }
 
     [Fact]

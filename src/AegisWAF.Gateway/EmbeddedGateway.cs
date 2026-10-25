@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Logging;
+using AegisWAF.Gateway.Traffic;
 
 namespace AegisWAF.Gateway;
 
@@ -22,6 +23,7 @@ public sealed class EmbeddedGateway : IAsyncDisposable
     private WebApplication? _app;
 
     public bool Running => _app is not null;
+    internal TrafficTelemetry? Telemetry => _app?.Services.GetService<TrafficTelemetry>();
 
     /// <summary>Most recent warning/error log lines, for diagnostics shown in the UI.</summary>
     public string RecentLog { get { lock (_log) return string.Join(Environment.NewLine, _log); } }

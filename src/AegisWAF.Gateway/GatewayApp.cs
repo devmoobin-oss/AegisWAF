@@ -1,6 +1,8 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Security.Cryptography;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text;
 using System.Net;
 using System.Text.RegularExpressions;
@@ -11,6 +13,7 @@ using AegisWAF.Gateway.Infrastructure;
 using AegisWAF.Client;
 using Yarp.ReverseProxy;
 using AegisWAF.Gateway.Sites;
+using AegisWAF.Gateway.Traffic;
 using Microsoft.AspNetCore.DataProtection;
 using System.Security.Cryptography.X509Certificates;
 
@@ -62,7 +65,7 @@ public static class GatewayApp
         builder.Configuration.AddJsonFile("appsettings.local.json", optional: true, reloadOnChange: false);
         builder.Configuration.AddEnvironmentVariables();
         if (overrides is not null) builder.Configuration.AddInMemoryCollection(overrides);
-        var siteSnapshot = SiteConfigurationLoader.Load(builder.Configuration);
+        var siteSnapshot = LoadSiteSnapshot(builder.Configuration);
         builder.Configuration.AddInMemoryCollection(SiteProxyConfiguration.Build(siteSnapshot, builder.Configuration));
         ProductionReadinessPolicy.ThrowIfInvalid(builder.Configuration);
         var keyRingPath = builder.Configuration["Security:DataProtection:KeyRingPath"];
@@ -84,6 +87,13 @@ public static class GatewayApp
             server.Limits.MaxRequestLineSize = builder.Configuration.GetValue("Waf:Limits:MaxRequestLineBytes", 16 * 1024);
             server.Limits.MaxRequestHeadersTotalSize = builder.Configuration.GetValue("Waf:Limits:MaxRequestHeadersBytes", 64 * 1024);
             server.Limits.MaxRequestBodySize = builder.Configuration.GetValue<long?>("Waf:Limits:MaxRequestBodyBytes", 1_048_576);
+            server.Limits.MaxConcurrentConnections = builder.Configuration.GetValue<long?>("Waf:Limits:MaxConcurrentConnections", 10_000);
+            server.Limits.MinRequestBodyDataRate = new Microsoft.AspNetCore.Server.Kestrel.Core.MinDataRate(
+                builder.Configuration.GetValue("Waf:Limits:MinRequestBodyBytesPerSecond", 240d),
+                TimeSpan.FromSeconds(builder.Configuration.GetValue("Waf:Limits:RequestBodyDataRateGraceSeconds", 10)));
+            server.Limits.MinResponseDataRate = new Microsoft.AspNetCore.Server.Kestrel.Core.MinDataRate(
+                builder.Configuration.GetValue("Waf:Limits:MinResponseBytesPerSecond", 240d),
+                TimeSpan.FromSeconds(builder.Configuration.GetValue("Waf:Limits:ResponseDataRateGraceSeconds", 10)));
             server.Limits.KeepAliveTimeout = TimeSpan.FromSeconds(builder.Configuration.GetValue("Waf:Limits:KeepAliveSeconds", 120));
             server.Limits.RequestHeadersTimeout = TimeSpan.FromSeconds(builder.Configuration.GetValue("Waf:Limits:RequestHeadersTimeoutSeconds", 10));
         });
@@ -92,9 +102,10 @@ public static class GatewayApp
 
     public static void AddServices(WebApplicationBuilder builder)
     {
-    var sites = SiteConfigurationLoader.Load(builder.Configuration);
+    var sites = LoadSiteSnapshot(builder.Configuration);
     builder.Services.AddSingleton(sites);
     builder.Services.AddSingleton<SiteRegistry>();
+    builder.Services.AddSingleton<SiteDatabaseStore>();
     builder.Services.AddSingleton<SiteHealthRegistry>();
     var reverseProxy = builder.Services.AddReverseProxy().LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
     if (builder.Configuration.GetValue("Waf:Deployment:Enforce", false))
@@ -110,9 +121,13 @@ public static class GatewayApp
             var schemes = metadata is not null && metadata.TryGetValue("EgressSchemes", out var schemeText)
                 ? schemeText.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) : globalEgress.AllowedSchemes.ToArray();
             var policy = new UpstreamEgressPolicy(new UpstreamEgressOptions(hosts, ports, schemes, false), new SystemUpstreamAddressResolver());
+            handler.MaxConnectionsPerServer = builder.Configuration.GetValue("Waf:Egress:MaxConnectionsPerServer", 256);
+            handler.UseProxy = false;
+            handler.AllowAutoRedirect = false;
             handler.ConnectCallback = (socketContext, ct) => EgressConnectionGuard.ConnectAsync(policy, socketContext.DnsEndPoint, ct);
         });
     }
+
     var healthChecks = builder.Services.AddHealthChecks()
         .AddCheck<PostgresHealthCheck>("postgres", tags: ["ready"])
         .AddCheck<SiteRoutingHealthCheck>("sites", tags: ["ready"]);
@@ -124,6 +139,7 @@ public static class GatewayApp
     builder.Services.AddHostedService<CustomRuleLoader>();
     builder.Services.AddHostedService<RuleStateLoader>();
     builder.Services.AddSingleton<TrafficCounters>();
+    builder.Services.AddSingleton<TrafficTelemetry>();
     builder.Services.AddSingleton<SecurityEvents>();
     builder.Services.AddSingleton<SlidingRateLimiter>();
     builder.Services.AddSingleton<UpstreamEgressPolicy>(sp =>
@@ -143,6 +159,10 @@ public static class GatewayApp
             cfg.GetValue("Auth:Throttle:MaxEntries", 10_000));
     });
     }
+
+    private static SiteConfigurationSnapshot LoadSiteSnapshot(IConfiguration configuration) =>
+        SiteDatabaseStore.TryLoadSnapshot(configuration.GetConnectionString("Postgres"))
+        ?? SiteConfigurationLoader.Load(configuration);
 
     /// <summary>Middleware and endpoints. Must run after <c>builder.Build()</c> and after <c>Bootstrap.RunAsync</c>.</summary>
     public static void MapPipeline(WebApplication app)
@@ -182,6 +202,55 @@ public static class GatewayApp
             return;
         }
 
+        var telemetry = ctx.RequestServices.GetRequiredService<TrafficTelemetry>();
+        using var scope = telemetry.BeginRequest();
+        var watch = Stopwatch.StartNew();
+        try { await next(); }
+        finally
+        {
+            var decision = ctx.Items.TryGetValue(TrafficTelemetry.DecisionItem, out var decisionValue) && decisionValue is TrafficDecision explicitDecision
+                ? explicitDecision
+                : ctx.Response.StatusCode switch
+                {
+                    StatusCodes.Status429TooManyRequests => TrafficDecision.RateLimited,
+                    >= 500 => TrafficDecision.UpstreamError,
+                    _ => TrafficDecision.Allowed
+                };
+            var rule = ctx.Items.TryGetValue(TrafficTelemetry.RuleItem, out var ruleValue) ? ruleValue as string : null;
+            var site = SiteContext.Get(ctx);
+            // Keep hostname-level attribution for diagnostics when the host is known but
+            // the path is outside that site's configured prefix (for example /favicon.ico).
+            var telemetrySite = site is not null
+                ? new SiteMatchResult(site.Site, site.Hostname, site.PathPrefix)
+                : SiteMatcher.MatchHostname(ctx.RequestServices.GetRequiredService<SiteRegistry>().Current, ctx.Request.Host.Value);
+            var proxied = ctx.Features.Get<Yarp.ReverseProxy.Model.IReverseProxyFeature>()?.ProxiedDestination;
+            var upstreamId = proxied?.DestinationId;
+            var upstreamAddress = proxied?.Model.Config.Address;
+            telemetry.Record(new TrafficRecord(
+                DateTimeOffset.UtcNow,
+                ctx.TraceIdentifier,
+                ClientAddress.Resolve(ctx, ctx.RequestServices.GetRequiredService<IConfiguration>()),
+                telemetrySite?.Site.Id,
+                TrafficTelemetry.ResolveHostname(telemetrySite?.Hostname, ctx.Request.Host),
+                ctx.Request.Method,
+                TrafficTelemetry.SanitizePath(ctx.Request.Path, ctx.Request.QueryString),
+                upstreamId,
+                upstreamAddress,
+                decision,
+                ctx.Response.StatusCode,
+                rule,
+                rule is null ? [] : OwaspCatalog.ForRule(rule).Codes,
+                watch.ElapsedMilliseconds));
+        }
+    });
+    app.Use(async (ctx, next) =>
+    {
+        if (IsManagementPath(ctx.Request.Path))
+        {
+            await next();
+            return;
+        }
+
         var registry = ctx.RequestServices.GetRequiredService<SiteRegistry>();
         var match = registry.Resolve(ctx.Request.Host.Value, ctx.Request.Path.Value);
         if (match is null)
@@ -203,15 +272,91 @@ public static class GatewayApp
             threatCategories = stats.Categories.OrderByDescending(x => x.Value).Select(x => new { name = x.Key, count = x.Value }),
             methods = stats.Methods.OrderByDescending(x => x.Value).Select(x => new { name = x.Key, count = x.Value }),
             timeline = stats.Timeline(), topIps = stats.TopIps(), recentEvents = events.Recent() })).Require(Roles.Viewer);
+    app.MapGet("/api/command-center/summary", (TrafficTelemetry telemetry, HttpContext ctx) =>
+    {
+        ctx.Response.Headers.CacheControl = "no-store";
+        var summary = telemetry.GetSummary();
+        return Results.Ok(new
+        {
+            generatedAt = DateTimeOffset.UtcNow,
+            activeConnections = summary.ActiveConnections,
+            requestsPerMinute = summary.RequestsPerMinute,
+            allowed = summary.Allowed,
+            blocked = summary.Blocked,
+            rateLimited = summary.RateLimited,
+            upstreamErrors = summary.UpstreamErrors,
+            bufferedEvents = summary.BufferedEvents,
+            droppedEvents = summary.DroppedEvents
+        });
+    }).Require(Roles.Analyst);
+    app.MapGet("/api/command-center/traffic", (string? decision, int? limit, string? siteId, string? ip, string? q, TrafficTelemetry telemetry, HttpContext ctx) =>
+    {
+        ctx.Response.Headers.CacheControl = "no-store";
+        var requestedLimit = limit ?? 100;
+        if (requestedLimit is < 1 or > 500) return Results.BadRequest(new { error = "limit must be between 1 and 500" });
+        TrafficDecision? parsedDecision = null;
+        if (!string.IsNullOrWhiteSpace(decision))
+        {
+            if (!Enum.TryParse<TrafficDecision>(decision, true, out var parsed))
+                return Results.BadRequest(new { error = "decision is invalid" });
+            parsedDecision = parsed;
+        }
+        var records = telemetry.Query(new TrafficQuery(requestedLimit, parsedDecision, siteId, ip, q));
+        return Results.Ok(records.Select(x => new
+        {
+            time = x.Timestamp,
+            traceId = x.TraceId,
+            clientIp = x.ClientIp,
+            siteId = x.SiteId,
+            hostname = x.Hostname,
+            method = x.Method,
+            path = x.Path,
+            upstreamId = x.UpstreamId,
+            upstreamAddress = x.UpstreamAddress,
+            decision = x.Decision.ToString().ToUpperInvariant(),
+            statusCode = x.StatusCode,
+            rule = x.Rule,
+            owaspCodes = x.OwaspCodes,
+            durationMs = x.DurationMs
+        }));
+    }).Require(Roles.Analyst);
     app.MapGet("/api/owasp-coverage", () => Results.Ok(OwaspCatalog.All.Select(x => new
     {
         code = x.Code, title = x.Title, coverage = x.Coverage.ToString(), description = x.Description,
         limitations = x.Limitations, ruleIds = OwaspCatalog.RuleIdsForCode(x.Code), officialUrl = OwaspCatalog.OfficialUrl
     }))).Require(Roles.Viewer);
-    app.MapGet("/api/sites", (SiteRegistry registry, SiteHealthRegistry legacyHealth, IProxyStateLookup proxy) =>
+    app.MapGet("/api/sites", async (SiteRegistry registry, SiteHealthRegistry legacyHealth, IProxyStateLookup proxy, SiteDatabaseStore store, CancellationToken ct) =>
     {
-        var result = registry.Current.Sites.Select(site =>
+        var activeSites = registry.Current.Sites;
+        var storedSites = await store.ListAsync(ct);
+        var result = storedSites.Select(site =>
         {
+            var active = activeSites.FirstOrDefault(x => x.Id.Equals(site.Id, StringComparison.OrdinalIgnoreCase));
+            var pendingRestart = active is null || !SiteConfigurationEditor.AreEquivalent(active, site);
+            if (pendingRestart)
+            {
+                var pendingUpstreams = site.Upstreams.Select(upstream => new
+                {
+                    id = upstream.Id,
+                    address = upstream.Address.ToString(),
+                    scheme = upstream.Address.Scheme,
+                    port = upstream.Address.Port,
+                    weight = upstream.Weight,
+                    health = "pending-restart"
+                }).ToArray();
+                return new
+                {
+                    siteId = site.Id,
+                    enabled = site.Enabled,
+                    hostnames = site.Hostnames,
+                    pathPrefixes = site.PathPrefixes,
+                    wafPolicy = site.WafPolicy,
+                    health = "pending-restart",
+                    pendingRestart = true,
+                    upstreams = pendingUpstreams
+                };
+            }
+
             proxy.TryGetCluster("site-" + site.Id, out var cluster);
             var upstreams = site.Upstreams.Select(upstream =>
             {
@@ -219,13 +364,73 @@ public static class GatewayApp
                 var status = yarp is null
                     ? legacyHealth.Get(site.Id, upstream.Id)?.Healthy == false ? "unhealthy" : "unknown"
                     : SiteProxyHealth.Status(yarp.Health.Active.ToString(), yarp.Health.Passive.ToString());
-                return new { id = upstream.Id, scheme = upstream.Address.Scheme, port = upstream.Address.Port, weight = upstream.Weight, health = status };
+                return new { id = upstream.Id, address = upstream.Address.ToString(), scheme = upstream.Address.Scheme, port = upstream.Address.Port, weight = upstream.Weight, health = status };
             }).ToArray();
             var siteHealth = upstreams.Length == 0 ? "invalid" : upstreams.All(x => x.health == "unhealthy") ? "unhealthy" : upstreams.Any(x => x.health == "healthy") ? "healthy" : "unknown";
-            return new { siteId = site.Id, enabled = site.Enabled, hostnames = site.Hostnames, pathPrefixes = site.PathPrefixes, wafPolicy = site.WafPolicy, health = siteHealth, upstreams };
+            return new { siteId = site.Id, enabled = site.Enabled, hostnames = site.Hostnames, pathPrefixes = site.PathPrefixes, wafPolicy = site.WafPolicy, health = siteHealth, pendingRestart = false, upstreams };
         });
         return Results.Ok(result);
     }).Require(Roles.Viewer);
+    app.MapPost("/api/sites/{id}/health", async (string id, SiteRegistry registry, SiteHealthRegistry legacyHealth, IProxyStateLookup proxy, SiteDatabaseStore store, CancellationToken ct) =>
+    {
+        var site = (await store.ListAsync(ct)).FirstOrDefault(x => x.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
+        if (site is null) return Results.NotFound(new { error = $"Site '{id}' was not found" });
+        var active = registry.Current.Sites.FirstOrDefault(x => x.Id.Equals(site.Id, StringComparison.OrdinalIgnoreCase));
+        if (active is null || !SiteConfigurationEditor.AreEquivalent(active, site))
+            return Results.Ok(new { siteId = site.Id, health = "pending-restart", pendingRestart = true, checkedAt = DateTimeOffset.UtcNow, upstreams = site.Upstreams.Select(x => new { id = x.Id, address = x.Address.ToString(), health = "pending-restart" }) });
+
+        proxy.TryGetCluster("site-" + site.Id, out var cluster);
+        var upstreams = site.Upstreams.Select(upstream =>
+        {
+            var yarp = cluster is null ? null : cluster.DestinationsState.AllDestinations.FirstOrDefault(x => x.DestinationId == upstream.Id);
+            var status = yarp is null
+                ? legacyHealth.Get(site.Id, upstream.Id)?.Healthy == false ? "unhealthy" : "unknown"
+                : SiteProxyHealth.Status(yarp.Health.Active.ToString(), yarp.Health.Passive.ToString());
+            return new { id = upstream.Id, address = upstream.Address.ToString(), health = status };
+        }).ToArray();
+        var health = upstreams.Length == 0 ? "invalid" : upstreams.All(x => x.health == "unhealthy") ? "unhealthy" : upstreams.Any(x => x.health == "healthy") ? "healthy" : "unknown";
+        return Results.Ok(new { siteId = site.Id, health, pendingRestart = false, checkedAt = DateTimeOffset.UtcNow, upstreams });
+    }).Require(Roles.Viewer);
+    app.MapPost("/api/sites", async (SiteManagementRequest input, SiteRegistry registry, SiteDatabaseStore store, HttpContext ctx, CancellationToken ct) =>
+    {
+        if (!SiteConfigurationEditor.TryNormalize(input, out var site, out var inputError))
+            return Results.BadRequest(new { error = inputError });
+        try
+        {
+            var inserted = await store.InsertAsync(SiteDatabaseStore.ToGatewaySite(site), ctx.Actor(), ct);
+            return inserted
+                ? Results.Ok(new { siteId = site.Id, requiresRestart = true, message = "Site saved to PostgreSQL. Restart Gateway to activate the route." })
+                : Results.Conflict(new { error = $"Site ID '{site.Id}' already exists" });
+        }
+        catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException)
+        { return Results.Problem("Site could not be saved to PostgreSQL", statusCode: 503); }
+    }).Require(Roles.SecurityAdmin);
+    app.MapPut("/api/sites/{id}", async (string id, SiteManagementRequest input, SiteRegistry registry, SiteDatabaseStore store, HttpContext ctx, CancellationToken ct) =>
+    {
+        if (!SiteConfigurationEditor.TryNormalize(input with { Id = id }, out var site, out var inputError))
+            return Results.BadRequest(new { error = inputError });
+        try
+        {
+            var updated = await store.UpdateAsync(SiteDatabaseStore.ToGatewaySite(site), ctx.Actor(), ct);
+            return updated
+                ? Results.Ok(new { siteId = site.Id, requiresRestart = true, message = "Site updated in PostgreSQL. Restart Gateway to activate the route." })
+                : Results.NotFound(new { error = $"Site '{id}' was not found" });
+        }
+        catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException)
+        { return Results.Problem("Site could not be updated in PostgreSQL", statusCode: 503); }
+    }).Require(Roles.SecurityAdmin);
+    app.MapDelete("/api/sites/{id}", async (string id, SiteRegistry registry, SiteDatabaseStore store, CancellationToken ct) =>
+    {
+        try
+        {
+            var deleted = await store.DeleteAsync(id.Trim().ToLowerInvariant(), ct);
+            return deleted
+                ? Results.Ok(new { siteId = id, requiresRestart = true, message = "Site deleted from PostgreSQL. Restart Gateway to apply the change." })
+                : Results.NotFound(new { error = $"Site '{id}' was not found" });
+        }
+        catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException)
+        { return Results.Problem("Site could not be deleted from PostgreSQL", statusCode: 503); }
+    }).Require(Roles.SecurityAdmin);
     app.MapAuth();
     app.MapGet("/api/ip-policies", (IpAccessPolicy policies) => Results.Ok(policies.List())).Require(Roles.Viewer);
     app.MapPut("/api/ip-policies", async (IpPolicyInput input, IpAccessPolicy policies, IConfiguration cfg, HttpContext ctx, CancellationToken ct) =>
@@ -446,6 +651,7 @@ public static class GatewayApp
         }
         if (threat != null)
         {
+            TrafficTelemetry.Mark(ctx, threat == "Rate Limit" ? TrafficDecision.RateLimited : TrafficDecision.Blocked, threat);
             stats.Record(method, ip, threat);
             events.TryWrite(new SecurityEvent(DateTimeOffset.UtcNow, ip, method, path, threat, 403, ctx.TraceIdentifier,
                 siteContext?.Site.Id, siteContext?.Hostname));
@@ -477,6 +683,7 @@ public static class GatewayApp
         string? leak = null;
         if (capture.Overflowed && failClosedOverflow)
         {
+            TrafficTelemetry.Mark(ctx, TrafficDecision.UpstreamError, "Response Oversize");
             stats.Record(method, ip, "Response Oversize");
             events.TryWrite(new SecurityEvent(DateTimeOffset.UtcNow, ip, method, path, "Response Oversize", 502, ctx.TraceIdentifier,
                 siteContext?.Site.Id, siteContext?.Hostname));
@@ -500,9 +707,9 @@ public static class GatewayApp
             try
             {
                 var bytes = capture.CapturedBuffer.AsSpan(0, capture.CapturedLength);
-                leak = ResponseInspector.IsInspectable(ctx.Response.ContentType)
-                    ? inspector.Inspect(InspectionTextDecoder.Decode(bytes.ToArray()))
-                    : inspector.InspectBytes(bytes);
+                var limits = InspectionLimits.From(cfg) with { MaxCompressedBytes = Math.Clamp(cap, 1, 16 * 1024 * 1024) };
+                leak = inspector.InspectEncoded(bytes, ctx.Response.Headers.ContentEncoding.ToString(), limits,
+                    textual: ResponseInspector.IsInspectable(ctx.Response.ContentType));
             }
             catch (DecoderFallbackException)
             {
@@ -511,6 +718,7 @@ public static class GatewayApp
         }
         if (leak != null)
         {
+            TrafficTelemetry.Mark(ctx, TrafficDecision.UpstreamError, leak);
             stats.Record(method, ip, leak);
             events.TryWrite(new SecurityEvent(DateTimeOffset.UtcNow, ip, method, path, leak, 502, ctx.TraceIdentifier,
                 siteContext?.Site.Id, siteContext?.Hostname));
@@ -557,6 +765,7 @@ public static class GatewayApp
                 : await policy.CheckAsync(destination.Item2, destination.Item3, ctx.RequestAborted);
             if (!decision.Allowed)
             {
+                TrafficTelemetry.Mark(ctx, TrafficDecision.UpstreamError, "SSRF: upstream egress " + decision.ReasonCode);
                 ctx.RequestServices.GetRequiredService<SecurityEvents>().TryWrite(new SecurityEvent(
                     DateTimeOffset.UtcNow, ClientAddress.Resolve(ctx, cfg), ctx.Request.Method, ctx.Request.Path,
                     "SSRF: upstream egress " + decision.ReasonCode, 503, ctx.TraceIdentifier,

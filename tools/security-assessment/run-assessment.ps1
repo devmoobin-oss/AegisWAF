@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path,
+    [string]$RepoRoot = '',
     [string]$OutputDirectory = (Join-Path $PSScriptRoot 'artifacts'),
     [string]$LoadTestTargetUri = '',
     [switch]$SkipTests,
@@ -12,6 +12,9 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
+    $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
+}
 $RepoRoot = (Resolve-Path $RepoRoot).Path
 New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
 
@@ -96,7 +99,7 @@ function Run-External([string]$name, [string]$toolName, [string[]]$arguments, [s
 if ($SkipTests) {
     Add-Result 'dotnet tests' 'not_run' 'dotnet' 'skipped by parameter' -1 'Skipped by -SkipTests.' 0
 } else {
-    Run-External 'dotnet tests' 'dotnet' @('test', (Join-Path $RepoRoot 'tests\AegisWAF.Tests\AegisWAF.Tests.csproj'), '--no-restore', '--logger', 'console;verbosity=minimal') -ClassifyInfrastructureFailure
+    Run-External 'dotnet tests' 'dotnet' @('test', (Join-Path $RepoRoot 'tests\AegisWAF.Tests\AegisWAF.Tests.csproj'), '--configuration', 'Release', '--no-restore', '--logger', 'console;verbosity=minimal') -ClassifyInfrastructureFailure
 }
 
 if ($SkipDependencyScan) {

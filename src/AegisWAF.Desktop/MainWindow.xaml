@@ -28,6 +28,7 @@
                 <StackPanel Grid.Row="1" Margin="10,16,10,0">
                     <RadioButton x:Name="NavOwasp" Style="{StaticResource NavButton}" Tag="&#xE72E;" Content="OWASP Top 10" GroupName="nav" Checked="OnNav"/>
                     <RadioButton x:Name="NavDashboard" Style="{StaticResource NavButton}" Tag="&#xE80F;" Content="ภาพรวม" GroupName="nav" IsChecked="True" Checked="OnNav"/>
+                    <RadioButton x:Name="NavCommandCenter" Style="{StaticResource NavButton}" Tag="&#xE9D9;" Content="Security Command Center" GroupName="nav" Checked="OnNav"/>
                     <RadioButton x:Name="NavEvents" Style="{StaticResource NavButton}" Tag="&#xE7BA;" Content="เหตุการณ์ที่ถูกบล็อก" GroupName="nav" Checked="OnNav"/>
                     <RadioButton x:Name="NavRules" Style="{StaticResource NavButton}" Tag="&#xE72E;" Content="กฎการป้องกัน" GroupName="nav" Checked="OnNav"/>
                     <RadioButton x:Name="NavProtect" Style="{StaticResource NavButton}" Tag="&#xE946;" Content="ระบบป้องกันอะไรได้บ้าง" GroupName="nav" Checked="OnNav"/>
