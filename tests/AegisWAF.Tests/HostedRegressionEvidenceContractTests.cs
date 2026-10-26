@@ -13,6 +13,7 @@ public sealed class HostedRegressionEvidenceContractTests
         Assert.Contains("verify-trx-results.py", workflow, StringComparison.Ordinal);
         Assert.Contains("TestResults", workflow, StringComparison.Ordinal);
         Assert.Contains("if: always()", workflow, StringComparison.Ordinal);
+        Assert.Contains("pull-requests: read", workflow, StringComparison.Ordinal);
         Assert.Contains("notExecuted", verifier, StringComparison.Ordinal);
         Assert.Contains("failed", verifier, StringComparison.Ordinal);
         Assert.Contains("total", verifier, StringComparison.Ordinal);
