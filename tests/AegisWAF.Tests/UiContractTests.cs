@@ -104,7 +104,7 @@ public sealed class UiContractTests
         Assert.Contains("api/sites/{Uri.EscapeDataString(id)}/health", client);
         Assert.Contains("GetSiteHealthSummaryAsync", code);
         Assert.Contains("AcknowledgeSiteHealthAlertAsync", code);
-        Assert.Contains("summary.Sites", code);
+        Assert.Contains("Sites.ToDictionary", code);
         Assert.DoesNotContain("GetSiteHealthTrendAsync", code);
         Assert.Contains("Trend", xaml);
         Assert.Contains("AlertText", code);

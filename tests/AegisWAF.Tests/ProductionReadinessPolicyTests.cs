@@ -37,7 +37,7 @@ public sealed class ProductionReadinessPolicyTests
         ["Auth:Throttle:WindowMinutes"] = "15",
         ["Auth:Throttle:MaxEntries"] = "10000",
         ["ConnectionStrings:Postgres"] = "Host=db;Database=aegiswaf;Username=aegiswaf_runtime",
-        ["Security:DataProtection:KeyRingPath"] = "C:\\ProgramData\\AegisWAF\\keys",
+        ["Security:DataProtection:KeyRingPath"] = Path.Combine(Path.GetTempPath(), "AegisWAF", "keys"),
         ["Waf:Inspection:MaxCompressedBytes"] = "131072",
         ["Waf:Inspection:MaxDecompressedBytes"] = "1048576",
         ["Waf:Inspection:MaxExpansionRatio"] = "100",
@@ -51,16 +51,28 @@ public sealed class ProductionReadinessPolicyTests
         ["Waf:Egress:AllowPrivateExceptions"] = "false"
     };
 
+    private static Dictionary<string, string?> SecureValuesForCurrentPlatform()
+    {
+        var values = SecureValues();
+        if (!OperatingSystem.IsWindows())
+        {
+            values["Security:DataProtection:CertificatePath"] = "/etc/aegiswaf/certs/data-protection.pfx";
+            values["Security:DataProtection:CertificatePassword"] = "test-only-password";
+        }
+
+        return values;
+    }
+
     [Fact]
     public void Explicit_production_enforcement_accepts_secure_configuration()
     {
-        Assert.Empty(ProductionReadinessPolicy.Validate(Config(SecureValues())));
+        Assert.Empty(ProductionReadinessPolicy.Validate(Config(SecureValuesForCurrentPlatform())));
     }
 
     [Fact]
     public void Production_requires_an_absolute_data_protection_key_ring_path()
     {
-        var values = SecureValues();
+        var values = SecureValuesForCurrentPlatform();
         values.Remove("Security:DataProtection:KeyRingPath");
 
         var errors = ProductionReadinessPolicy.Validate(Config(values));
@@ -71,7 +83,7 @@ public sealed class ProductionReadinessPolicyTests
     [Fact]
     public void Production_rejects_disabled_binary_request_inspection()
     {
-        var values = SecureValues();
+        var values = SecureValuesForCurrentPlatform();
         values["Waf:InspectBinaryRequests"] = "false";
 
         var errors = ProductionReadinessPolicy.Validate(Config(values));
@@ -82,7 +94,7 @@ public sealed class ProductionReadinessPolicyTests
     [Fact]
     public void Explicit_production_enforcement_rejects_insecure_defaults()
     {
-        var values = SecureValues();
+        var values = SecureValuesForCurrentPlatform();
         values["Database:RequireLeastPrivilege"] = "false";
         values["Database:AutoMigrate"] = "true";
         values["Waf:AllowUnsafeMethods"] = "true";
@@ -106,7 +118,7 @@ public sealed class ProductionReadinessPolicyTests
     [Fact]
     public void Production_rejects_proxy_destinations_with_embedded_credentials_or_bad_scheme()
     {
-        var values = SecureValues();
+        var values = SecureValuesForCurrentPlatform();
         values["ReverseProxy:Clusters:app:Destinations:one:Address"] = "ftp://user:pass@example.test/";
 
         var errors = ProductionReadinessPolicy.Validate(Config(values));
@@ -117,7 +129,7 @@ public sealed class ProductionReadinessPolicyTests
     [Fact]
     public void Production_accepts_explicit_http_proxy_destination_without_credentials()
     {
-        var values = SecureValues();
+        var values = SecureValuesForCurrentPlatform();
         values["ReverseProxy:Clusters:app:Destinations:one:Address"] = "https://origin.example.test/";
 
         Assert.Empty(ProductionReadinessPolicy.Validate(Config(values)));
