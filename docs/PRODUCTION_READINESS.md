@@ -15,6 +15,7 @@
 - New audit rows use `prev_hash` and `entry_hash` SHA-256 chaining.
 - Analysts can query `/api/audit/integrity` to detect a broken chain.
 - `/health` is liveness-only; `/ready` verifies PostgreSQL connectivity before traffic should be admitted.
+- `/ready` also checks the PostgreSQL Site-runtime listener; reconnecting is reported as degraded and a stopped listener is unhealthy, without exposing connection details.
 - `/ready` also verifies every enabled explicit Site has a YARP cluster with at least one destination that is not marked unhealthy by either active or passive health checks; unknown destinations remain eligible during initial probing.
 - Compressed request bodies and protocol upgrades are denied by default because the WAF cannot inspect them safely; enable `Waf:AllowProtocolUpgrade` only for a dedicated, tested route.
 - An opt-in fail-closed deployment gate is available with `Waf:Deployment:Enforce=true`; it rejects auto-migration, superuser database roles, unsafe methods, unsafe upgrades, missing rate-limit bounds, and wildcard hosts for remote administration.
@@ -29,6 +30,9 @@
 - Rate limiting supports both per-client and global rolling-window ceilings. Production uses the PostgreSQL shared store so multiple WAF instances enforce one common limit; run migration `008_rate_limit_buckets.sql` before enabling traffic.
 - `/ready` verifies the shared rate-limit table exists when `Store=postgres`; traffic should not be admitted until this migration check is healthy.
 - Security events are emitted as structured `aegiswaf.security_event` JSON logs with client, request, status and OWASP mapping fields, allowing a SIEM/agent to ingest events even when database persistence is temporarily unavailable.
+- Security-event persistence uses a bounded queue and configurable batch transaction (`Waf:Events:QueueCapacity`, `BatchSize`, `FlushMilliseconds`); the `eventDelivery` field in `/api/overview` exposes queue depth, persisted count and persistence failures, while dropped events remain fail-visible through `WAF_SECURITY_EVENT_DROPPED`.
+- Security-event retention is bounded and server-clock based: `Waf:Events:RetentionHours` controls expiry (1–8760 hours) and `CleanupIntervalSeconds` controls cleanup cadence (60–86400 seconds). `/api/overview.securityEventRetention` reports active/disabled/degraded state, last cleanup and deleted-row count. Retention is independent of SIEM delivery; external SIEM remains the long-term archive.
+- PostgreSQL Site runtime convergence exposes a redacted `siteRuntimeListener` status in `/api/overview` (`state`, connection attempts, connected/disconnected/reload timestamps and exception type only). It is diagnostic state, not proof that an upstream is healthy; use `/ready` and per-Site health for those gates.
 - Standalone Windows hosting uses an explicit console logging provider instead of an implicit EventLog sink, so EventLog source permissions cannot crash `EventWriter` and stop security-event processing.
 - Production deployments must provide `Security:DataProtection:KeyRingPath` as an absolute persistent directory; the Gateway persists keys there and protects them with Windows DPAPI. On non-Windows hosts, also provide an absolute `Security:DataProtection:CertificatePath` and secret `CertificatePassword`. Do not reuse a user-profile key ring across service identities.
 - Production `/ready` includes a Data Protection protect/unprotect round-trip; an unreadable key ring or failed DPAPI/certificate operation keeps the instance out of readiness.

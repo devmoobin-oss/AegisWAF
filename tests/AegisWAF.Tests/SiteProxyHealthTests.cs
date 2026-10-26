@@ -20,4 +20,12 @@ public sealed class SiteProxyHealthTests
         Assert.True(SiteProxyHealth.IsAvailable("Unknown", "Unknown"));
         Assert.False(SiteProxyHealth.IsAvailable("Unhealthy", "Unhealthy"));
     }
+
+    [Fact]
+    public void Readiness_can_require_a_known_healthy_destination()
+    {
+        Assert.False(SiteProxyHealth.IsAvailable("Unknown", "Unknown", requireKnownHealthy: true));
+        Assert.True(SiteProxyHealth.IsAvailable("Healthy", "Unknown", requireKnownHealthy: true));
+        Assert.False(SiteProxyHealth.IsAvailable("Unhealthy", "Healthy", requireKnownHealthy: true));
+    }
 }

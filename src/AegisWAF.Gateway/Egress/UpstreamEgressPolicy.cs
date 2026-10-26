@@ -116,7 +116,10 @@ internal sealed class UpstreamEgressPolicy(UpstreamEgressOptions options, IUpstr
     private static UpstreamEgressDecision CheckAddress(IPAddress address, bool allowPrivate)
     {
         if (address.IsIPv4MappedToIPv6) address = address.MapToIPv4();
-        if (IPAddress.IsLoopback(address)) return new(false, "loopback_target", address.ToString());
+        // Loopback remains denied by default, but an explicit private-destination
+        // exception is meaningful for reviewed development/test integrations. The
+        // Production readiness gate rejects this flag, so production cannot opt in.
+        if (IPAddress.IsLoopback(address) && !allowPrivate) return new(false, "loopback_target", address.ToString());
         if (address.AddressFamily == AddressFamily.InterNetwork)
         {
             var b = address.GetAddressBytes();

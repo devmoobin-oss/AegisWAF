@@ -35,6 +35,19 @@ public sealed class UpstreamEgressPolicyTests
     }
 
     [Fact]
+    public async Task Explicit_private_exception_can_allow_loopback_only_outside_production()
+    {
+        var policy = new UpstreamEgressPolicy(
+            new UpstreamEgressOptions(["127.0.0.1"], [8080], ["http"], AllowPrivateExceptions: true),
+            new FakeResolver([]));
+
+        var result = await policy.CheckConnectionAsync("127.0.0.1", 8080);
+
+        Assert.True(result.Allowed);
+        Assert.Equal("127.0.0.1", result.ResolvedAddress);
+    }
+
+    [Fact]
     public async Task DNS_answer_change_to_private_is_rejected_on_each_check()
     {
         var resolver = new FakeResolver(new Dictionary<string, IPAddress[]>

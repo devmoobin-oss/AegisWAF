@@ -10,6 +10,11 @@ on:
         description: Authorized synthetic/staging target URI (leave blank to skip)
         required: false
         type: string
+      publish_desktop:
+        description: Build and upload an opt-in self-contained Desktop bundle with a provenance manifest
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -49,7 +54,33 @@ jobs:
       - name: Restore
         run: dotnet restore tests/AegisWAF.Tests/AegisWAF.Tests.csproj
       - name: Test
-        run: dotnet test tests/AegisWAF.Tests/AegisWAF.Tests.csproj --configuration Release --no-restore --logger "console;verbosity=minimal"
+        run: >-
+          dotnet test tests/AegisWAF.Tests/AegisWAF.Tests.csproj
+          --configuration Release
+          --no-restore
+          --logger "console;verbosity=minimal"
+          --logger "trx;LogFileName=full-regression.trx"
+          --results-directory TestResults
+      - name: Verify full regression counters
+        if: always()
+        run: python3 tools/ci/verify-trx-results.py --path TestResults/full-regression.trx
+      - name: Upload .NET test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aegiswaf-dotnet-test-results-${{ github.sha }}
+          path: TestResults
+          if-no-files-found: warn
+
+  direct-origin-exposure:
+    name: Direct origin exposure guardrail
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Verify loopback origin contract
+        shell: pwsh
+        run: ./tools/security/test-loopback-origin.ps1
 
   dependency-audit:
     name: Dependency vulnerability audit
@@ -115,6 +146,53 @@ jobs:
         with:
           name: aegiswaf-sbom
           path: aegiswaf-sbom.cyclonedx.json
+
+  release-provenance:
+    name: Desktop release provenance
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_desktop == true }}
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Restore Desktop
+        run: dotnet restore src/AegisWAF.Desktop/AegisWAF.Desktop.csproj
+      - name: Publish self-contained Desktop bundle
+        shell: pwsh
+        run: >-
+          dotnet publish src/AegisWAF.Desktop/AegisWAF.Desktop.csproj
+          --configuration Release
+          --runtime win-x64
+          --self-contained true
+          --no-restore
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -o "${env:RUNNER_TEMP}\AegisWAF-Desktop"
+      - name: Write release provenance manifest
+        shell: pwsh
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass
+          -File .\tools\release\Write-ReleaseManifest.ps1
+          -InputDirectory "${env:RUNNER_TEMP}\AegisWAF-Desktop"
+          -OutputPath "${env:RUNNER_TEMP}\AegisWAF-Desktop\release-manifest.json"
+          -RepositoryRoot "${env:GITHUB_WORKSPACE}"
+          -BuildCommand "dotnet publish src/AegisWAF.Desktop/AegisWAF.Desktop.csproj --configuration Release --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true"
+          -TargetFramework net10.0-windows
+          -RuntimeIdentifier win-x64
+          -RequireCleanGit
+      - name: Upload Desktop bundle and provenance
+        uses: actions/upload-artifact@v4
+        with:
+          name: aegiswaf-desktop-release-${{ github.sha }}
+          path: ${{ runner.temp }}/AegisWAF-Desktop
+          if-no-files-found: error
 
   authorized-load-test:
     name: Authorized security load test

@@ -6,6 +6,7 @@ using System.Net;
 using System.Text.RegularExpressions;
 using System.Threading.Channels;
 using Npgsql;
+using NpgsqlTypes;
 using AegisWAF.Gateway;
 using AegisWAF.Gateway.Auth;
 using AegisWAF.Gateway.Infrastructure;
@@ -607,55 +608,248 @@ sealed class TrafficCounters
 }
 record SecurityEvent(DateTimeOffset Timestamp, string Ip, string Method, string Path, string Rule, int Status, string? RequestId = null,
     string? SiteId = null, string? Hostname = null, string? UpstreamId = null);
-sealed class SecurityEvents(ILogger<SecurityEvents> logger)
+sealed class SecurityEvents
 {
-    private readonly Channel<SecurityEvent> _queue = Channel.CreateBounded<SecurityEvent>(new BoundedChannelOptions(10000)
-    { FullMode = BoundedChannelFullMode.Wait, SingleReader = true });
+    private readonly ILogger<SecurityEvents> _logger;
+    private readonly int _queueCapacity;
+    private readonly Channel<SecurityEvent> _queue;
     private readonly ConcurrentQueue<SecurityEvent> _recent = new();
+    private long _queued;
     private long _dropped;
+    private long _persisted;
+    private long _persistenceFailures;
+    public SecurityEvents(ILogger<SecurityEvents> logger, IConfiguration config)
+    {
+        _logger = logger;
+        _queueCapacity = Math.Clamp(config.GetValue("Waf:Events:QueueCapacity", 10_000), 1, 100_000);
+        _queue = Channel.CreateBounded<SecurityEvent>(new BoundedChannelOptions(_queueCapacity)
+        { FullMode = BoundedChannelFullMode.Wait, SingleReader = true, SingleWriter = false });
+    }
+    public int QueueCapacity => _queueCapacity;
+    public long QueueDepth => Math.Max(0, Interlocked.Read(ref _queued));
     public long Dropped => Interlocked.Read(ref _dropped);
+    public long Persisted => Interlocked.Read(ref _persisted);
+    public long PersistenceFailures => Interlocked.Read(ref _persistenceFailures);
     public bool TryWrite(SecurityEvent item)
     {
         _recent.Enqueue(item);
         while (_recent.Count > 100 && _recent.TryDequeue(out _)) { }
-        if (_queue.Writer.TryWrite(item)) return true;
+        if (_queue.Writer.TryWrite(item))
+        {
+            Interlocked.Increment(ref _queued);
+            return true;
+        }
         var dropped = Interlocked.Increment(ref _dropped);
         if (dropped == 1 || dropped % 100 == 0)
-            logger.LogError("WAF_SECURITY_EVENT_DROPPED {DroppedCount} {SecurityEvent}", dropped, SecurityEventLogFormatter.Format(item));
+            _logger.LogError("WAF_SECURITY_EVENT_DROPPED {DroppedCount} {SecurityEvent}", dropped, SecurityEventLogFormatter.Format(item));
         return false;
     }
     public object Recent() => _recent.Reverse().Take(20).Select(x => new { time = x.Timestamp, ip = x.Ip, method = x.Method, path = x.Path, rule = x.Rule, status = x.Status, owaspCodes = OwaspCatalog.ForRule(x.Rule).Codes });
-    public IAsyncEnumerable<SecurityEvent> ReadAll(CancellationToken token) => _queue.Reader.ReadAllAsync(token);
+    public async Task<IReadOnlyList<SecurityEvent>> ReadBatchAsync(int maxBatch, TimeSpan flushWindow, CancellationToken token)
+    {
+        if (maxBatch < 1) throw new ArgumentOutOfRangeException(nameof(maxBatch));
+        if (flushWindow <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(flushWindow));
+        if (!await _queue.Reader.WaitToReadAsync(token)) return [];
+
+        var batch = new List<SecurityEvent>(Math.Min(maxBatch, 256));
+        Drain(batch, maxBatch);
+        if (batch.Count >= maxBatch) return batch;
+
+        using var window = CancellationTokenSource.CreateLinkedTokenSource(token);
+        window.CancelAfter(flushWindow);
+        try
+        {
+            while (batch.Count < maxBatch && await _queue.Reader.WaitToReadAsync(window.Token))
+                Drain(batch, maxBatch);
+        }
+        catch (OperationCanceledException) when (!token.IsCancellationRequested) { }
+        return batch;
+    }
+    private void Drain(List<SecurityEvent> batch, int maxBatch)
+    {
+        while (batch.Count < maxBatch && _queue.Reader.TryRead(out var item))
+        {
+            Interlocked.Decrement(ref _queued);
+            batch.Add(item);
+        }
+    }
+    internal void RecordPersisted(int count) => Interlocked.Add(ref _persisted, count);
+    internal void RecordPersistenceFailure() => Interlocked.Increment(ref _persistenceFailures);
 }
 sealed class EventWriter(SecurityEvents events, IConfiguration config, ILogger<EventWriter> logger) : BackgroundService
 {
+    private int BatchSize => Math.Clamp(config.GetValue("Waf:Events:BatchSize", 100), 1, 1_000);
+    private TimeSpan FlushWindow => TimeSpan.FromMilliseconds(Math.Clamp(config.GetValue("Waf:Events:FlushMilliseconds", 250), 10, 5_000));
+
     protected override async Task ExecuteAsync(CancellationToken token)
     {
         var connection = config.GetConnectionString("Postgres");
         if (string.IsNullOrWhiteSpace(connection)) { logger.LogWarning("No PostgreSQL connection configured"); return; }
-        await foreach (var item in events.ReadAll(token))
+        while (!token.IsCancellationRequested)
         {
-            if (config.GetValue("Waf:Events:StructuredLogging", true))
-                logger.LogWarning("WAF_SECURITY_EVENT {SecurityEvent}", SecurityEventLogFormatter.Format(item));
+            IReadOnlyList<SecurityEvent> batch;
             try
             {
-                await using var db = new NpgsqlConnection(connection);
-                await db.OpenAsync(token);
-                await using var cmd = new NpgsqlCommand("INSERT INTO security_events (occurred_at,client_ip,http_method,request_path,rule_name,status_code,site_id,hostname,upstream_id) VALUES (@t,@ip,@m,@p,@r,@s,@site,@host,@upstream)", db);
-                cmd.Parameters.AddWithValue("t", item.Timestamp);
-                cmd.Parameters.AddWithValue("ip", item.Ip);
-                cmd.Parameters.AddWithValue("m", item.Method);
-                cmd.Parameters.AddWithValue("p", item.Path);
-                cmd.Parameters.AddWithValue("r", item.Rule);
-                cmd.Parameters.AddWithValue("s", item.Status);
-                cmd.Parameters.AddWithValue("site", (object?)item.SiteId ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("host", (object?)item.Hostname ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("upstream", (object?)item.UpstreamId ?? DBNull.Value);
-                await cmd.ExecuteNonQueryAsync(token);
+                batch = await events.ReadBatchAsync(BatchSize, FlushWindow, token);
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested) { break; }
-            catch (Exception ex) { logger.LogError(ex, "Security event persistence failed"); }
+            if (batch.Count == 0) continue;
+
+            if (config.GetValue("Waf:Events:StructuredLogging", true))
+                foreach (var item in batch)
+                    logger.LogWarning("WAF_SECURITY_EVENT {SecurityEvent}", SecurityEventLogFormatter.Format(item));
+
+            try
+            {
+                await PersistBatchAsync(connection, batch, token);
+                events.RecordPersisted(batch.Count);
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested) { break; }
+            catch (Exception ex)
+            {
+                events.RecordPersistenceFailure();
+                logger.LogError(ex, "Security event batch persistence failed for {BatchSize} events", batch.Count);
+            }
         }
+    }
+
+    private static async Task PersistBatchAsync(string connection, IReadOnlyList<SecurityEvent> batch, CancellationToken token)
+    {
+        await using var db = new NpgsqlConnection(connection);
+        await db.OpenAsync(token);
+        await using var tx = await db.BeginTransactionAsync(token);
+        await using var cmd = new NpgsqlCommand(
+            "INSERT INTO security_events (occurred_at,client_ip,http_method,request_path,rule_name,status_code,site_id,hostname,upstream_id) VALUES (@t,@ip,@m,@p,@r,@s,@site,@host,@upstream)", db, tx);
+        var timestamp = cmd.Parameters.Add("t", NpgsqlDbType.TimestampTz);
+        var ip = cmd.Parameters.Add("ip", NpgsqlDbType.Text);
+        var method = cmd.Parameters.Add("m", NpgsqlDbType.Text);
+        var path = cmd.Parameters.Add("p", NpgsqlDbType.Text);
+        var rule = cmd.Parameters.Add("r", NpgsqlDbType.Text);
+        var status = cmd.Parameters.Add("s", NpgsqlDbType.Integer);
+        var site = cmd.Parameters.Add("site", NpgsqlDbType.Text);
+        var host = cmd.Parameters.Add("host", NpgsqlDbType.Text);
+        var upstream = cmd.Parameters.Add("upstream", NpgsqlDbType.Text);
+        foreach (var item in batch)
+        {
+            timestamp.Value = item.Timestamp;
+            ip.Value = item.Ip;
+            method.Value = item.Method;
+            path.Value = item.Path;
+            rule.Value = item.Rule;
+            status.Value = item.Status;
+            site.Value = (object?)item.SiteId ?? DBNull.Value;
+            host.Value = (object?)item.Hostname ?? DBNull.Value;
+            upstream.Value = (object?)item.UpstreamId ?? DBNull.Value;
+            await cmd.ExecuteNonQueryAsync(token);
+        }
+        await tx.CommitAsync(token);
+    }
+}
+
+sealed record SecurityEventRetentionOptions(int RetentionHours, int CleanupIntervalSeconds)
+{
+    public static SecurityEventRetentionOptions From(IConfiguration configuration) => new(
+        Math.Clamp(configuration.GetValue("Waf:Events:RetentionHours", 168), 1, 8_760),
+        Math.Clamp(configuration.GetValue("Waf:Events:CleanupIntervalSeconds", 3_600), 60, 86_400));
+}
+
+sealed record SecurityEventRetentionSnapshot(
+    string State,
+    int RetentionHours,
+    int CleanupIntervalSeconds,
+    DateTimeOffset? LastCleanupAt,
+    long LastDeleted,
+    long CleanupFailures);
+
+sealed class SecurityEventRetentionStatus(SecurityEventRetentionOptions options)
+{
+    private readonly object _gate = new();
+    private string _state = "starting";
+    private DateTimeOffset? _lastCleanupAt;
+    private long _lastDeleted;
+    private long _cleanupFailures;
+
+    public SecurityEventRetentionSnapshot Current
+    {
+        get
+        {
+            lock (_gate)
+                return new(_state, options.RetentionHours, options.CleanupIntervalSeconds,
+                    _lastCleanupAt, _lastDeleted, _cleanupFailures);
+        }
+    }
+
+    internal void MarkDisabled()
+    {
+        lock (_gate) _state = "disabled";
+    }
+
+    internal void MarkSuccess(long deleted)
+    {
+        lock (_gate)
+        {
+            _state = "active";
+            _lastCleanupAt = DateTimeOffset.UtcNow;
+            _lastDeleted = deleted;
+        }
+    }
+
+    internal void MarkFailure()
+    {
+        lock (_gate)
+        {
+            _state = "degraded";
+            _cleanupFailures = Math.Min(_cleanupFailures + 1, 1_000_000);
+        }
+    }
+}
+
+sealed class SecurityEventRetentionWorker(
+    IConfiguration config,
+    SecurityEventRetentionStatus status,
+    ILogger<SecurityEventRetentionWorker> logger) : BackgroundService
+{
+    private readonly SecurityEventRetentionOptions _options = SecurityEventRetentionOptions.From(config);
+
+    protected override async Task ExecuteAsync(CancellationToken token)
+    {
+        var connection = config.GetConnectionString("Postgres");
+        if (string.IsNullOrWhiteSpace(connection))
+        {
+            status.MarkDisabled();
+            logger.LogInformation("Security event retention disabled because PostgreSQL is not configured");
+            return;
+        }
+
+        while (!token.IsCancellationRequested)
+        {
+            try
+            {
+                var deleted = await DeleteExpiredAsync(connection, TimeSpan.FromHours(_options.RetentionHours), token);
+                status.MarkSuccess(deleted);
+                logger.LogInformation("Security event retention cleanup deleted {Deleted} rows", deleted);
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested) { break; }
+            catch (Exception ex)
+            {
+                status.MarkFailure();
+                logger.LogError(ex, "Security event retention cleanup failed");
+            }
+
+            try { await Task.Delay(TimeSpan.FromSeconds(_options.CleanupIntervalSeconds), token); }
+            catch (OperationCanceledException) when (token.IsCancellationRequested) { break; }
+        }
+    }
+
+    internal static async Task<long> DeleteExpiredAsync(string connection, TimeSpan retention, CancellationToken token)
+    {
+        if (string.IsNullOrWhiteSpace(connection)) throw new ArgumentException("PostgreSQL connection is required.", nameof(connection));
+        if (retention <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(retention));
+        await using var db = new NpgsqlConnection(connection);
+        await db.OpenAsync(token);
+        await using var command = new NpgsqlCommand("DELETE FROM security_events WHERE occurred_at < (now() - @retention)", db);
+        command.Parameters.Add("retention", NpgsqlDbType.Interval).Value = retention;
+        return await command.ExecuteNonQueryAsync(token);
     }
 }
 

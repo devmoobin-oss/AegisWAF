@@ -48,7 +48,9 @@ public class EmbeddedGatewayTests(GatewayFixture fx)
             using var api = new ApiClient(gatewayUrl);
             await api.LoginAsync(GatewayFixture.AdminUser, GatewayFixture.AdminPassword);
             var health = await api.CheckSiteHealthAsync(siteId);
-            Assert.Equal("healthy", health.Health);
+            Assert.Equal("unhealthy", health.Health);
+            Assert.True(health.Fresh);
+            Assert.Equal("active-probe", health.Source);
             using var client = new HttpClient(new HttpClientHandler
                 { AllowAutoRedirect = false, AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Brotli | DecompressionMethods.Deflate }) { BaseAddress = gatewayUrl };
             using var message = new HttpRequestMessage(HttpMethod.Get, "/donsak-i")
@@ -72,7 +74,8 @@ public class EmbeddedGatewayTests(GatewayFixture fx)
             .AddInMemoryCollection(new Dictionary<string, string?> { ["ConnectionStrings:Postgres"] = fx.ConnectionString })
             .Build();
         var store = new SiteDatabaseStore(config);
-        var site = new GatewaySite(siteId, true, ["127.0.0.1"], ["/"],
+        var hostname = siteId + ".test";
+        var site = new GatewaySite(siteId, true, [hostname], ["/"],
             [new SiteUpstream("primary", upstream.Url)], "default", new SiteRateLimitPolicy(),
             new SiteEgressPolicy(["127.0.0.1"], [upstream.Url.Port], ["http"]));
         Assert.True(await store.InsertAsync(site, "telemetry-test", default));
@@ -81,18 +84,23 @@ public class EmbeddedGatewayTests(GatewayFixture fx)
         try
         {
             await using var gw = new EmbeddedGateway();
-            await gw.StartAsync(new EmbeddedGatewayOptions(gatewayUrl, fx.ConnectionString, null, null));
+            await gw.StartAsync(new EmbeddedGatewayOptions(gatewayUrl, fx.ConnectionString, null, null, null,
+                new Dictionary<string, string?> { ["AllowedHosts"] = "*" }));
 
             using var client = new HttpClient { BaseAddress = gatewayUrl };
-            using var response = await client.GetAsync("/command-center-probe");
-            var record = Assert.Single(gw.Telemetry!.Query(new TrafficQuery(10)));
+            using var request = new HttpRequestMessage(HttpMethod.Get, "/command-center-probe") { Headers = { Host = hostname } };
+            using var response = await client.SendAsync(request);
+            var responseBody = await response.Content.ReadAsStringAsync();
+            var records = gw.Telemetry!.Query(new TrafficQuery(10));
+            Assert.True(records.Count == 1, $"status={(int)response.StatusCode}; body={responseBody}; records={records.Count}");
+            var record = records.Single();
 
             Assert.Equal((int)response.StatusCode, record.StatusCode);
             Assert.Equal("/command-center-probe", record.Path);
             Assert.Equal(TrafficDecision.Allowed, record.Decision);
             Assert.Equal(siteId, record.SiteId);
             Assert.Equal("primary", record.UpstreamId);
-            Assert.DoesNotContain("?", record.Path);
+            Assert.True(!record.Path.Contains('?', StringComparison.Ordinal), $"Unexpected query marker in path [{record.Path}]");
         }
         finally { await store.DeleteAsync(siteId, default); }
     }
@@ -106,7 +114,8 @@ public class EmbeddedGatewayTests(GatewayFixture fx)
             .AddInMemoryCollection(new Dictionary<string, string?> { ["ConnectionStrings:Postgres"] = fx.ConnectionString })
             .Build();
         var store = new SiteDatabaseStore(config);
-        var site = new GatewaySite(siteId, true, ["127.0.0.1"], ["/"],
+        var hostname = siteId + ".test";
+        var site = new GatewaySite(siteId, true, [hostname], ["/"],
             [new SiteUpstream("primary", upstream.Url)], "default", new SiteRateLimitPolicy(),
             new SiteEgressPolicy(["127.0.0.1"], [upstream.Url.Port], ["http"]));
         Assert.True(await store.InsertAsync(site, "telemetry-test", default));
@@ -115,17 +124,20 @@ public class EmbeddedGatewayTests(GatewayFixture fx)
         {
             var gatewayUrl = FreeUrl();
             await using var gw = new EmbeddedGateway();
-            await gw.StartAsync(new EmbeddedGatewayOptions(gatewayUrl, fx.ConnectionString, null, null));
+            await gw.StartAsync(new EmbeddedGatewayOptions(gatewayUrl, fx.ConnectionString, null, null, null,
+                new Dictionary<string, string?> { ["AllowedHosts"] = "*" }));
 
             using var client = new HttpClient { BaseAddress = gatewayUrl };
             using var request = new HttpRequestMessage(HttpMethod.Get, "/blocked?q=1%20union%20select%201");
+            request.Headers.Host = hostname;
             var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
             var status = response.StatusCode;
+            var responseBody = await response.Content.ReadAsStringAsync();
             response.Dispose();
             for (var i = 0; i < 20 && gw.Telemetry!.Query(new TrafficQuery(10)).Count == 0; i++)
                 await Task.Delay(10);
             var records = gw.Telemetry!.Query(new TrafficQuery(10));
-            Assert.True(records.Count > 0, $"status={status}; logs={gw.RecentLog}");
+            Assert.True(records.Count > 0, $"status={status}; logs={gw.RecentLog}; body={responseBody}");
             var record = Assert.Single(records);
 
             Assert.Equal(HttpStatusCode.Forbidden, status);
@@ -147,7 +159,8 @@ public class EmbeddedGatewayTests(GatewayFixture fx)
             .Build();
         var store = new SiteDatabaseStore(config);
         var upstreamBase = new Uri(upstream.Url, "a/");
-        var site = new GatewaySite(siteId, true, ["127.0.0.1"], ["/"],
+        var hostname = siteId + ".test";
+        var site = new GatewaySite(siteId, true, [hostname], ["/"],
             [new SiteUpstream("primary", upstreamBase)], "default", new SiteRateLimitPolicy(),
             new SiteEgressPolicy(["127.0.0.1"], [upstreamBase.Port], ["http"]));
         Assert.True(await store.InsertAsync(site, "e2e-test", default));
@@ -156,13 +169,15 @@ public class EmbeddedGatewayTests(GatewayFixture fx)
         {
             var gatewayUrl = FreeUrl();
             await using var gw = new EmbeddedGateway();
-            await gw.StartAsync(new EmbeddedGatewayOptions(gatewayUrl, fx.ConnectionString, null, null));
+            await gw.StartAsync(new EmbeddedGatewayOptions(gatewayUrl, fx.ConnectionString, null, null, null,
+                new Dictionary<string, string?> { ["AllowedHosts"] = "*" }));
 
             using var client = new HttpClient { BaseAddress = gatewayUrl };
-            using var response = await client.GetAsync("/a/");
+            using var request = new HttpRequestMessage(HttpMethod.Get, "/a/") { Headers = { Host = hostname } };
+            using var response = await client.SendAsync(request);
             var body = await response.Content.ReadAsStringAsync();
 
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.True(response.StatusCode == HttpStatusCode.OK, body);
             Assert.Equal("site-upstream", body);
 
             using var api = new ApiClient(gatewayUrl);
@@ -313,7 +328,7 @@ public class EmbeddedGatewayTests(GatewayFixture fx)
                 ["Sites:beta:PathPrefixes:0"] = "/",
                 ["Sites:beta:WafPolicy"] = "default",
                 ["Sites:beta:Upstreams:one:Address"] = upstream.Url.ToString()
-            }));
+            }, PreferConfigurationSites: true));
 
         using var client = new HttpClient { BaseAddress = url };
         const string payload = "%3Cscript%3Ealert(1)%3C%2Fscript%3E";
@@ -325,7 +340,7 @@ public class EmbeddedGatewayTests(GatewayFixture fx)
         using var alphaResponse = await client.SendAsync(alpha);
         using var betaResponse = await client.SendAsync(beta);
 
-        Assert.Equal(HttpStatusCode.OK, alphaResponse.StatusCode);
+        Assert.True(alphaResponse.StatusCode == HttpStatusCode.OK, await alphaResponse.Content.ReadAsStringAsync());
         Assert.Equal(HttpStatusCode.Forbidden, betaResponse.StatusCode);
     }
 
@@ -343,7 +358,7 @@ public class EmbeddedGatewayTests(GatewayFixture fx)
             ["Sites:response:Upstreams:one:Address"] = upstream.Url.ToString()
         };
         await using var gw = new EmbeddedGateway();
-        await gw.StartAsync(new EmbeddedGatewayOptions(url, fx.ConnectionString, null, null, null, config));
+        await gw.StartAsync(new EmbeddedGatewayOptions(url, fx.ConnectionString, null, null, null, config, PreferConfigurationSites: true));
 
         using var client = new HttpClient { BaseAddress = url };
         using var request = new HttpRequestMessage(HttpMethod.Get, "/response") { Headers = { Host = "response.test" } };
@@ -370,7 +385,7 @@ public class EmbeddedGatewayTests(GatewayFixture fx)
             ["Sites:beta:Upstreams:one:Address"] = upstream.Url.ToString()
         };
         await using var gw = new EmbeddedGateway();
-        await gw.StartAsync(new EmbeddedGatewayOptions(url, fx.ConnectionString, null, null, null, config));
+        await gw.StartAsync(new EmbeddedGatewayOptions(url, fx.ConnectionString, null, null, null, config, PreferConfigurationSites: true));
 
         using var client = new HttpClient { BaseAddress = url };
         using var alpha = new HttpRequestMessage(HttpMethod.Get, "/alpha") { Headers = { Host = "alpha.test" } };
@@ -388,6 +403,61 @@ public class EmbeddedGatewayTests(GatewayFixture fx)
     }
 
     [Fact]
+    public async Task Site_crud_activates_routes_immediately_without_gateway_restart()
+    {
+        await using var firstUpstream = await LoopbackUpstream.StartAsync(System.Text.Encoding.UTF8.GetBytes("first-upstream"));
+        await using var secondUpstream = await LoopbackUpstream.StartAsync(System.Text.Encoding.UTF8.GetBytes("second-upstream"));
+        var url = FreeUrl();
+        var siteId = "live-crud-" + Guid.NewGuid().ToString("N")[..8];
+        var firstHost = siteId + ".first.test";
+        var secondHost = siteId + ".second.test";
+        await using var gw = new EmbeddedGateway();
+        await gw.StartAsync(new EmbeddedGatewayOptions(url, fx.ConnectionString, null, null, null,
+            new Dictionary<string, string?> { ["AllowedHosts"] = "*" }));
+
+        using var api = new ApiClient(url);
+        await api.LoginAsync(GatewayFixture.AdminUser, GatewayFixture.AdminPassword);
+        try
+        {
+            await api.AddSiteAsync(new SiteCreateDto(siteId, [firstHost], ["/"], firstUpstream.Url.ToString(), "default",
+                ["127.0.0.1"], [firstUpstream.Url.Port], ["http"]));
+
+            using var client = new HttpClient { BaseAddress = url };
+            using var addedRequest = new HttpRequestMessage(HttpMethod.Get, "/created") { Headers = { Host = firstHost } };
+            using var addedResponse = await client.SendAsync(addedRequest);
+            Assert.Equal(HttpStatusCode.OK, addedResponse.StatusCode);
+            Assert.Equal("first-upstream", await addedResponse.Content.ReadAsStringAsync());
+
+            var current = (await api.GetSitesAsync()).Single(x => x.SiteId == siteId);
+            await api.UpdateSiteAsync(siteId, new SiteCreateDto(siteId, [secondHost], ["/"], secondUpstream.Url.ToString(), "default",
+                ["127.0.0.1"], [secondUpstream.Url.Port], ["http"], ExpectedVersion: current.Version));
+
+            using var updatedRequest = new HttpRequestMessage(HttpMethod.Get, "/updated") { Headers = { Host = secondHost } };
+            using var updatedResponse = await client.SendAsync(updatedRequest);
+            Assert.Equal(HttpStatusCode.OK, updatedResponse.StatusCode);
+            Assert.Equal("second-upstream", await updatedResponse.Content.ReadAsStringAsync());
+            using var oldHostRequest = new HttpRequestMessage(HttpMethod.Get, "/old") { Headers = { Host = firstHost } };
+            using var oldHostResponse = await client.SendAsync(oldHostRequest);
+            Assert.Equal((HttpStatusCode)421, oldHostResponse.StatusCode);
+
+            var updated = (await api.GetSitesAsync()).Single(x => x.SiteId == siteId);
+            await api.DeleteSiteAsync(siteId, updated.Version);
+            using var deletedRequest = new HttpRequestMessage(HttpMethod.Get, "/deleted") { Headers = { Host = secondHost } };
+            using var deletedResponse = await client.SendAsync(deletedRequest);
+            Assert.Equal((HttpStatusCode)421, deletedResponse.StatusCode);
+        }
+        finally
+        {
+            try
+            {
+                var remaining = (await api.GetSitesAsync()).FirstOrDefault(x => x.SiteId == siteId);
+                if (remaining is not null) await api.DeleteSiteAsync(siteId, remaining.Version);
+            }
+            catch { /* The assertions above own the failure; cleanup is best effort. */ }
+        }
+    }
+
+    [Fact]
     public async Task Real_socket_keeps_concurrent_site_routing_isolated()
     {
         await using var upstream = await LoopbackUpstream.StartAsync();
@@ -401,7 +471,7 @@ public class EmbeddedGatewayTests(GatewayFixture fx)
             ["Sites:beta:Upstreams:one:Address"] = upstream.Url.ToString()
         };
         await using var gw = new EmbeddedGateway();
-        await gw.StartAsync(new EmbeddedGatewayOptions(url, fx.ConnectionString, null, null, null, config));
+        await gw.StartAsync(new EmbeddedGatewayOptions(url, fx.ConnectionString, null, null, null, config, PreferConfigurationSites: true));
 
         using var client = new HttpClient { BaseAddress = url };
         var requests = Enumerable.Range(0, 30).Select(async index =>
@@ -437,7 +507,7 @@ public class EmbeddedGatewayTests(GatewayFixture fx)
             ["Sites:failover:Upstreams:bad-b:Address"] = $"http://127.0.0.1:{badPorts[1]}/"
         };
         await using var gw = new EmbeddedGateway();
-        await gw.StartAsync(new EmbeddedGatewayOptions(url, fx.ConnectionString, null, null, null, config));
+        await gw.StartAsync(new EmbeddedGatewayOptions(url, fx.ConnectionString, null, null, null, config, PreferConfigurationSites: true));
 
         using var client = new HttpClient { BaseAddress = url, Timeout = TimeSpan.FromSeconds(5) };
         var statuses = new List<HttpStatusCode>();

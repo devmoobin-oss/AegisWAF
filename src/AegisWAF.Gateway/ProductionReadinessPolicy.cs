@@ -76,6 +76,16 @@ public static class ProductionReadinessPolicy
             "ConnectionStrings:Postgres is required for the shared rate limiter", errors);
         Require(configuration.GetValue("Waf:Events:StructuredLogging", false),
             "Waf:Events:StructuredLogging must be true for SIEM ingestion", errors);
+        Require(configuration.GetValue("Waf:Events:QueueCapacity", 10_000) is >= 100 and <= 100_000,
+            "Waf:Events:QueueCapacity must be between 100 and 100000", errors);
+        Require(configuration.GetValue("Waf:Events:BatchSize", 100) is >= 1 and <= 1_000,
+            "Waf:Events:BatchSize must be between 1 and 1000", errors);
+        Require(configuration.GetValue("Waf:Events:FlushMilliseconds", 250) is >= 10 and <= 5_000,
+            "Waf:Events:FlushMilliseconds must be between 10 and 5000", errors);
+        Require(configuration.GetValue("Waf:Events:RetentionHours", 168) is >= 1 and <= 8_760,
+            "Waf:Events:RetentionHours must be between 1 and 8760 hours", errors);
+        Require(configuration.GetValue("Waf:Events:CleanupIntervalSeconds", 3_600) is >= 60 and <= 86_400,
+            "Waf:Events:CleanupIntervalSeconds must be between 60 and 86400 seconds", errors);
         Require(configuration.GetValue("Waf:Ssrf:ResolveDns", false),
             "Waf:Ssrf:ResolveDns must be true for DNS rebinding-aware SSRF checks", errors);
         Require(string.Equals(configuration["Waf:ResponseOverflowAction"], "block", StringComparison.OrdinalIgnoreCase),

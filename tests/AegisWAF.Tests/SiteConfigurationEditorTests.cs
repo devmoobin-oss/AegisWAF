@@ -1,10 +1,57 @@
 using System.Text.Json.Nodes;
 using AegisWAF.Gateway.Sites;
+using Microsoft.Extensions.Configuration;
 
 namespace AegisWAF.Tests;
 
 public sealed class SiteConfigurationEditorTests
 {
+    [Fact]
+    public void Normalizes_multiple_upstreams_with_weights_and_preserves_policy_fields()
+    {
+        var request = new SiteManagementRequest(
+            "shop", ["shop.example.com"], ["/"],
+            "https://origin-a.example.com/", "default", [], [], [], true)
+        {
+            Upstreams =
+            [
+                new SiteUpstreamManagementRequest("primary", "https://origin-a.example.com/", 700),
+                new SiteUpstreamManagementRequest("secondary", "https://origin-b.example.com/", 300)
+            ],
+            Health = new SiteHealthPolicy("/ready", 30, 5, 120),
+            RateLimit = new SiteRateLimitPolicy(1200, 90, 40000)
+        };
+
+        Assert.True(SiteConfigurationEditor.TryNormalize(request, out var normalized, out var error), error);
+        var site = SiteDatabaseStore.ToGatewaySite(normalized);
+
+        Assert.Equal(["primary", "secondary"], site.Upstreams.Select(x => x.Id));
+        Assert.Equal([700, 300], site.Upstreams.Select(x => x.Weight));
+        Assert.Equal("/ready", site.Health!.Path);
+        Assert.Equal(1200, site.RateLimit.Requests);
+    }
+
+    [Fact]
+    public void Production_site_mutation_validation_rejects_http_upstream()
+    {
+        var request = new SiteManagementRequest(
+            "shop", ["shop.example.com"], ["/"],
+            "http://origin.example.com/", "default",
+            ["origin.example.com"], [80], ["http"], true);
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Waf:Deployment:Enforce"] = "true"
+        }).Build();
+
+        Assert.True(SiteConfigurationEditor.TryNormalize(request, out var normalized, out _));
+        var candidate = SiteDatabaseStore.ToGatewaySite(normalized);
+
+        var errors = SiteConfigurationValidator.ValidateSnapshot(
+            new SiteConfigurationSnapshot([candidate], false), configuration);
+
+        Assert.Contains(errors, error => error.Contains("HTTPS", StringComparison.OrdinalIgnoreCase));
+    }
+
     [Fact]
     public void Creates_a_site_document_without_persisting_secrets()
     {
@@ -101,5 +148,46 @@ public sealed class SiteConfigurationEditorTests
         var site = SiteDatabaseStore.ToGatewaySite(request);
 
         Assert.Equal("/login", site.Health!.Path);
+    }
+
+    [Fact]
+    public void Preserves_an_explicit_private_exception_for_development_health_probes()
+    {
+        var request = new SiteManagementRequest(
+            "local-dev", ["local-dev.localhost"], ["/"],
+            "http://127.0.0.1:4000/", "default",
+            ["127.0.0.1"], [4000], ["http"], true)
+        {
+            AllowPrivateExceptions = true
+        };
+
+        Assert.True(SiteConfigurationEditor.TryNormalize(request, out var normalized, out var error), error);
+        var site = SiteDatabaseStore.ToGatewaySite(normalized);
+        var json = SiteConfigurationEditor.ToJson(normalized);
+
+        Assert.True(site.Egress.AllowPrivateExceptions);
+        Assert.True(json["Egress"]!["AllowPrivateExceptions"]!.GetValue<bool>());
+    }
+
+    [Fact]
+    public void Production_rejects_a_private_exception_even_when_the_form_requests_it()
+    {
+        var request = new SiteManagementRequest(
+            "local-dev", ["local-dev.example.com"], ["/"],
+            "http://127.0.0.1:4000/", "default",
+            ["127.0.0.1"], [4000], ["http"], true)
+        {
+            AllowPrivateExceptions = true
+        };
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Waf:Deployment:Enforce"] = "true"
+        }).Build();
+
+        Assert.True(SiteConfigurationEditor.TryNormalize(request, out var normalized, out _));
+        var errors = SiteConfigurationValidator.ValidateSnapshot(
+            new SiteConfigurationSnapshot([SiteDatabaseStore.ToGatewaySite(normalized)], false), configuration);
+
+        Assert.Contains(errors, error => error.Contains("private egress exceptions", StringComparison.OrdinalIgnoreCase));
     }
 }

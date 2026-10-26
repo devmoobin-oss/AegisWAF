@@ -5,9 +5,13 @@ namespace AegisWAF.Gateway.Sites;
 
 public sealed class SiteRegistry
 {
-    public SiteRegistry(SiteConfigurationSnapshot snapshot) => Current = snapshot;
+    private SiteConfigurationSnapshot _current;
 
-    public SiteConfigurationSnapshot Current { get; }
+    public SiteRegistry(SiteConfigurationSnapshot snapshot) => _current = snapshot;
+
+    public SiteConfigurationSnapshot Current => Volatile.Read(ref _current);
+
+    internal void Replace(SiteConfigurationSnapshot snapshot) => Volatile.Write(ref _current, snapshot);
 
     public SiteMatchResult? Resolve(string? hostHeader, string? path)
     {

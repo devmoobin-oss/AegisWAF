@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The current Windows SDK has a cross-project workload resolver defect. Build Gateway first,
+         then consume the exact output so this supervisor has one deterministic process boundary. -->
+    <Reference Include="AegisWAF.Gateway">
+      <HintPath>..\..\src\AegisWAF.Gateway\bin\Debug\net10.0\AegisWAF.Gateway.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="AegisWAF.Client">
+      <HintPath>..\..\src\AegisWAF.Client\bin\Debug\net10.0\AegisWAF.Client.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="Npgsql">
+      <HintPath>..\..\src\AegisWAF.Gateway\bin\Debug\net10.0\Npgsql.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Content Include="..\..\src\AegisWAF.Gateway\bin\Debug\net10.0\*.dll" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\src\AegisWAF.Gateway\appsettings.json" Link="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <Target Name="RequireGatewayBuild" BeforeTargets="ResolveReferences">
+    <Error Condition="!Exists('..\..\src\AegisWAF.Gateway\bin\Debug\net10.0\AegisWAF.Gateway.dll')" Text="Build src/AegisWAF.Gateway first; the fault-injection runner intentionally consumes its deterministic output boundary." />
+  </Target>
+</Project>

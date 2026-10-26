@@ -5,6 +5,10 @@ namespace AegisWAF.Gateway.Sites;
 
 public static class SiteConfigurationValidator
 {
+    private const int MaxHostnamesPerSite = 32;
+    private const int MaxPathPrefixesPerSite = 64;
+    private const int MaxUpstreamsPerSite = 32;
+
     public static IReadOnlyList<string> Validate(IConfiguration configuration)
     {
         var errors = new List<string>();
@@ -127,8 +131,163 @@ public static class SiteConfigurationValidator
         return errors;
     }
 
+    /// <summary>
+    /// Validates an already-bound snapshot. This is the shared gate for database snapshots,
+    /// API mutations, and the final configuration consumed by YARP.
+    /// </summary>
+    public static IReadOnlyList<string> ValidateSnapshot(SiteConfigurationSnapshot snapshot, IConfiguration configuration)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        ArgumentNullException.ThrowIfNull(configuration);
+
+        var errors = new List<string>();
+        var enforcing = configuration.GetValue("Waf:Deployment:Enforce", false);
+        var configuredPolicies = configuration.GetSection("Waf:Policies").GetChildren()
+            .Select(x => x.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var activeHostnames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var sites = snapshot.Sites ?? [];
+
+        foreach (var site in sites)
+        {
+            var id = NormalizeId(site.Id ?? "");
+            if (!RegexPatterns.SiteId.IsMatch(id))
+                errors.Add($"Site {site.Id} has an invalid ID");
+
+            if (!site.Enabled)
+                continue;
+
+            if (site.Hostnames is null || site.Hostnames.Count == 0)
+                errors.Add($"Site {id} must define at least one hostname");
+            else if (site.Hostnames.Count > MaxHostnamesPerSite)
+                errors.Add($"Site {id} may contain at most {MaxHostnamesPerSite} hostnames");
+
+            foreach (var rawHostname in site.Hostnames ?? [])
+            {
+                var hostname = NormalizeHostname(rawHostname ?? "");
+                if (hostname.Length == 0)
+                {
+                    errors.Add($"Site {id} contains an invalid hostname");
+                    continue;
+                }
+                if (activeHostnames.TryGetValue(hostname, out var other))
+                    errors.Add($"Site hostname {hostname} is already assigned to {other}");
+                else
+                    activeHostnames[hostname] = id;
+            }
+
+            if (site.PathPrefixes is null || site.PathPrefixes.Count == 0)
+                errors.Add($"Site {id} must define at least one path prefix");
+            else if (site.PathPrefixes.Count > MaxPathPrefixesPerSite)
+                errors.Add($"Site {id} may contain at most {MaxPathPrefixesPerSite} path prefixes");
+            foreach (var path in site.PathPrefixes ?? [])
+            {
+                var rawPath = (path ?? "").Trim();
+                if (rawPath.Length == 0 || rawPath.Length > 256 || !rawPath.StartsWith('/') ||
+                    rawPath.Contains('?') || rawPath.Contains('#') || rawPath.Contains('\0'))
+                    errors.Add($"Site {id} contains an invalid path prefix");
+            }
+
+            if (site.Upstreams is null || site.Upstreams.Count == 0)
+                errors.Add($"Site {id} must define at least one upstream");
+            else if (site.Upstreams.Count > MaxUpstreamsPerSite)
+                errors.Add($"Site {id} may contain at most {MaxUpstreamsPerSite} upstreams");
+
+            var upstreamIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var upstream in site.Upstreams ?? [])
+            {
+                if (string.IsNullOrWhiteSpace(upstream.Id) || !upstreamIds.Add(upstream.Id.Trim()))
+                    errors.Add($"Site {id} upstream IDs must be non-empty and unique");
+                var address = upstream.Address;
+                if (address is null || !address.IsAbsoluteUri ||
+                    (address.Scheme != Uri.UriSchemeHttp && address.Scheme != Uri.UriSchemeHttps))
+                    errors.Add($"Site {id} upstream {upstream.Id} must be an absolute HTTP(S) URL");
+                else
+                {
+                    if (!string.IsNullOrEmpty(address.UserInfo))
+                        errors.Add($"Site {id} upstream {upstream.Id} must not contain credentials");
+                    if (upstream.Weight is < 1 or > 10_000)
+                        errors.Add($"Site {id} upstream {upstream.Id} weight must be between 1 and 10000");
+                    if (enforcing && IPAddress.TryParse(address.Host, out var literal) && IsDisallowedLiteral(literal))
+                        errors.Add($"Site {id} upstream {upstream.Id} must not target a private, loopback, metadata, multicast, or special-use IP literal");
+                }
+            }
+
+            var policy = string.IsNullOrWhiteSpace(site.WafPolicy) ? "default" : site.WafPolicy.Trim();
+            if (enforcing && !string.Equals(policy, "default", StringComparison.OrdinalIgnoreCase) &&
+                !configuredPolicies.Contains(policy))
+                errors.Add($"Site {id} references undefined WafPolicy {policy}");
+
+            var egress = site.Egress;
+            if (egress is null)
+            {
+                errors.Add($"Site {id} must define an egress policy");
+            }
+            else
+            {
+                var allowedHosts = egress.AllowedHosts ?? [];
+                var allowedPorts = egress.AllowedPorts ?? [];
+                var allowedSchemes = egress.AllowedSchemes ?? [];
+                if (allowedHosts.Count == 0)
+                    errors.Add($"Site {id} must define explicit egress hosts");
+                if (allowedPorts.Count == 0 || allowedPorts.Any(x => x is < 1 or > 65535))
+                    errors.Add($"Site {id} egress ports must be between 1 and 65535");
+                if (allowedHosts.Any(x => x == "*" || NormalizeHostname(x ?? "").Length == 0))
+                    errors.Add($"Site {id} egress host entries must be explicit hostnames without wildcards");
+                if (allowedSchemes.Count == 0 ||
+                    allowedSchemes.Any(x => !string.Equals(x, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) &&
+                                            !string.Equals(x, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)))
+                    errors.Add($"Site {id} egress schemes must be HTTP or HTTPS");
+                if (enforcing)
+                {
+                    if (allowedSchemes.Any(x => !string.Equals(x, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)))
+                        errors.Add($"Site {id} must define an explicit HTTPS egress allowlist");
+                    if (egress.AllowPrivateExceptions)
+                        errors.Add($"Site {id} must not enable private egress exceptions in Production");
+                    foreach (var upstream in site.Upstreams ?? [])
+                    {
+                        if (upstream.Address is null) continue;
+                        if (!string.Equals(upstream.Address.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+                            errors.Add($"Site {id} upstream {upstream.Id} must use HTTPS in Production");
+                        if (!allowedHosts.Contains(upstream.Address.Host, StringComparer.OrdinalIgnoreCase) ||
+                            !allowedPorts.Contains(upstream.Address.Port) ||
+                            !allowedSchemes.Contains(upstream.Address.Scheme, StringComparer.OrdinalIgnoreCase))
+                            errors.Add($"Site {id} egress policy must cover upstream {upstream.Id}");
+                    }
+                }
+            }
+
+            var health = site.Health ?? new SiteHealthPolicy();
+            if (health.Path.Length is < 1 or > 128 || !health.Path.StartsWith('/') ||
+                health.Path.Contains('?') || health.Path.Contains('#') || health.Path.Contains('\0'))
+                errors.Add($"Site {id} health path must be a relative path without query or fragment");
+            if (health.IntervalSeconds is < 5 or > 300)
+                errors.Add($"Site {id} health interval must be between 5 and 300 seconds");
+            if (health.TimeoutSeconds is < 1 or > 30 || health.TimeoutSeconds >= health.IntervalSeconds)
+                errors.Add($"Site {id} health timeout must be between 1 and 30 seconds and less than the health interval");
+            if (health.PassiveReactivationSeconds is < 5 or > 3600)
+                errors.Add($"Site {id} passive health reactivation must be between 5 and 3600 seconds");
+
+            if (site.RateLimit.Requests is < 1 or > 1_000_000)
+                errors.Add($"Site {id} rate requests must be between 1 and 1000000");
+            if (site.RateLimit.WindowSeconds is < 1 or > 3600)
+                errors.Add($"Site {id} rate window must be between 1 and 3600 seconds");
+            if (site.RateLimit.GlobalRequests is < 1 or > 10_000_000)
+                errors.Add($"Site {id} global rate limit must be between 1 and 10000000");
+        }
+
+        if (enforcing && sites.Count(x => x.Enabled) == 0)
+            errors.Add("Production requires at least one active Site");
+        return errors;
+    }
+
     internal static string NormalizeId(string value) =>
         value.Trim().ToLowerInvariant();
+
+    private static class RegexPatterns
+    {
+        internal static readonly System.Text.RegularExpressions.Regex SiteId =
+            new("^[a-z0-9][a-z0-9_-]{0,63}$", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+    }
 
     internal static string NormalizeHostname(string value)
     {

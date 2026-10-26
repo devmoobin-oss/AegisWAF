@@ -77,7 +77,13 @@ public class CatalogVerificationTests(GatewayFixture fx)
         var up = new FakeUpstream();
         var url = FreeUrl();
         var gw = new EmbeddedGateway();
-        await gw.StartAsync(new EmbeddedGatewayOptions(url, fx.ConnectionString, null, up.Url.ToString()));
+        await gw.StartAsync(new EmbeddedGatewayOptions(
+            url,
+            fx.ConnectionString,
+            null,
+            up.Url.ToString(),
+            ConfigurationOverrides: new Dictionary<string, string?> { ["AllowedHosts"] = "*" },
+            PreferConfigurationSites: true));
         return new Running(gw, up, url);
     }
 

@@ -25,7 +25,8 @@ public sealed record GatewaySite(
     string WafPolicy,
     SiteRateLimitPolicy RateLimit,
     SiteEgressPolicy Egress,
-    SiteHealthPolicy? Health = null);
+    SiteHealthPolicy? Health = null,
+    long Version = 1);
 
 public sealed record SiteConfigurationSnapshot(
     IReadOnlyList<GatewaySite> Sites,

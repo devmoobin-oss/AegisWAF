@@ -12,7 +12,13 @@ public static class SiteProxyHealth
         return "unknown";
     }
 
-    public static bool IsAvailable(string? active, string? passive) =>
-        !string.Equals(active, "Unhealthy", StringComparison.OrdinalIgnoreCase) &&
-        !string.Equals(passive, "Unhealthy", StringComparison.OrdinalIgnoreCase);
+    public static bool IsAvailable(string? active, string? passive, bool requireKnownHealthy = false)
+    {
+        if (string.Equals(active, "Unhealthy", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(passive, "Unhealthy", StringComparison.OrdinalIgnoreCase))
+            return false;
+        if (!requireKnownHealthy) return true;
+        return string.Equals(active, "Healthy", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(passive, "Healthy", StringComparison.OrdinalIgnoreCase);
+    }
 }

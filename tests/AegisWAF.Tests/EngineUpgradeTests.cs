@@ -215,7 +215,7 @@ public class EngineUpgradeTests
         {
             var url = FreeUrl();
             var gw = new EmbeddedGateway();
-            await gw.StartAsync(new EmbeddedGatewayOptions(url, fx.ConnectionString, null, up.Url.ToString(), null, overrides));
+            await gw.StartAsync(new EmbeddedGatewayOptions(url, fx.ConnectionString, null, up.Url.ToString(), null, overrides, PreferConfigurationSites: true));
             return new Running(gw, up, url);
         }
 

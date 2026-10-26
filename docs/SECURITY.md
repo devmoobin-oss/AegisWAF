@@ -20,7 +20,7 @@ See also [PROTECTION.md](PROTECTION.md) for exactly which attack classes the gat
 | 9 | Explicit IP "allow" bypasses all inspection and rate limiting | Medium | **Fixed** – allow is blocklist-only; inspection and rate limiting still run; exact IP and CIDR policies use most-specific matching |
 | 10 | Client IP comes from the socket only; behind a load balancer all clients share one IP (rate limit, blocklist); no trusted-proxy model | High | **Improved** – client address and forwarded scheme/host honor only explicitly trusted direct peers; production still requires correct proxy CIDRs |
 | 11 | Rate limiter is a fixed window (named "sliding"), hard-coded 300/min, per process | Medium | **Improved** – configurable rolling-window ceilings with optional global/shared PostgreSQL enforcement |
-| 12 | Event writer opens a connection per event; no batching, retention or partitioning; counters are in memory only | Medium | **Open** – v0.10 |
+| 12 | Security-event storage needs bounded retention/partitioning and durable external delivery; batching, local retention and delivery counters are implemented | Medium | **Open** – external SIEM/partitioning |
 | 13 | No TLS termination/management; session cookie is `Secure` only when the request itself is HTTPS | High | **Improved** – trusted forwarded HTTPS is recognized for admin enforcement and cookie flags; certificate lifecycle is still infrastructure-owned |
 | 14 | Dev DB account is the `postgres` superuser | Medium | **Open** – create a least-privilege role for production |
 | 15 | Audit log is append-only by convention, not tamper-evident | Low | **Open** |

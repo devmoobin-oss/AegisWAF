@@ -72,11 +72,22 @@ public sealed class ApiClient : IDisposable
     public Task AddSiteAsync(SiteCreateDto site, CancellationToken ct = default) =>
         SendAsync(HttpMethod.Post, "api/sites", site, ct);
     public Task UpdateSiteAsync(string id, SiteCreateDto site, CancellationToken ct = default) =>
-        SendAsync(HttpMethod.Put, $"api/sites/{Uri.EscapeDataString(id)}", site, ct);
-    public Task DeleteSiteAsync(string id, CancellationToken ct = default) =>
-        SendAsync(HttpMethod.Delete, $"api/sites/{Uri.EscapeDataString(id)}", null, ct);
+        SendAsync(HttpMethod.Put, $"api/sites/{Uri.EscapeDataString(id)}", site, ct,
+            ifMatch: site.ExpectedVersion is long version ? $"\"{version}\"" : null);
+    public Task DeleteSiteAsync(string id, long? expectedVersion = null, CancellationToken ct = default) =>
+        SendAsync(HttpMethod.Delete, $"api/sites/{Uri.EscapeDataString(id)}", null, ct,
+            ifMatch: expectedVersion is long version ? $"\"{version}\"" : null);
     public Task<SiteHealthCheckDto> CheckSiteHealthAsync(string id, CancellationToken ct = default) =>
         SendAsync<SiteHealthCheckDto>(HttpMethod.Post, $"api/sites/{Uri.EscapeDataString(id)}/health", null, ct);
+    public Task<SiteHealthHistoryDto> GetSiteHealthHistoryAsync(string id, int limit = 20, CancellationToken ct = default) =>
+        SendAsync<SiteHealthHistoryDto>(HttpMethod.Get, $"api/sites/{Uri.EscapeDataString(id)}/health/history?limit={Math.Clamp(limit, 1, 100)}", null, ct);
+
+    public Task<SiteHealthTrendDto> GetSiteHealthTrendAsync(string id, int window = 20, CancellationToken ct = default) =>
+        SendAsync<SiteHealthTrendDto>(HttpMethod.Get, $"api/sites/{Uri.EscapeDataString(id)}/health/trend?window={Math.Clamp(window, 1, 64)}", null, ct);
+    public Task<SiteHealthTrendDto> AcknowledgeSiteHealthAlertAsync(string id, int cooldownSeconds = 3_600, CancellationToken ct = default) =>
+        SendAsync<SiteHealthTrendDto>(HttpMethod.Post, $"api/sites/{Uri.EscapeDataString(id)}/health/alerts/acknowledge", new { cooldownSeconds }, ct);
+    public Task<SiteHealthSummaryDto> GetSiteHealthSummaryAsync(int window = 20, int limit = 100, CancellationToken ct = default) =>
+        SendAsync<SiteHealthSummaryDto>(HttpMethod.Get, $"api/sites/health/summary?window={Math.Clamp(window, 1, 64)}&limit={Math.Clamp(limit, 1, 100)}", null, ct);
     public Task SaveIpPolicyAsync(string ip, string action, string reason, CancellationToken ct = default) =>
         SendAsync(HttpMethod.Put, "api/ip-policies", new { ip, action, reason }, ct);
     public Task DeleteIpPolicyAsync(string ip, CancellationToken ct = default) =>
@@ -136,16 +147,17 @@ public sealed class ApiClient : IDisposable
         return (await resp.Content.ReadFromJsonAsync<T>(Json, ct)) ?? throw new ApiException((int)resp.StatusCode, "Empty response");
     }
 
-    private async Task SendAsync(HttpMethod method, string url, object? body, CancellationToken ct)
+    private async Task SendAsync(HttpMethod method, string url, object? body, CancellationToken ct, string? ifMatch = null)
     {
-        using var _ = await RawAsync(method, url, body, ct, false);
+        using var _ = await RawAsync(method, url, body, ct, false, ifMatch);
     }
 
-    private async Task<HttpResponseMessage> RawAsync(HttpMethod method, string url, object? body, CancellationToken ct, bool isLogin)
+    private async Task<HttpResponseMessage> RawAsync(HttpMethod method, string url, object? body, CancellationToken ct, bool isLogin, string? ifMatch = null)
     {
         var req = new HttpRequestMessage(method, url);
         if (body is not null) req.Content = JsonContent.Create(body, options: Json);
         if (method != HttpMethod.Get && _csrf.Length > 0) req.Headers.Add("X-CSRF-Token", _csrf);
+        if (!string.IsNullOrWhiteSpace(ifMatch)) req.Headers.TryAddWithoutValidation("If-Match", ifMatch);
         HttpResponseMessage resp;
         try { resp = await _http.SendAsync(req, ct); }
         catch (HttpRequestException ex) { throw new ApiException(0, "เชื่อมต่อ Gateway ไม่ได้: " + ex.Message); }

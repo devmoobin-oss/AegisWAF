@@ -66,7 +66,10 @@ public static class GatewayApp
         builder.Configuration.AddEnvironmentVariables();
         if (overrides is not null) builder.Configuration.AddInMemoryCollection(overrides);
         var siteSnapshot = LoadSiteSnapshot(builder.Configuration);
-        builder.Configuration.AddInMemoryCollection(SiteProxyConfiguration.Build(siteSnapshot, builder.Configuration));
+        builder.Services.AddSingleton(siteSnapshot);
+        var runtimeProvider = new SiteRuntimeConfigurationProvider(SiteProxyConfiguration.Build(siteSnapshot, builder.Configuration));
+        builder.Services.AddSingleton(runtimeProvider);
+        builder.Configuration.Sources.Add(new SiteRuntimeConfigurationSource(runtimeProvider));
         ProductionReadinessPolicy.ThrowIfInvalid(builder.Configuration);
         var keyRingPath = builder.Configuration["Security:DataProtection:KeyRingPath"];
         if (!string.IsNullOrWhiteSpace(keyRingPath))
@@ -102,10 +105,14 @@ public static class GatewayApp
 
     public static void AddServices(WebApplicationBuilder builder)
     {
-    var sites = LoadSiteSnapshot(builder.Configuration);
-    builder.Services.AddSingleton(sites);
     builder.Services.AddSingleton<SiteRegistry>();
+    builder.Services.AddSingleton<SiteRuntimeCoordinator>();
     builder.Services.AddSingleton<SiteDatabaseStore>();
+    builder.Services.AddSingleton<SiteRuntimeListenerStatus>();
+    builder.Services.AddHostedService<SiteRuntimeChangeListener>();
+    builder.Services.AddSingleton<SiteHealthProbe>();
+        builder.Services.AddSingleton<SiteHealthHistory>();
+    builder.Services.AddSingleton<SiteHealthSummaryFailureTelemetry>();
     builder.Services.AddSingleton<SiteHealthRegistry>();
     var reverseProxy = builder.Services.AddReverseProxy().LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
     if (builder.Configuration.GetValue("Waf:Deployment:Enforce", false))
@@ -130,6 +137,7 @@ public static class GatewayApp
 
     var healthChecks = builder.Services.AddHealthChecks()
         .AddCheck<PostgresHealthCheck>("postgres", tags: ["ready"])
+        .AddCheck<SiteRuntimeListenerHealthCheck>("site-runtime-listener", tags: ["ready"])
         .AddCheck<SiteRoutingHealthCheck>("sites", tags: ["ready"]);
     if (builder.Configuration.GetValue("Waf:Deployment:Enforce", false))
         healthChecks.AddCheck<DataProtectionHealthCheck>("data-protection", tags: ["ready"]);
@@ -141,6 +149,8 @@ public static class GatewayApp
     builder.Services.AddSingleton<TrafficCounters>();
     builder.Services.AddSingleton<TrafficTelemetry>();
     builder.Services.AddSingleton<SecurityEvents>();
+    builder.Services.AddSingleton(sp => new SecurityEventRetentionStatus(
+        SecurityEventRetentionOptions.From(sp.GetRequiredService<IConfiguration>())));
     builder.Services.AddSingleton<AuditIntegrityAlertState>();
     builder.Services.AddSingleton<SlidingRateLimiter>();
     builder.Services.AddSingleton<UpstreamEgressPolicy>(sp =>
@@ -150,6 +160,7 @@ public static class GatewayApp
     builder.Services.AddSingleton<IpAccessPolicy>();
     builder.Services.AddHostedService<IpPolicyLoader>();
     builder.Services.AddHostedService<EventWriter>();
+    builder.Services.AddHostedService<SecurityEventRetentionWorker>();
     builder.Services.AddSingleton<AuthStore>();
     builder.Services.AddSingleton<DistributedAuthThrottle>();
     builder.Services.AddSingleton(sp =>
@@ -182,9 +193,28 @@ public static class GatewayApp
         catch (Exception) { return Results.Problem("Database unavailable", statusCode: 503); }
     }
 
-    private static SiteConfigurationSnapshot LoadSiteSnapshot(IConfiguration configuration) =>
-        SiteDatabaseStore.TryLoadSnapshot(configuration.GetConnectionString("Postgres"))
-        ?? SiteConfigurationLoader.Load(configuration);
+    private static SiteConfigurationSnapshot LoadSiteSnapshot(IConfiguration configuration)
+    {
+        var snapshot = configuration.GetValue("Waf:Sites:UseDatabase", true)
+            ? SiteDatabaseStore.TryLoadSnapshot(configuration.GetConnectionString("Postgres"))
+            : null;
+        snapshot ??= SiteConfigurationLoader.Load(configuration);
+        var errors = SiteConfigurationValidator.ValidateSnapshot(snapshot, configuration);
+        if (errors.Count > 0)
+            throw new InvalidOperationException("Site snapshot rejected:\n - " + string.Join("\n - ", errors));
+        return snapshot;
+    }
+
+    private static IResult SiteDatabaseUnavailable(HttpContext ctx, string operation, string code) =>
+        Results.Problem(
+            statusCode: StatusCodes.Status503ServiceUnavailable,
+            title: "Site database unavailable",
+            detail: $"The Site configuration could not be {operation}.",
+            extensions: new Dictionary<string, object?>
+            {
+                ["code"] = code,
+                ["traceId"] = ctx.TraceIdentifier
+            });
 
     /// <summary>Middleware and endpoints. Must run after <c>builder.Build()</c> and after <c>Bootstrap.RunAsync</c>.</summary>
     public static void MapPipeline(WebApplication app)
@@ -298,12 +328,15 @@ public static class GatewayApp
         await next();
     });
     app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
-    { Predicate = _ => false });
+    { Predicate = _ => false, ResponseWriter = HealthResponseWriter.WriteAsync });
     app.MapHealthChecks("/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
-    { Predicate = check => check.Tags.Contains("ready") });
-    app.MapGet("/api/overview", (TrafficCounters stats, SecurityEvents events, SecurityRules rules) =>
-        Results.Ok(new { generatedAt = DateTimeOffset.UtcNow, totalRequests = stats.Total, blockedRequests = stats.Blocked,
-            allowedRequests = stats.Allowed, activeRules = rules.Count, droppedEvents = events.Dropped,
+    { Predicate = check => check.Tags.Contains("ready"), ResponseWriter = HealthResponseWriter.WriteAsync });
+    app.MapGet("/api/overview", (TrafficCounters stats, SecurityEvents events, SecurityRules rules, SiteRuntimeListenerStatus listenerStatus, SecurityEventRetentionStatus retentionStatus) =>
+         Results.Ok(new { generatedAt = DateTimeOffset.UtcNow, totalRequests = stats.Total, blockedRequests = stats.Blocked,
+             allowedRequests = stats.Allowed, activeRules = rules.Count, droppedEvents = events.Dropped,
+             eventDelivery = new { queueCapacity = events.QueueCapacity, queueDepth = events.QueueDepth, persisted = events.Persisted, persistenceFailures = events.PersistenceFailures },
+            securityEventRetention = retentionStatus.Current,
+            siteRuntimeListener = listenerStatus.Current,
             threatCategories = stats.Categories.OrderByDescending(x => x.Value).Select(x => new { name = x.Key, count = x.Value }),
             methods = stats.Methods.OrderByDescending(x => x.Value).Select(x => new { name = x.Key, count = x.Value }),
             timeline = stats.Timeline(), topIps = stats.TopIps(), recentEvents = events.Recent() })).Require(Roles.Viewer);
@@ -360,14 +393,17 @@ public static class GatewayApp
         code = x.Code, title = x.Title, coverage = x.Coverage.ToString(), description = x.Description,
         limitations = x.Limitations, ruleIds = OwaspCatalog.RuleIdsForCode(x.Code), officialUrl = OwaspCatalog.OfficialUrl
     }))).Require(Roles.Viewer);
-    app.MapGet("/api/sites", async (SiteRegistry registry, SiteHealthRegistry legacyHealth, IProxyStateLookup proxy, SiteDatabaseStore store, CancellationToken ct) =>
+    app.MapGet("/api/sites", async (SiteRegistry registry, SiteHealthRegistry legacyHealth, IProxyStateLookup proxy, SiteDatabaseStore store, HttpContext ctx, CancellationToken ct) =>
     {
         var activeSites = registry.Current.Sites;
-        var storedSites = await store.ListAsync(ct);
+        IReadOnlyList<GatewaySite> storedSites;
+        try { storedSites = await store.ListAsync(ct); }
+        catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
+        { return SiteDatabaseUnavailable(ctx, "listed", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
         var result = storedSites.Select(site =>
         {
             var active = activeSites.FirstOrDefault(x => x.Id.Equals(site.Id, StringComparison.OrdinalIgnoreCase));
-            var pendingRestart = active is null || !SiteConfigurationEditor.AreEquivalent(active, site);
+            var pendingRestart = active is null || active.Version != site.Version || !SiteConfigurationEditor.AreEquivalent(active, site);
             if (pendingRestart)
             {
                 var pendingUpstreams = site.Upstreams.Select(upstream => new
@@ -386,7 +422,22 @@ public static class GatewayApp
                     hostnames = site.Hostnames,
                     pathPrefixes = site.PathPrefixes,
                     wafPolicy = site.WafPolicy,
+                    healthPath = site.Health?.Path ?? "/",
+                    healthIntervalSeconds = site.Health?.IntervalSeconds ?? 10,
+                    healthTimeoutSeconds = site.Health?.TimeoutSeconds ?? 3,
+                    healthPassiveReactivationSeconds = site.Health?.PassiveReactivationSeconds ?? 30,
+                    rateRequests = site.RateLimit.Requests,
+                    rateWindowSeconds = site.RateLimit.WindowSeconds,
+                    rateGlobalRequests = site.RateLimit.GlobalRequests,
+                    allowPrivateExceptions = site.Egress.AllowPrivateExceptions,
                     health = "pending-restart",
+                    fresh = false,
+                    source = "pending-restart",
+                    lastProbeAt = (DateTimeOffset?)null,
+                    version = site.Version,
+                    etag = SiteConcurrency.ToEtag(site.Version),
+                    activeVersion = active?.Version,
+                    activationStatus = "pending-restart",
                     pendingRestart = true,
                     upstreams = pendingUpstreams
                 };
@@ -402,69 +453,357 @@ public static class GatewayApp
                 return new { id = upstream.Id, address = upstream.Address.ToString(), scheme = upstream.Address.Scheme, port = upstream.Address.Port, weight = upstream.Weight, health = status };
             }).ToArray();
             var siteHealth = upstreams.Length == 0 ? "invalid" : upstreams.All(x => x.health == "unhealthy") ? "unhealthy" : upstreams.Any(x => x.health == "healthy") ? "healthy" : "unknown";
-            return new { siteId = site.Id, enabled = site.Enabled, hostnames = site.Hostnames, pathPrefixes = site.PathPrefixes, wafPolicy = site.WafPolicy, health = siteHealth, pendingRestart = false, upstreams };
+            return new
+            {
+                siteId = site.Id,
+                enabled = site.Enabled,
+                hostnames = site.Hostnames,
+                pathPrefixes = site.PathPrefixes,
+                wafPolicy = site.WafPolicy,
+                healthPath = site.Health?.Path ?? "/",
+                healthIntervalSeconds = site.Health?.IntervalSeconds ?? 10,
+                healthTimeoutSeconds = site.Health?.TimeoutSeconds ?? 3,
+                healthPassiveReactivationSeconds = site.Health?.PassiveReactivationSeconds ?? 30,
+                rateRequests = site.RateLimit.Requests,
+                rateWindowSeconds = site.RateLimit.WindowSeconds,
+                rateGlobalRequests = site.RateLimit.GlobalRequests,
+                allowPrivateExceptions = site.Egress.AllowPrivateExceptions,
+                health = siteHealth,
+                fresh = false,
+                source = "yarp-runtime-state",
+                lastProbeAt = (DateTimeOffset?)null,
+                version = site.Version,
+                etag = SiteConcurrency.ToEtag(site.Version),
+                activeVersion = (long?)active!.Version,
+                activationStatus = "active",
+                pendingRestart = false,
+                upstreams
+            };
         });
         return Results.Ok(result);
     }).Require(Roles.Viewer);
-    app.MapPost("/api/sites/{id}/health", async (string id, SiteRegistry registry, SiteHealthRegistry legacyHealth, IProxyStateLookup proxy, SiteDatabaseStore store, CancellationToken ct) =>
+    app.MapPost("/api/sites/{id}/health", async (string id, SiteRegistry registry, SiteHealthRegistry legacyHealth, IProxyStateLookup proxy, SiteDatabaseStore store, SiteHealthProbe probe, SiteHealthHistory history, HttpContext ctx, CancellationToken ct) =>
     {
-        var site = (await store.ListAsync(ct)).FirstOrDefault(x => x.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
+        IReadOnlyList<GatewaySite> storedSites;
+        try { storedSites = await store.ListAsync(ct); }
+        catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
+        { return SiteDatabaseUnavailable(ctx, "health-checked", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
+        var site = storedSites.FirstOrDefault(x => x.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
         if (site is null) return Results.NotFound(new { error = $"Site '{id}' was not found" });
         var active = registry.Current.Sites.FirstOrDefault(x => x.Id.Equals(site.Id, StringComparison.OrdinalIgnoreCase));
-        if (active is null || !SiteConfigurationEditor.AreEquivalent(active, site))
-            return Results.Ok(new { siteId = site.Id, health = "pending-restart", pendingRestart = true, checkedAt = DateTimeOffset.UtcNow, upstreams = site.Upstreams.Select(x => new { id = x.Id, address = x.Address.ToString(), health = "pending-restart" }) });
+        if (active is null || active.Version != site.Version || !SiteConfigurationEditor.AreEquivalent(active, site))
+            return Results.Ok(new { siteId = site.Id, health = "pending-restart", pendingRestart = true, activationStatus = "pending-restart", version = site.Version, activeVersion = active?.Version, etag = SiteConcurrency.ToEtag(site.Version), fresh = false, source = "pending-restart", checkedAt = DateTimeOffset.UtcNow, upstreams = site.Upstreams.Select(x => new { id = x.Id, address = x.Address.ToString(), health = "pending-restart", reason = (string?)null }) });
 
-        proxy.TryGetCluster("site-" + site.Id, out var cluster);
-        var upstreams = site.Upstreams.Select(upstream =>
+        var probeResults = await probe.ProbeAsync(site, ct);
+        history.Record(site.Id, probeResults);
+        var historyPersisted = true;
+        try
         {
-            var yarp = cluster is null ? null : cluster.DestinationsState.AllDestinations.FirstOrDefault(x => x.DestinationId == upstream.Id);
-            var status = yarp is null
-                ? legacyHealth.Get(site.Id, upstream.Id)?.Healthy == false ? "unhealthy" : "unknown"
-                : SiteProxyHealth.Status(yarp.Health.Active.ToString(), yarp.Health.Passive.ToString());
-            return new { id = upstream.Id, address = upstream.Address.ToString(), health = status };
-        }).ToArray();
+            await store.RecordHealthHistoryAsync(site.Id, probeResults.Select(x => new SiteHealthObservation(x.UpstreamId, x.Health, x.Reason, x.CheckedAt)).ToArray(), ct);
+        }
+        catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException)
+        {
+            historyPersisted = false;
+        }
+        var checkedAt = probeResults.Count == 0 ? DateTimeOffset.UtcNow : probeResults.Max(x => x.CheckedAt);
+        var upstreams = probeResults.Select(result => new { id = result.UpstreamId, address = result.Address, health = result.Health, reason = result.Reason }).ToArray();
         var health = upstreams.Length == 0 ? "invalid" : upstreams.All(x => x.health == "unhealthy") ? "unhealthy" : upstreams.Any(x => x.health == "healthy") ? "healthy" : "unknown";
-        return Results.Ok(new { siteId = site.Id, health, pendingRestart = false, checkedAt = DateTimeOffset.UtcNow, upstreams });
+        return Results.Ok(new { siteId = site.Id, health, pendingRestart = false, activationStatus = "active", version = site.Version, activeVersion = active!.Version, etag = SiteConcurrency.ToEtag(site.Version), fresh = true, source = "active-probe", checkedAt, lastProbeAt = checkedAt, historyRetention = historyPersisted ? "postgresql" : "process-memory", historyPersisted, upstreams });
     }).Require(Roles.Viewer);
-    app.MapPost("/api/sites", async (SiteManagementRequest input, SiteRegistry registry, SiteDatabaseStore store, HttpContext ctx, CancellationToken ct) =>
+    app.MapGet("/api/sites/{id}/health/history", async (string id, SiteDatabaseStore store, int? limit, HttpContext ctx, CancellationToken ct) =>
+    {
+        IReadOnlyList<GatewaySite> storedSites;
+        try { storedSites = await store.ListAsync(ct); }
+        catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
+        { return SiteDatabaseUnavailable(ctx, "health-history-listed", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
+        var site = storedSites.FirstOrDefault(x => x.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
+        if (site is null) return Results.NotFound(new { error = $"Site '{id}' was not found" });
+        IReadOnlyList<SiteHealthObservation> observations;
+        try { observations = await store.ListHealthHistoryAsync(site.Id, limit ?? 20, ct); }
+        catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
+        { return SiteDatabaseUnavailable(ctx, "health-history-listed", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
+        return Results.Ok(new
+        {
+            siteId = site.Id,
+            retention = "postgresql",
+            maxObservationsPerSite = 64,
+            observations = observations.Select(x => new { upstreamId = x.UpstreamId, health = x.Health, reason = x.Reason, checkedAt = x.CheckedAt })
+        });
+    }).Require(Roles.Viewer);
+    app.MapGet("/api/sites/{id}/health/trend", async (string id, SiteDatabaseStore store, int? window, HttpContext ctx, CancellationToken ct) =>
+    {
+        IReadOnlyList<GatewaySite> storedSites;
+        try { storedSites = await store.ListAsync(ct); }
+        catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
+        { return SiteDatabaseUnavailable(ctx, "health-trend-listed", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
+        var site = storedSites.FirstOrDefault(x => x.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
+        if (site is null) return Results.NotFound(new { error = $"Site '{id}' was not found" });
+        var boundedWindow = Math.Clamp(window ?? 20, 1, SiteHealthTrendCalculator.MaxWindow);
+        IReadOnlyList<SiteHealthObservation> observations;
+        try { observations = await store.ListHealthHistoryAsync(site.Id, boundedWindow, ct); }
+        catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
+        { return SiteDatabaseUnavailable(ctx, "health-trend-listed", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
+        var trend = SiteHealthTrendCalculator.Calculate(observations, boundedWindow, site.Upstreams.Count);
+        SiteHealthAlertAcknowledgement? acknowledgement = null;
+        if (HealthAlertLifecycle.IsActionable(trend))
+        {
+            try { acknowledgement = await store.GetHealthAlertAcknowledgementAsync(site.Id, trend.AlertState, ct); }
+            catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
+            { return SiteDatabaseUnavailable(ctx, "health-trend-listed", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
+        }
+        var now = DateTimeOffset.UtcNow;
+        var suppressed = HealthAlertLifecycle.IsActionable(trend) && acknowledgement is not null && HealthAlertLifecycle.IsSuppressed(trend.AlertState, acknowledgement.AlertState, acknowledgement.AcknowledgedUntil, now);
+        return Results.Ok(new
+        {
+            siteId = site.Id,
+            windowSize = trend.WindowSize,
+            total = trend.Total,
+            healthy = trend.Healthy,
+            unhealthy = trend.Unhealthy,
+            unknown = trend.Unknown,
+            healthyPercent = trend.HealthyPercent,
+            consecutiveUnhealthy = trend.ConsecutiveUnhealthy,
+            alertState = trend.AlertState,
+            recoveryState = trend.RecoveryState,
+            lastCheckedAt = trend.LastCheckedAt,
+            acknowledgedUntil = acknowledgement?.AcknowledgedUntil,
+            acknowledgedBy = acknowledgement?.AcknowledgedBy,
+            alertSuppressed = suppressed
+        });
+    }).Require(Roles.Viewer);
+    app.MapPost("/api/sites/{id}/health/alerts/acknowledge", async (string id, SiteHealthAlertAcknowledgeRequest? input, SiteDatabaseStore store, HttpContext ctx, CancellationToken ct) =>
+    {
+        input ??= new SiteHealthAlertAcknowledgeRequest();
+        if (!HealthAlertLifecycle.TryValidateCooldown(input.CooldownSeconds, out var cooldownError))
+            return Results.BadRequest(new { error = "invalid_cooldown", detail = cooldownError });
+        IReadOnlyList<GatewaySite> storedSites;
+        try { storedSites = await store.ListAsync(ct); }
+        catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
+        { return SiteDatabaseUnavailable(ctx, "health-alert-acknowledged", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
+        var site = storedSites.FirstOrDefault(x => x.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
+        if (site is null) return Results.NotFound(new { error = $"Site '{id}' was not found" });
+        IReadOnlyList<SiteHealthObservation> observations;
+        try { observations = await store.ListHealthHistoryAsync(site.Id, SiteHealthTrendCalculator.MaxWindow, ct); }
+        catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
+        { return SiteDatabaseUnavailable(ctx, "health-alert-acknowledged", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
+        var trend = SiteHealthTrendCalculator.Calculate(observations, SiteHealthTrendCalculator.MaxWindow, site.Upstreams.Count);
+        if (!HealthAlertLifecycle.IsActionable(trend))
+            return Results.Conflict(new { error = "health_alert_not_actionable", alertState = trend.AlertState, recoveryState = trend.RecoveryState });
+        try
+        {
+            var acknowledgement = await store.AcknowledgeHealthAlertAsync(site.Id, trend.AlertState, input.CooldownSeconds, ctx.Actor() ?? "unknown", ctx.ClientIp(), ct);
+            return Results.Ok(new
+            {
+                siteId = site.Id,
+                windowSize = trend.WindowSize,
+                total = trend.Total,
+                healthy = trend.Healthy,
+                unhealthy = trend.Unhealthy,
+                unknown = trend.Unknown,
+                healthyPercent = trend.HealthyPercent,
+                consecutiveUnhealthy = trend.ConsecutiveUnhealthy,
+                alertState = trend.AlertState,
+                recoveryState = trend.RecoveryState,
+                lastCheckedAt = trend.LastCheckedAt,
+                acknowledgedUntil = acknowledgement.AcknowledgedUntil,
+                acknowledgedBy = acknowledgement.AcknowledgedBy,
+                alertSuppressed = true
+            });
+        }
+        catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException)
+        { return SiteDatabaseUnavailable(ctx, "health-alert-acknowledged", "site_database_unavailable"); }
+    }).Require(Roles.Operator);
+    app.MapGet("/api/sites/health/summary", async (SiteDatabaseStore store, SiteHealthSummaryFailureTelemetry summaryTelemetry, int? window, int? limit, HttpContext ctx, CancellationToken ct) =>
+    {
+        var summaryGeneratedAt = DateTimeOffset.UtcNow;
+        var summaryTimer = Stopwatch.StartNew();
+        const int summaryQueryBudgetMs = 2_000;
+        var boundedWindow = Math.Clamp(window ?? 20, 1, SiteHealthTrendCalculator.MaxWindow);
+        var boundedLimit = Math.Clamp(limit ?? 100, 1, 100);
+        IReadOnlyList<GatewaySite> storedSites;
+        try { storedSites = (await store.ListAsync(ct)).Take(boundedLimit).ToArray(); }
+        catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
+        {
+            var failure = summaryTelemetry.RecordFailure();
+            ctx.Response.Headers["X-Aegis-Health-Summary-Failures"] = failure.ConsecutiveFailures.ToString();
+            return SiteDatabaseUnavailable(ctx, "health-summary-listed", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable");
+        }
+        var siteIds = storedSites.Select(x => x.Id).ToArray();
+        IReadOnlyDictionary<string, IReadOnlyList<SiteHealthObservation>> histories;
+        IReadOnlyDictionary<string, IReadOnlyList<SiteHealthAlertAcknowledgement>> acknowledgements;
+        int expiredAcknowledgementsRemoved;
+        try
+        {
+            expiredAcknowledgementsRemoved = await store.CleanupExpiredHealthAlertAcknowledgementsAsync(DateTimeOffset.UtcNow, ct);
+            histories = await store.ListHealthHistoryBySiteAsync(siteIds, boundedWindow, ct);
+            acknowledgements = await store.ListHealthAlertAcknowledgementsAsync(siteIds, ct);
+        }
+        catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
+        {
+            var failure = summaryTelemetry.RecordFailure();
+            ctx.Response.Headers["X-Aegis-Health-Summary-Failures"] = failure.ConsecutiveFailures.ToString();
+            return SiteDatabaseUnavailable(ctx, "health-summary-listed", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable");
+        }
+        var inputs = storedSites.Select(site =>
+            (site.Id, histories.TryGetValue(site.Id, out var observations) ? observations : (IReadOnlyList<SiteHealthObservation>)[]));
+        var expectedUpstreamCounts = storedSites.ToDictionary(x => x.Id, x => x.Upstreams.Count, StringComparer.OrdinalIgnoreCase);
+        var comparison = SiteHealthComparisonCalculator.Calculate(inputs, boundedWindow, boundedLimit, DateTimeOffset.UtcNow, expectedUpstreamCounts);
+        var now = DateTimeOffset.UtcNow;
+        summaryTimer.Stop();
+        var queryDurationMs = (int)Math.Min(int.MaxValue, summaryTimer.ElapsedMilliseconds);
+        var withinBudget = queryDurationMs <= summaryQueryBudgetMs;
+        var telemetry = summaryTelemetry.RecordSuccess();
+        var projected = comparison.Select(item =>
+        {
+            var acknowledgement = acknowledgements.TryGetValue(item.SiteId, out var states)
+                ? states.FirstOrDefault(x => string.Equals(x.AlertState, item.Trend.AlertState, StringComparison.OrdinalIgnoreCase))
+                : null;
+            var suppressed = HealthAlertLifecycle.IsActionable(item.Trend) && acknowledgement is not null && HealthAlertLifecycle.IsSuppressed(item.Trend.AlertState, acknowledgement.AlertState, acknowledgement.AcknowledgedUntil, now);
+            return new
+            {
+                siteId = item.SiteId,
+                total = item.Trend.Total,
+                healthy = item.Trend.Healthy,
+                unhealthy = item.Trend.Unhealthy,
+                unknown = item.Trend.Unknown,
+                healthyPercent = item.Trend.HealthyPercent,
+                consecutiveUnhealthy = item.Trend.ConsecutiveUnhealthy,
+                alertState = item.Trend.AlertState,
+                recoveryState = item.Trend.RecoveryState,
+                isStale = item.IsStale,
+                lastCheckedAt = item.Trend.LastCheckedAt,
+                acknowledgedUntil = acknowledgement?.AcknowledgedUntil,
+                acknowledgedBy = acknowledgement?.AcknowledgedBy,
+                alertSuppressed = suppressed
+            };
+        }).ToArray();
+        return Results.Ok(new
+        {
+            windowSize = boundedWindow,
+            totalSites = projected.Length,
+            criticalSites = projected.Count(x => x.alertState == "critical"),
+            degradedSites = projected.Count(x => x.alertState == "degraded" && x.recoveryState != "recovered"),
+            healthySites = projected.Count(x => x.alertState == "healthy"),
+            noDataSites = projected.Count(x => x.alertState == "no-data"),
+            recoveredSites = projected.Count(x => x.recoveryState == "recovered"),
+            staleSites = projected.Count(x => x.isStale),
+            expiredAcknowledgementsRemoved,
+            generatedAt = summaryGeneratedAt,
+            queryDurationMs,
+            queryBudgetMs = summaryQueryBudgetMs,
+            withinBudget,
+            status = withinBudget ? "ready" : "slow",
+            summaryFailureCount = telemetry.TotalFailures,
+            summaryConsecutiveFailures = telemetry.ConsecutiveFailures,
+            sites = projected
+        });
+    }).Require(Roles.Viewer);
+    app.MapPost("/api/sites", async (SiteManagementRequest input, SiteRegistry registry, SiteDatabaseStore store, SiteRuntimeCoordinator runtime, IConfiguration configuration, HttpContext ctx, CancellationToken ct) =>
     {
         if (!SiteConfigurationEditor.TryNormalize(input, out var site, out var inputError))
             return Results.BadRequest(new { error = inputError });
+        var candidate = SiteDatabaseStore.ToGatewaySite(site);
+        var proposedSites = registry.Current.Sites.Append(candidate).ToArray();
+        var validationErrors = SiteConfigurationValidator.ValidateSnapshot(
+            new SiteConfigurationSnapshot(proposedSites, false), configuration);
+        if (validationErrors.Count > 0)
+            return Results.BadRequest(new { error = "Site configuration rejected: " + string.Join("; ", validationErrors), code = "site_configuration_invalid", errors = validationErrors });
         try
         {
-            var inserted = await store.InsertAsync(SiteDatabaseStore.ToGatewaySite(site), ctx.Actor(), ct);
-            return inserted
-                ? Results.Ok(new { siteId = site.Id, requiresRestart = true, message = "Site saved to PostgreSQL. Restart Gateway to activate the route." })
-                : Results.Conflict(new { error = $"Site ID '{site.Id}' already exists" });
+            var inserted = await store.InsertAsync(candidate, ctx.Actor(), ctx.ClientIp(), ct);
+            if (!inserted) return Results.Conflict(new { error = $"Site ID '{site.Id}' already exists" });
+            try
+            {
+                runtime.Activate(new SiteConfigurationSnapshot(proposedSites, false));
+                return Results.Ok(new { siteId = site.Id, active = true, requiresRestart = false, message = "Site saved to PostgreSQL and route activated immediately." });
+            }
+            catch (SiteRuntimeActivationException ex)
+            { return Results.Problem("Site was saved but its route could not be activated", statusCode: 503, extensions: new Dictionary<string, object?> { ["code"] = "site_runtime_activation_failed", ["detail"] = ex.Message }); }
         }
-        catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException)
-        { return Results.Problem("Site could not be saved to PostgreSQL", statusCode: 503); }
+        catch (SiteHostnameConflictException ex)
+        { return Results.Conflict(new { error = ex.Message }); }
+        catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
+        { return SiteDatabaseUnavailable(ctx, "saved", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
     }).Require(Roles.SecurityAdmin);
-    app.MapPut("/api/sites/{id}", async (string id, SiteManagementRequest input, SiteRegistry registry, SiteDatabaseStore store, HttpContext ctx, CancellationToken ct) =>
+    app.MapPut("/api/sites/{id}", async (string id, SiteManagementRequest input, SiteRegistry registry, SiteDatabaseStore store, SiteRuntimeCoordinator runtime, IConfiguration configuration, HttpContext ctx, CancellationToken ct) =>
     {
         if (!SiteConfigurationEditor.TryNormalize(input with { Id = id }, out var site, out var inputError))
             return Results.BadRequest(new { error = inputError });
+        var candidate = SiteDatabaseStore.ToGatewaySite(site);
+        var proposedSites = registry.Current.Sites
+            .Where(existing => !existing.Id.Equals(candidate.Id, StringComparison.OrdinalIgnoreCase))
+            .Append(candidate)
+            .ToArray();
+        var validationErrors = SiteConfigurationValidator.ValidateSnapshot(
+            new SiteConfigurationSnapshot(proposedSites, false), configuration);
+        if (validationErrors.Count > 0)
+            return Results.BadRequest(new { error = "Site configuration rejected: " + string.Join("; ", validationErrors), code = "site_configuration_invalid", errors = validationErrors });
+        var expectedVersion = input.ExpectedVersion;
+        if (ctx.Request.Headers.IfMatch.Count > 0)
+        {
+            var header = ctx.Request.Headers.IfMatch.ToString();
+            if (!SiteConcurrency.TryParseEtag(header, out var headerVersion))
+                return Results.BadRequest(new { error = "If-Match must contain a strong Site ETag", code = "site_etag_invalid" });
+            if (expectedVersion.HasValue && expectedVersion.Value != headerVersion)
+                return Results.BadRequest(new { error = "Expected version and If-Match do not match", code = "site_version_mismatch" });
+            expectedVersion = headerVersion;
+        }
+        if (!expectedVersion.HasValue)
+            return Results.Conflict(new { error = "A current Site version or If-Match ETag is required", code = "site_version_required" });
         try
         {
-            var updated = await store.UpdateAsync(SiteDatabaseStore.ToGatewaySite(site), ctx.Actor(), ct);
-            return updated
-                ? Results.Ok(new { siteId = site.Id, requiresRestart = true, message = "Site updated in PostgreSQL. Restart Gateway to activate the route." })
-                : Results.NotFound(new { error = $"Site '{id}' was not found" });
+            var updated = await store.UpdateWithConcurrencyAsync(candidate, expectedVersion.Value, ctx.Actor(), ctx.ClientIp(), ct);
+            if (updated.Status == SiteUpdateStatus.Updated)
+            {
+                var version = updated.CurrentVersion!.Value;
+                ctx.Response.Headers.ETag = SiteConcurrency.ToEtag(version);
+                try
+                {
+                    var activatedSites = proposedSites.Select(x => x.Id.Equals(candidate.Id, StringComparison.OrdinalIgnoreCase) ? candidate with { Version = version } : x).ToArray();
+                    runtime.Activate(new SiteConfigurationSnapshot(activatedSites, false));
+                    return Results.Ok(new { siteId = site.Id, version, etag = SiteConcurrency.ToEtag(version), active = true, requiresRestart = false, message = "Site updated in PostgreSQL and route activated immediately." });
+                }
+                catch (SiteRuntimeActivationException ex)
+                { return Results.Problem("Site was saved but its route could not be activated", statusCode: 503, extensions: new Dictionary<string, object?> { ["code"] = "site_runtime_activation_failed", ["detail"] = ex.Message }); }
+            }
+            if (updated.Status == SiteUpdateStatus.Conflict)
+            {
+                var version = updated.CurrentVersion!.Value;
+                ctx.Response.Headers.ETag = SiteConcurrency.ToEtag(version);
+                return Results.Conflict(new { error = "Site changed since it was loaded; refresh before saving", code = "site_version_conflict", currentVersion = version, etag = SiteConcurrency.ToEtag(version) });
+            }
+            return Results.NotFound(new { error = $"Site '{id}' was not found" });
         }
-        catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException)
-        { return Results.Problem("Site could not be updated in PostgreSQL", statusCode: 503); }
+        catch (SiteHostnameConflictException ex)
+        { return Results.Conflict(new { error = ex.Message }); }
+        catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
+        { return SiteDatabaseUnavailable(ctx, "updated", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
     }).Require(Roles.SecurityAdmin);
-    app.MapDelete("/api/sites/{id}", async (string id, SiteRegistry registry, SiteDatabaseStore store, CancellationToken ct) =>
+    app.MapDelete("/api/sites/{id}", async (string id, SiteRegistry registry, SiteDatabaseStore store, SiteRuntimeCoordinator runtime, HttpContext ctx, CancellationToken ct) =>
     {
+        if (!SiteConcurrency.TryParseEtag(ctx.Request.Headers.IfMatch.ToString(), out var expectedVersion))
+            return Results.Conflict(new { error = "If-Match with the current Site ETag is required before delete", code = "site_version_required" });
         try
         {
-            var deleted = await store.DeleteAsync(id.Trim().ToLowerInvariant(), ct);
-            return deleted
-                ? Results.Ok(new { siteId = id, requiresRestart = true, message = "Site deleted from PostgreSQL. Restart Gateway to apply the change." })
-                : Results.NotFound(new { error = $"Site '{id}' was not found" });
+            var result = await store.DeleteWithConcurrencyAsync(id.Trim().ToLowerInvariant(), expectedVersion, ctx.Actor(), ctx.ClientIp(), ct);
+            if (result.Status == SiteDeleteStatus.Conflict)
+            {
+                var version = result.CurrentVersion!.Value;
+                ctx.Response.Headers.ETag = SiteConcurrency.ToEtag(version);
+                return Results.Conflict(new { error = "Site changed since it was loaded; refresh before deleting", code = "site_version_conflict", currentVersion = version, etag = SiteConcurrency.ToEtag(version) });
+            }
+            if (result.Status == SiteDeleteStatus.NotFound) return Results.NotFound(new { error = $"Site '{id}' was not found" });
+            try
+            {
+                var normalizedId = id.Trim().ToLowerInvariant();
+                runtime.Activate(new SiteConfigurationSnapshot(registry.Current.Sites.Where(x => !x.Id.Equals(normalizedId, StringComparison.OrdinalIgnoreCase)).ToArray(), false));
+                return Results.Ok(new { siteId = id, active = true, requiresRestart = false, message = "Site deleted from PostgreSQL and route deactivated immediately." });
+            }
+            catch (SiteRuntimeActivationException ex)
+            { return Results.Problem("Site was deleted but its route could not be refreshed", statusCode: 503, extensions: new Dictionary<string, object?> { ["code"] = "site_runtime_activation_failed", ["detail"] = ex.Message }); }
         }
-        catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException)
-        { return Results.Problem("Site could not be deleted from PostgreSQL", statusCode: 503); }
+        catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
+        { return SiteDatabaseUnavailable(ctx, "deleted", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
     }).Require(Roles.SecurityAdmin);
     app.MapAuth();
     app.MapGet("/api/ip-policies", (IpAccessPolicy policies) => Results.Ok(policies.List())).Require(Roles.Viewer);

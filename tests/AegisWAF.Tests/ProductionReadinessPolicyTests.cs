@@ -418,4 +418,23 @@ public sealed class ProductionReadinessPolicyTests
 
         Assert.Contains(errors, e => e.Contains("DangerousAcceptAnyServerCertificate", StringComparison.Ordinal));
     }
+
+    [Fact]
+    public void Production_rejects_unsafe_security_event_delivery_limits()
+    {
+        var values = SecureValues();
+        values["Waf:Events:QueueCapacity"] = "99";
+        values["Waf:Events:BatchSize"] = "1001";
+        values["Waf:Events:FlushMilliseconds"] = "9";
+        values["Waf:Events:RetentionHours"] = "0";
+        values["Waf:Events:CleanupIntervalSeconds"] = "59";
+
+        var errors = ProductionReadinessPolicy.Validate(Config(values));
+
+        Assert.Contains(errors, e => e.Contains("Events:QueueCapacity", StringComparison.Ordinal));
+        Assert.Contains(errors, e => e.Contains("Events:BatchSize", StringComparison.Ordinal));
+        Assert.Contains(errors, e => e.Contains("Events:FlushMilliseconds", StringComparison.Ordinal));
+        Assert.Contains(errors, e => e.Contains("Events:RetentionHours", StringComparison.Ordinal));
+        Assert.Contains(errors, e => e.Contains("Events:CleanupIntervalSeconds", StringComparison.Ordinal));
+    }
 }

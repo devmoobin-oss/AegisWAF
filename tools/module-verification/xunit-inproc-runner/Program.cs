@@ -99,7 +99,8 @@ sealed class ExecutionSink : IMessageSink
         if (message is TestFailed failed && IsTargeted(failed.TestMethod.TestClass.Class.Name))
         {
             Interlocked.Increment(ref _targetedFailed);
-            Console.Error.WriteLine($"TARGET_FAIL {failed.TestMethod.TestClass.Class.Name}.{failed.TestMethod.Method.Name}: {failed.Messages.FirstOrDefault()}");
+            var detail = failed.StackTraces.FirstOrDefault();
+            Console.Error.WriteLine($"TARGET_FAIL {failed.TestMethod.TestClass.Class.Name}.{failed.TestMethod.Method.Name}: {failed.Messages.FirstOrDefault()}\n{detail}");
         }
         else if (message is TestPassed passed && IsTargeted(passed.TestMethod.TestClass.Class.Name))
         {

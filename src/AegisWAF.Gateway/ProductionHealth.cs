@@ -2,6 +2,8 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.DataProtection;
 using Npgsql;
 using System.Security.Cryptography;
+using System.Text.Json;
+using AegisWAF.Gateway.Sites;
 
 namespace AegisWAF.Gateway;
 
@@ -39,6 +41,27 @@ internal sealed class PostgresHealthCheck(IConfiguration configuration) : IHealt
     }
 }
 
+internal sealed class SiteRuntimeListenerHealthCheck(
+    SiteRuntimeListenerStatus status,
+    IConfiguration configuration) : IHealthCheck
+{
+    public Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
+    {
+        if (!configuration.GetValue("Waf:Sites:UseDatabase", true) ||
+            string.IsNullOrWhiteSpace(configuration.GetConnectionString("Postgres")))
+            return Task.FromResult(HealthCheckResult.Healthy("Site runtime listener is disabled"));
+
+        var snapshot = status.Current;
+        var result = snapshot.State switch
+        {
+            "connected" when snapshot.IsConnected => HealthCheckResult.Healthy(),
+            "stopped" => HealthCheckResult.Unhealthy("Site runtime listener is stopped"),
+            _ => HealthCheckResult.Degraded("Site runtime listener is reconnecting")
+        };
+        return Task.FromResult(result);
+    }
+}
+
 internal sealed class DataProtectionHealthCheck(IDataProtectionProvider provider) : IHealthCheck
 {
     public Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
@@ -56,5 +79,54 @@ internal sealed class DataProtectionHealthCheck(IDataProtectionProvider provider
         {
             return Task.FromResult(HealthCheckResult.Unhealthy("Data Protection key ring is unavailable"));
         }
+    }
+}
+
+internal static class HealthResponseWriter
+{
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+
+    public static Task WriteAsync(HttpContext context, HealthReport report)
+    {
+        context.Response.ContentType = "application/json; charset=utf-8";
+        var payload = new
+        {
+            status = report.Status.ToString(),
+            entries = report.Entries
+                .OrderBy(entry => entry.Key, StringComparer.Ordinal)
+                .ToDictionary(
+                    entry => entry.Key,
+                    entry => new
+                    {
+                        status = entry.Value.Status.ToString(),
+                        description = SafeDescription(entry.Key, entry.Value.Status)
+                    },
+                    StringComparer.Ordinal)
+        };
+
+        return JsonSerializer.SerializeAsync(context.Response.Body, payload, JsonOptions);
+    }
+
+    private static string? SafeDescription(string checkName, HealthStatus status)
+    {
+        return checkName switch
+        {
+            "site-runtime-listener" => status switch
+            {
+                HealthStatus.Healthy => "Site runtime listener is connected",
+                HealthStatus.Degraded => "Site runtime listener is reconnecting",
+                _ => "Site runtime listener is stopped"
+            },
+            "postgres" => status == HealthStatus.Healthy
+                ? "PostgreSQL is available"
+                : "PostgreSQL health check failed",
+            "sites" => status == HealthStatus.Healthy
+                ? "Site routing is healthy"
+                : "Site routing has no available upstream destination",
+            "data-protection" => status == HealthStatus.Healthy
+                ? "Data Protection is available"
+                : "Data Protection key ring is unavailable",
+            _ => null
+        };
     }
 }

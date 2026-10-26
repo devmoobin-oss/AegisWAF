@@ -13,7 +13,16 @@ public sealed record SiteManagementRequest(
     string[] AllowedHosts,
     int[] AllowedPorts,
     string[] AllowedSchemes,
-    bool Enabled = true);
+    bool Enabled = true)
+{
+    public SiteUpstreamManagementRequest[]? Upstreams { get; init; }
+    public SiteHealthPolicy? Health { get; init; }
+    public SiteRateLimitPolicy? RateLimit { get; init; }
+    public long? ExpectedVersion { get; init; }
+    public bool AllowPrivateExceptions { get; init; }
+}
+
+public sealed record SiteUpstreamManagementRequest(string Id, string Address, int Weight = 100);
 
 /// <summary>Validates and edits only the local Site configuration document. Secrets are never copied to it.</summary>
 public static class SiteConfigurationEditor
@@ -26,48 +35,91 @@ public static class SiteConfigurationEditor
         error = "";
         var id = (input.Id ?? "").Trim().ToLowerInvariant();
         if (!IdPattern.IsMatch(id)) { error = "Site ID must use 1-64 lowercase letters, numbers, hyphen, or underscore"; return false; }
+        if (input.ExpectedVersion is < 1) { error = "Expected Site version must be a positive integer"; return false; }
 
         var hosts = (input.Hostnames ?? []).Select(NormalizeHostname).Where(x => x.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         if (hosts.Length == 0) { error = "At least one hostname is required"; return false; }
         if (hosts.Length > 32) { error = "A Site may contain at most 32 hostnames"; return false; }
 
-        if (!Uri.TryCreate(input.UpstreamAddress?.Trim(), UriKind.Absolute, out var uri) ||
-            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps) ||
-            !string.IsNullOrEmpty(uri.UserInfo))
-        { error = "Upstream must be an absolute HTTP(S) URL without credentials"; return false; }
+        var upstreamInputs = input.Upstreams is { Length: > 0 }
+            ? input.Upstreams
+            : [new SiteUpstreamManagementRequest("primary", input.UpstreamAddress ?? "", 100)];
+        if (upstreamInputs.Length > 32) { error = "A Site may contain at most 32 upstreams"; return false; }
+        var upstreams = new List<SiteUpstreamManagementRequest>();
+        var upstreamIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var candidate in upstreamInputs)
+        {
+            var upstreamId = (candidate.Id ?? "").Trim().ToLowerInvariant();
+            if (upstreamId.Length == 0 || !upstreamIds.Add(upstreamId))
+            { error = "Upstream IDs must be non-empty and unique"; return false; }
+            if (!Uri.TryCreate(candidate.Address?.Trim(), UriKind.Absolute, out var address) ||
+                (address.Scheme != Uri.UriSchemeHttp && address.Scheme != Uri.UriSchemeHttps) ||
+                !string.IsNullOrEmpty(address.UserInfo))
+            { error = "Every upstream must be an absolute HTTP(S) URL without credentials"; return false; }
+            if (candidate.Weight is < 1 or > 10_000)
+            { error = "Upstream weight must be between 1 and 10000"; return false; }
+            upstreams.Add(new SiteUpstreamManagementRequest(upstreamId, address.ToString(), candidate.Weight));
+        }
+        var firstUri = new Uri(upstreams[0].Address, UriKind.Absolute);
 
         var paths = (input.PathPrefixes ?? ["/"]).Select(SiteConfigurationValidator.NormalizePath).Distinct(StringComparer.Ordinal).ToArray();
         var allowedHosts = (input.AllowedHosts ?? []).Select(NormalizeHostname).Where(x => x.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
-        if (allowedHosts.Length == 0) allowedHosts = [NormalizeHostname(uri.Host)];
+        if (allowedHosts.Length == 0) allowedHosts = upstreams.Select(x => NormalizeHostname(new Uri(x.Address).Host)).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         var allowedPorts = (input.AllowedPorts ?? []).Distinct().ToArray();
-        if (allowedPorts.Length == 0) allowedPorts = [uri.Port > 0 ? uri.Port : uri.Scheme == Uri.UriSchemeHttps ? 443 : 80];
+        if (allowedPorts.Length == 0) allowedPorts = upstreams.Select(x => new Uri(x.Address).Port).Distinct().ToArray();
         var schemes = (input.AllowedSchemes ?? []).Select(x => (x ?? "").Trim().ToLowerInvariant()).Where(x => x.Length > 0).Distinct().ToArray();
-        if (schemes.Length == 0) schemes = [uri.Scheme.ToLowerInvariant()];
+        if (schemes.Length == 0) schemes = upstreams.Select(x => new Uri(x.Address).Scheme.ToLowerInvariant()).Distinct().ToArray();
 
-        normalized = new SiteManagementRequest(id, hosts, paths, uri.ToString(), string.IsNullOrWhiteSpace(input.WafPolicy) ? "default" : input.WafPolicy.Trim(), allowedHosts, allowedPorts, schemes, input.Enabled);
+        normalized = new SiteManagementRequest(id, hosts, paths, firstUri.ToString(), string.IsNullOrWhiteSpace(input.WafPolicy) ? "default" : input.WafPolicy.Trim(), allowedHosts, allowedPorts, schemes, input.Enabled)
+        {
+            Upstreams = upstreams.ToArray(),
+            Health = input.Health,
+            RateLimit = input.RateLimit,
+            ExpectedVersion = input.ExpectedVersion,
+            AllowPrivateExceptions = input.AllowPrivateExceptions
+        };
         return true;
     }
 
     public static JsonObject ToJson(SiteManagementRequest request)
     {
-        var upstreamPath = new Uri(request.UpstreamAddress, UriKind.Absolute).AbsolutePath.TrimEnd('/');
-        var healthPath = upstreamPath.Length == 0 ? "/" : upstreamPath;
-        var upstream = new JsonObject { ["Address"] = request.UpstreamAddress, ["Weight"] = 100 };
+        var upstreams = request.Upstreams is { Length: > 0 }
+            ? request.Upstreams
+            : [new SiteUpstreamManagementRequest("primary", request.UpstreamAddress, 100)];
+        var defaultHealthPath = new Uri(upstreams[0].Address, UriKind.Absolute).AbsolutePath.TrimEnd('/');
+        var health = request.Health ?? new SiteHealthPolicy(defaultHealthPath.Length == 0 ? "/" : defaultHealthPath);
+        var rate = request.RateLimit ?? new SiteRateLimitPolicy();
         return new JsonObject
         {
             ["Enabled"] = request.Enabled,
             ["Hostnames"] = new JsonArray(request.Hostnames.Select(x => JsonValue.Create(x)).ToArray()),
             ["PathPrefixes"] = new JsonArray(request.PathPrefixes.Select(x => JsonValue.Create(x)).ToArray()),
             ["WafPolicy"] = request.WafPolicy,
-            ["Upstreams"] = new JsonObject { ["primary"] = upstream },
+            ["Upstreams"] = new JsonObject(upstreams.ToDictionary(x => x.Id, x => (JsonNode?)new JsonObject
+            {
+                ["Address"] = x.Address,
+                ["Weight"] = x.Weight
+            }, StringComparer.OrdinalIgnoreCase)),
             ["Egress"] = new JsonObject
             {
                 ["AllowedHosts"] = new JsonArray(request.AllowedHosts.Select(x => JsonValue.Create(x)).ToArray()),
                 ["AllowedPorts"] = new JsonArray(request.AllowedPorts.Select(x => JsonValue.Create(x)).ToArray()),
                 ["AllowedSchemes"] = new JsonArray(request.AllowedSchemes.Select(x => JsonValue.Create(x)).ToArray()),
-                ["AllowPrivateExceptions"] = false
+                ["AllowPrivateExceptions"] = request.AllowPrivateExceptions
             },
-            ["Health"] = new JsonObject { ["Path"] = healthPath, ["IntervalSeconds"] = 10, ["TimeoutSeconds"] = 3, ["PassiveReactivationSeconds"] = 30 }
+            ["Health"] = new JsonObject
+            {
+                ["Path"] = health.Path,
+                ["IntervalSeconds"] = health.IntervalSeconds,
+                ["TimeoutSeconds"] = health.TimeoutSeconds,
+                ["PassiveReactivationSeconds"] = health.PassiveReactivationSeconds
+            },
+            ["RateLimit"] = new JsonObject
+            {
+                ["Requests"] = rate.Requests,
+                ["WindowSeconds"] = rate.WindowSeconds,
+                ["GlobalRequests"] = rate.GlobalRequests
+            }
         };
     }
 

@@ -278,4 +278,64 @@ public sealed class SiteConfigurationTests
 
         Assert.Contains(errors, error => error.Contains("special-use", StringComparison.OrdinalIgnoreCase));
     }
+
+    [Fact]
+    public void Typed_database_snapshot_rejects_private_upstream_in_production()
+    {
+        var configuration = Config(new Dictionary<string, string?>
+        {
+            ["Waf:Deployment:Enforce"] = "true",
+            ["Waf:Policies:default:DisabledRules:0"] = "none"
+        });
+        var site = new GatewaySite(
+            "shop", true, ["shop.example.com"], ["/"],
+            [new SiteUpstream("primary", new Uri("https://127.0.0.1/"))],
+            "default", new SiteRateLimitPolicy(),
+            new SiteEgressPolicy(["127.0.0.1"], [443], ["https"]));
+
+        var errors = SiteConfigurationValidator.ValidateSnapshot(
+            new SiteConfigurationSnapshot([site], false), configuration);
+
+        Assert.Contains(errors, error => error.Contains("private", StringComparison.OrdinalIgnoreCase) ||
+                                         error.Contains("loopback", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Typed_snapshot_rejects_duplicate_active_hostnames_before_runtime_configuration()
+    {
+        var configuration = Config(new Dictionary<string, string?>());
+        var sites = new[]
+        {
+            new GatewaySite("first", true, ["shared.example.com"], ["/"],
+                [new SiteUpstream("primary", new Uri("https://one.example.com/"))], "default",
+                new SiteRateLimitPolicy(), new SiteEgressPolicy(["one.example.com"], [443], ["https"])),
+            new GatewaySite("second", true, ["SHARED.EXAMPLE.COM."], ["/"],
+                [new SiteUpstream("primary", new Uri("https://two.example.com/"))], "default",
+                new SiteRateLimitPolicy(), new SiteEgressPolicy(["two.example.com"], [443], ["https"]))
+        };
+
+        var errors = SiteConfigurationValidator.ValidateSnapshot(
+            new SiteConfigurationSnapshot(sites, false), configuration);
+
+        Assert.Contains(errors, error => error.Contains("hostname", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Typed_snapshot_rejects_undefined_waf_policy_in_production()
+    {
+        var configuration = Config(new Dictionary<string, string?>
+        {
+            ["Waf:Deployment:Enforce"] = "true"
+        });
+        var site = new GatewaySite(
+            "shop", true, ["shop.example.com"], ["/"],
+            [new SiteUpstream("primary", new Uri("https://origin.example.com/"))],
+            "strict", new SiteRateLimitPolicy(),
+            new SiteEgressPolicy(["origin.example.com"], [443], ["https"]));
+
+        var errors = SiteConfigurationValidator.ValidateSnapshot(
+            new SiteConfigurationSnapshot([site], false), configuration);
+
+        Assert.Contains(errors, error => error.Contains("WafPolicy strict", StringComparison.OrdinalIgnoreCase));
+    }
 }

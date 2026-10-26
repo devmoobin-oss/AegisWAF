@@ -25,10 +25,37 @@ public sealed record CustomRuleDto(string Id, string Name, string Pattern, int P
 public sealed record OwaspCoverageDto(string Code, string Title, string Coverage, string Description, string Limitations, string[] RuleIds, string OfficialUrl);
 public sealed record IpPolicyDto(string Ip, string Action, string Reason);
 public sealed record SiteUpstreamDto(string Id, string Address, string Scheme, int Port, int Weight, string Health);
-public sealed record SiteDto(string SiteId, bool Enabled, string[] Hostnames, string[] PathPrefixes, string WafPolicy, string Health, SiteUpstreamDto[] Upstreams);
-public sealed record SiteCreateDto(string Id, string[] Hostnames, string[] PathPrefixes, string UpstreamAddress, string WafPolicy, string[] AllowedHosts, int[] AllowedPorts, string[] AllowedSchemes, bool Enabled = true);
-public sealed record SiteHealthUpstreamDto(string Id, string Address, string Health);
-public sealed record SiteHealthCheckDto(string SiteId, string Health, bool PendingRestart, DateTimeOffset CheckedAt, SiteHealthUpstreamDto[] Upstreams);
+public sealed record SiteDto(string SiteId, bool Enabled, string[] Hostnames, string[] PathPrefixes, string WafPolicy, string Health, SiteUpstreamDto[] Upstreams,
+    string HealthPath = "/", int HealthIntervalSeconds = 10, int HealthTimeoutSeconds = 3, int HealthPassiveReactivationSeconds = 30,
+    int RateRequests = 300, int RateWindowSeconds = 60, int RateGlobalRequests = 10_000,
+    bool Fresh = false, string Source = "yarp-runtime-state", DateTimeOffset? LastProbeAt = null,
+    long Version = 1, string Etag = "\"1\"", long? ActiveVersion = null, string ActivationStatus = "active", bool PendingRestart = false,
+    bool AllowPrivateExceptions = false);
+public sealed record SiteUpstreamInputDto(string Id, string Address, int Weight = 100);
+public sealed record SiteHealthPolicyDto(string Path = "/", int IntervalSeconds = 10, int TimeoutSeconds = 3, int PassiveReactivationSeconds = 30);
+public sealed record SiteRateLimitPolicyDto(int Requests = 300, int WindowSeconds = 60, int GlobalRequests = 10_000);
+public sealed record SiteCreateDto(string Id, string[] Hostnames, string[] PathPrefixes, string UpstreamAddress, string WafPolicy, string[] AllowedHosts, int[] AllowedPorts, string[] AllowedSchemes, bool Enabled = true,
+    SiteUpstreamInputDto[]? Upstreams = null, SiteHealthPolicyDto? Health = null, SiteRateLimitPolicyDto? RateLimit = null, long? ExpectedVersion = null,
+    bool AllowPrivateExceptions = false);
+public sealed record SiteHealthUpstreamDto(string Id, string Address, string Health, string? Reason = null);
+public sealed record SiteHealthCheckDto(string SiteId, string Health, bool PendingRestart, DateTimeOffset CheckedAt, SiteHealthUpstreamDto[] Upstreams,
+    bool Fresh = false, string Source = "yarp-runtime-state", DateTimeOffset? LastProbeAt = null,
+    long Version = 1, long? ActiveVersion = null, string ActivationStatus = "active", string Etag = "\"1\"");
+public sealed record SiteHealthObservationDto(string UpstreamId, string Health, string? Reason, DateTimeOffset CheckedAt);
+public sealed record SiteHealthHistoryDto(string SiteId, string Retention, int MaxObservationsPerSite, SiteHealthObservationDto[] Observations);
+public sealed record SiteHealthTrendDto(string SiteId, int WindowSize, int Total, int Healthy, int Unhealthy, int Unknown,
+    double HealthyPercent, int ConsecutiveUnhealthy, string AlertState, DateTimeOffset? LastCheckedAt,
+    DateTimeOffset? AcknowledgedUntil = null, string? AcknowledgedBy = null, bool AlertSuppressed = false,
+    string RecoveryState = "none");
+public sealed record SiteHealthComparisonDto(string SiteId, int Total, int Healthy, int Unhealthy, int Unknown,
+    double HealthyPercent, int ConsecutiveUnhealthy, string AlertState, bool IsStale,
+    DateTimeOffset? LastCheckedAt, DateTimeOffset? AcknowledgedUntil, string? AcknowledgedBy, bool AlertSuppressed,
+    string RecoveryState = "none");
+public sealed record SiteHealthSummaryDto(int WindowSize, int TotalSites, int CriticalSites, int DegradedSites,
+    int HealthySites, int NoDataSites, int StaleSites, SiteHealthComparisonDto[] Sites,
+    int ExpiredAcknowledgementsRemoved = 0, DateTimeOffset? GeneratedAt = null, int QueryDurationMs = 0,
+    int QueryBudgetMs = 2_000, bool WithinBudget = true, string Status = "ready",
+    long SummaryFailureCount = 0, long SummaryConsecutiveFailures = 0, int RecoveredSites = 0);
 public sealed record AuditEntryDto(DateTimeOffset OccurredAt, string Action, string Target, string? Actor, string? ClientIp, string Outcome)
 {
     public string LocalTime => OccurredAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");

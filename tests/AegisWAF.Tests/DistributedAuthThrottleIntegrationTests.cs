@@ -101,8 +101,8 @@ public sealed class DistributedAuthThrottleIntegrationTests(GatewayFixture fx)
         };
         await using var first = new EmbeddedGateway();
         await using var second = new EmbeddedGateway();
-        await first.StartAsync(new EmbeddedGatewayOptions(firstUrl, fx.ConnectionString, null, null, null, overrides));
-        await second.StartAsync(new EmbeddedGatewayOptions(secondUrl, fx.ConnectionString, null, null, null, overrides));
+        await first.StartAsync(new EmbeddedGatewayOptions(firstUrl, fx.ConnectionString, null, null, null, overrides, PreferConfigurationSites: true));
+        await second.StartAsync(new EmbeddedGatewayOptions(secondUrl, fx.ConnectionString, null, null, null, overrides, PreferConfigurationSites: true));
 
         using var firstClient = new HttpClient { BaseAddress = firstUrl };
         using var secondClient = new HttpClient { BaseAddress = secondUrl };
