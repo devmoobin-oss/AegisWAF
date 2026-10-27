@@ -1924,9 +1924,24 @@
 - SHA-256: `24B88877C8ADCD13E05CF62719CA57DA77EDD4D3D15C320C7462DAF04C5779C1`.
 - Verification: PE header `MZ`; release manifest verifier passed (`files=6`, `signed=false`, `workingTreeClean=true`); release manifest writer and tamper/extra-file verifier tests passed.
 
+### Module 75 final progress record — 2026-10-27
+
+- Before: 0%; After: 100%; Target: 100%.
+- Opportunity: `docs/SECURITY.md` ยังรายงาน PostgreSQL superuser finding 14 เป็น `Open` ทั้งที่ runtime production policy บังคับ `Database:RequireLeastPrivilege=true` และตรวจ `pg_user.usesuper` แล้ว fail-closed.
+- TDD RED: `SiteManagerContractTests` ล้มเหลวก่อนแก้ เพราะยังพบข้อความ finding 14 เป็น `**Open**`.
+- Implementation: เปลี่ยน finding 14 เป็น `Improved` พร้อมอธิบาย production fail-closed check และคง boundary ว่า Desktop/dev default เป็น compatibility profile; ยังไม่อ้างว่าระบบ provision production role ให้เอง.
+- Verification: `SiteManagerContractTests` + `ProductionReadinessPolicyTests` ผ่าน 33/33; `git diff --check` ผ่าน.
+- Evidence: `artifacts/module-verification/module75-least-privilege-documentation-alignment.json`.
+- Boundary: เป็น documentation/control-alignment module; การสร้าง least-privilege role และการตรวจสอบ production database จริงยังเป็น deployment gate.
+
+### Opportunity audit after Module 75 — 2026-10-27
+
+- P0: Module 41/60 ยังรอ repository Code scanning/Advanced Security และ Hosted SARIF-upload pass.
+- P1: provision least-privilege PostgreSQL role in the deployment environment, external SIEM delivery/retention, authenticated published-EXE Multi-Site smoke, Authenticode signing, DNS-rebinding, penetration, load, SLO/capacity และ incident-response evidence ยังเป็น external/deployment gates.
+
 ### Authoritative continuation state — 2026-10-27 (latest)
 
-- Latest local/Hosted module progress: Module 74 = 100%; Module 73 = 100%; Module 72 = 100%.
+- Latest local/Hosted module progress: Module 75 = 100%; Module 74 = 100%; Module 73 = 100%; Module 72 = 100%.
 - Latest published artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-Module74\AegisWAF.exe`, SHA-256 `2D28E5E989740DA20F8449761A09023F9DBE9E8220CDEB24011DDD0495164957`.
 - Remaining incomplete gates: Module 41 = 90% and Module 60 = 90% (repository Code scanning/Advanced Security and Hosted SARIF evidence).
 - Next continuation action: enable repository Code scanning/Advanced Security if approved and rerun Hosted Security Verification to close Module 41/60; preserve the Module74 artifact unless runtime code changes again.

@@ -49,8 +49,12 @@ public sealed class SiteManagerContractTests
         Assert.DoesNotContain("require Gateway restart", codeBehind, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("activates a valid committed route without Gateway restart", readiness, StringComparison.Ordinal);
         Assert.DoesNotContain("active runtime configuration remains immutable until Gateway restart", readiness, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Database:RequireLeastPrivilege=true", readiness, StringComparison.Ordinal);
+        Assert.Contains("startup then fails closed when the database role is a superuser", readiness, StringComparison.Ordinal);
         Assert.Contains("SHA-256 `prev_hash`/`entry_hash` chain", security, StringComparison.Ordinal);
         Assert.DoesNotContain("| 15 | Audit log is append-only by convention, not tamper-evident | Low | **Open**", security, StringComparison.Ordinal);
+        Assert.DoesNotContain("| 14 | Dev DB account is the `postgres` superuser | Medium | **Open**", security, StringComparison.Ordinal);
+        Assert.Contains("| 14 | Dev DB account is the `postgres` superuser | Medium | **Improved**", security, StringComparison.Ordinal);
         Assert.Contains("lastProbeAt", gateway, StringComparison.Ordinal);
         Assert.Contains("Multi-Site Gateway", File.ReadAllText(Path.Combine(root, "src", "AegisWAF.Desktop", "Views", "SettingsView.xaml")), StringComparison.Ordinal);
         Assert.DoesNotContain("x:Name=\"Upstream\"", File.ReadAllText(Path.Combine(root, "src", "AegisWAF.Desktop", "Views", "SettingsView.xaml")), StringComparison.Ordinal);

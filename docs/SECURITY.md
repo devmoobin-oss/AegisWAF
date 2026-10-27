@@ -22,7 +22,7 @@ See also [PROTECTION.md](PROTECTION.md) for exactly which attack classes the gat
 | 11 | Rate limiter is a fixed window (named "sliding"), hard-coded 300/min, per process | Medium | **Improved** – configurable rolling-window ceilings with optional global/shared PostgreSQL enforcement |
 | 12 | Security-event storage needs bounded retention/partitioning and durable external delivery; batching, local retention and delivery counters are implemented | Medium | **Open** – external SIEM/partitioning |
 | 13 | No TLS termination/management; session cookie is `Secure` only when the request itself is HTTPS | High | **Improved** – trusted forwarded HTTPS is recognized for admin enforcement and cookie flags; certificate lifecycle is still infrastructure-owned |
-| 14 | Dev DB account is the `postgres` superuser | Medium | **Open** – create a least-privilege role for production |
+| 14 | Dev DB account is the `postgres` superuser | Medium | **Improved** – Production enforcement requires `Database:RequireLeastPrivilege=true` and fails closed when `current_user` is a PostgreSQL superuser; Desktop/dev defaults remain compatibility-oriented, so production role provisioning is still an operational gate |
 | 15 | Audit log is append-only by convention, not tamper-evident | Low | **Improved** – SHA-256 `prev_hash`/`entry_hash` chain, `/api/audit/integrity`, and a deduplicated critical integrity-failure alert are implemented; external SIEM delivery/retention remains open |
 
 ## Password policy and legacy hashes
