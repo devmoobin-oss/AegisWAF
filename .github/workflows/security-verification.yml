@@ -195,6 +195,15 @@ jobs:
           -TargetFramework net10.0-windows
           -RuntimeIdentifier win-x64
           -RequireCleanGit
+      - name: Verify release provenance manifest
+        shell: pwsh
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass
+          -File .\tools\release\Verify-ReleaseManifest.ps1
+          -InputDirectory "${env:RUNNER_TEMP}\AegisWAF-Desktop"
+          -ManifestPath "${env:RUNNER_TEMP}\AegisWAF-Desktop\release-manifest.json"
+          -RequireCleanSource
+          -Json
       - name: Upload Desktop bundle and provenance
         uses: actions/upload-artifact@v4
         with:

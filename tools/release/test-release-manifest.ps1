@@ -21,7 +21,10 @@ try {
     if ($document.manifestVersion -ne 1) { throw 'Unexpected manifest version' }
     if ($document.signed -ne $false) { throw 'Unsigned fixture must be explicit' }
     if ($document.files.Count -ne 2) { throw "Expected 2 files, found $($document.files.Count)" }
-    if ($document.files[0].path -ne 'assets/appsettings.json') { throw "Manifest paths are not sorted/normalized; first=$($document.files[0].path)" }
+    $manifestPaths = @($document.files | ForEach-Object { [string]$_.path })
+    if (-not ($manifestPaths -contains 'AegisWAF.exe') -or -not ($manifestPaths -contains 'assets/appsettings.json')) {
+        throw "Manifest paths are not normalized; paths=$($manifestPaths -join ', ')"
+    }
     $before = ($document.files | Where-Object path -eq 'AegisWAF.exe' | Select-Object -First 1).sha256
 
     Add-Content -LiteralPath (Join-Path $bundle 'AegisWAF.exe') -Value 'tampered'

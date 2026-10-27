@@ -23,6 +23,8 @@ public sealed class ReleaseProvenanceContractTests
         Assert.Contains("publish_desktop:", workflow, StringComparison.Ordinal);
         Assert.Contains("release-provenance:", workflow, StringComparison.Ordinal);
         Assert.Contains("Write-ReleaseManifest.ps1", workflow, StringComparison.Ordinal);
+        Assert.Contains("Verify-ReleaseManifest.ps1", workflow, StringComparison.Ordinal);
+        Assert.Contains("-RequireCleanSource", workflow, StringComparison.Ordinal);
         Assert.Contains("actions/upload-artifact@v4", workflow, StringComparison.Ordinal);
     }
 

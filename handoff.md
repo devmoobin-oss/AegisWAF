@@ -1640,3 +1640,27 @@
 - Verification: preflight ไม่มี token ล้มด้วย exit `1`; Python compile ผ่าน; local full regression `497/497`, failed=0, skipped=0; TRX verifier ผ่าน `total=497 executed=497 passed=497 failed=0 skipped=0`.
 - Boundary: Module 61 เป็นการปรับ feedback/gate ภายในและครบ 100%; Module 41/60 ยังรอ external repository setting และ Hosted run ใหม่เพื่อยืนยัน CodeQL upload จริง.
 - Current module state: Module 40 = 100%, Module 42 = 100%, Module 43 = 100%, Module 44 = 100%, Module 45 = 100%, Module 46 = 100%, Module 47 = 100%, Module 48 = 100%, Module 49 = 100%, Module 50 = 100%, Module 51 = 100%, Module 52 = 100%, Module 53 = 100%, Module 54 = 100%, Module 55 = 100%, Module 56 = 100%, Module 57 = 100%, Module 58 = 100%, Module 59 = 100%, Module 60 = 90%, Module 61 = 100%, Module 41 = 90% pending repository Code scanning enablement.
+
+### Published EXE — 2026-10-27 08:34:00 +07:00
+
+- Scope: publish จาก source ล่าสุดที่ commit `1597a11a76075b56b785b32d3b731e50e9f01733` โดยรวมเฉพาะความสามารถ runtime ที่พัฒนาเสร็จแล้ว; Module 41/60 ที่ยังรอ Hosted Code scanning เป็นหลักฐาน CI/release gate ไม่ได้ถูกอ้างว่าเสร็จ 100% และไม่ทำให้ publish ผ่านแบบหลอกลวง.
+- Command: `dotnet publish src/AegisWAF.Desktop/AegisWAF.Desktop.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o D:\AegisWAF\dist\AegisWAF-Desktop --no-restore`.
+- Artifact: `D:\AegisWAF\dist\AegisWAF-Desktop\AegisWAF.exe`, self-contained `win-x64`, single-file, 170,608,491 bytes.
+- SHA-256: `7FC5F9CF042341915FE2D3958CFEA4F3F78B85DDE70A94EAD2212554ADCF027E`.
+- Verification: PE header `MZ`; release manifest regenerated and recorded 7 bundle files with source commitตรงกับ publish commit and `workingTreeClean=true` ณ เวลาสร้าง manifest; artifact ยังไม่ได้ลงลายเซ็น Authenticode (`signed=false`).
+
+### Module 62 final progress record — 2026-10-27
+
+- Before: 0%; After: 100%; Target: 100% สำหรับ implementation และ local evidence.
+- Opportunity completed: Hosted Desktop release เดิมสร้าง manifest แล้ว upload ทันทีโดยไม่ verify bundle ทำให้ขั้นตอน release ยังไม่ fail-closed หากไฟล์หาย/เกิน/ถูกแก้ไข; release-manifest test เดิมยังผูกกับลำดับไฟล์แบบ culture-specific บน Windows.
+- TDD: เพิ่ม assertions ใน `ReleaseProvenanceContractTests`; red ก่อนเพิ่ม workflow verifier (`Verify-ReleaseManifest.ps1` ไม่พบ), green หลังเพิ่ม step `Verify release provenance manifest` ก่อน upload.
+- Implementation: workflow เรียก `Verify-ReleaseManifest.ps1 -RequireCleanSource -Json` หลังเขียน manifest และก่อน `actions/upload-artifact`; ปรับ `tools/release/test-release-manifest.ps1` ให้ตรวจ normalized path แบบไม่ผูกกับ culture/ลำดับตำแหน่งแรก.
+- Verification: targeted contract `1/1`; manifest writer test ผ่าน; verifier tamper/extra-file test ผ่าน; current published bundle verifier ผ่าน `files=7`, `signed=false`, source commit `1597a11a76075b56b785b32d3b731e50e9f01733`; full local regression `497/497`, failed=0, skipped=0; TRX verifier `TRX_REGRESSION_PASS`; `git diff --check` ผ่าน (เฉพาะ line-ending warnings เดิม).
+- Hosted boundary: Run `40433189181` (ก่อน changes ชุดนี้ถูก push) พบ `.NET tests` ล้ม 1 เคสจาก readiness integration timeout 5 วินาทีบน Ubuntu และ CodeQL fail-fast เพราะ repository ยังไม่เปิด Code scanning; แก้ test timeout เป็น 15 วินาทีพร้อมเก็บ redacted `/ready` body แล้ว ต้องมี Hosted run ใหม่เพื่อยืนยัน.
+- Current module state: Module 40 = 100%, Module 42 = 100%, Module 43 = 100%, Module 44 = 100%, Module 45 = 100%, Module 46 = 100%, Module 47 = 100%, Module 48 = 100%, Module 49 = 100%, Module 50 = 100%, Module 51 = 100%, Module 52 = 100%, Module 53 = 100%, Module 54 = 100%, Module 55 = 100%, Module 56 = 100%, Module 57 = 100%, Module 58 = 100%, Module 59 = 100%, Module 60 = 90%, Module 61 = 100%, Module 62 = 100%, Module 41 = 90% pending repository Code scanning enablement and fresh Hosted evidence.
+
+### Opportunity audit after Module 62 — 2026-10-27
+
+- P0: Push Module 62 plus the readiness-race fix, then inspect a fresh Hosted run; Code scanning/Advanced Security remains an external repository setting.
+- P1: authenticated published-EXE Multi-Site smoke with operator take-over only at login, approved Authenticode signing, external SIEM delivery/retention, DNS-rebinding, penetration, load, SLO/capacity, and incident-response evidence.
+- P2: MFA/WebAuthn/OIDC, per-Site WAF policy versioning, and independent OWASP CRS corpus benchmarking.

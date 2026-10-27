@@ -11,11 +11,13 @@ public sealed class SiteRuntimeListenerStatusIntegrationTests(GatewayFixture fx)
         var api = await fx.LoginAdmin();
         var ready = false;
         var readyStatus = 0;
-        var readyDeadline = DateTimeOffset.UtcNow.AddSeconds(5);
+        var readyBody = string.Empty;
+        var readyDeadline = DateTimeOffset.UtcNow.AddSeconds(15);
         while (DateTimeOffset.UtcNow < readyDeadline)
         {
             using var response = await api.Get("/ready");
             readyStatus = (int)response.StatusCode;
+            readyBody = await response.Content.ReadAsStringAsync();
             if (response.IsSuccessStatusCode)
             {
                 ready = true;
@@ -25,7 +27,7 @@ public sealed class SiteRuntimeListenerStatusIntegrationTests(GatewayFixture fx)
             await Task.Delay(50);
         }
 
-        Assert.True(ready, $"Gateway did not become ready within 5 seconds; last /ready status was {readyStatus}.");
+        Assert.True(ready, $"Gateway did not become ready within 15 seconds; last /ready status was {readyStatus}; body={readyBody}");
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         JsonElement listener = default;
 
