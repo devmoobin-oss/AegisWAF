@@ -46,7 +46,7 @@ public sealed record SiteHealthHistoryDto(string SiteId, string Retention, int M
 public sealed record SiteHealthTrendDto(string SiteId, int WindowSize, int Total, int Healthy, int Unhealthy, int Unknown,
     double HealthyPercent, int ConsecutiveUnhealthy, string AlertState, DateTimeOffset? LastCheckedAt,
     DateTimeOffset? AcknowledgedUntil = null, string? AcknowledgedBy = null, bool AlertSuppressed = false,
-    string RecoveryState = "none");
+    string RecoveryState = "none", bool IsStale = false);
 public sealed record SiteHealthComparisonDto(string SiteId, int Total, int Healthy, int Unhealthy, int Unknown,
     double HealthyPercent, int ConsecutiveUnhealthy, string AlertState, bool IsStale,
     DateTimeOffset? LastCheckedAt, DateTimeOffset? AcknowledgedUntil, string? AcknowledgedBy, bool AlertSuppressed,

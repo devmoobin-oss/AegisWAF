@@ -6,13 +6,17 @@ namespace AegisWAF.Client;
 /// </summary>
 public static class SiteHealthDisplayState
 {
-    public static string Resolve(string? liveHealth, string? historicalAlert, string? recoveryState, bool pendingRestart)
+    public static string Resolve(string? liveHealth, string? historicalAlert, string? recoveryState, bool pendingRestart, bool stale = false)
     {
         if (pendingRestart) return "pending-restart";
 
         var live = Normalize(liveHealth);
         var historical = Normalize(historicalAlert);
         var recovered = string.Equals(recoveryState, "recovered", StringComparison.OrdinalIgnoreCase);
+
+        // A historical alert with no fresh runtime data is not evidence of a current outage.
+        // Keep the operator informed without presenting stale state as an active crisis.
+        if (stale && live is not "healthy" and not "unhealthy") return "stale";
 
         if (live == "healthy")
             return historical is "critical" or "degraded" || recovered ? "recovered" : "healthy";

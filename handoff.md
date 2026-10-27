@@ -2210,6 +2210,31 @@
 - Remaining incomplete gates: Module 41 = 90% and Module 60 = 90% (repository Code scanning/Advanced Security and Hosted SARIF evidence); local integration gates requiring PostgreSQL are reported as unverified when the service is absent.
 - Next continuation action: run the next concrete Multi-Site hardening opportunity and do not weaken the evidence boundary.
 
+### Module 84 final progress record — 2026-10-27
+
+- Before: 0%; After: 100%; Target: 100% for the defined stale-health display gates.
+- Opportunity/root cause: `SiteHealthComparisonDto.IsStale` was available from the summary API but was discarded when Desktop converted the item to `SiteHealthTrendDto`; an old historical `critical` could therefore appear as a current crisis while live health was `unknown`.
+- TDD RED: the new stale-display contract initially failed to compile because `SiteHealthDisplayState.Resolve` had no stale parameter.
+- Implementation: carried `IsStale` through the client model and Desktop row mapping; added a `stale` display state when live health is neither healthy nor unhealthy; rendered it as `ข้อมูลเก่า · รอตรวจสอบ` with muted styling and no acknowledgement action.
+- Verification: focused health/UI contracts passed **17/17**; Release solution build passed **0 warnings / 0 errors**; `git diff --check` passed.
+- Artifact boundary: Desktop health presentation changed, so the completed-modules EXE must be republished from the Module 84 commit. Hosted full regression and authenticated published-EXE smoke remain external gates.
+- Evidence: `artifacts/module-verification/module84-stale-health-display.json`.
+- Boundary: this prevents stale historical data from being presented as a current crisis; it does not claim a fresh Hosted regression, CodeQL/SARIF, independent penetration testing, DNS-rebinding, external load/SLO validation, SIEM delivery, Authenticode signing, or production certification.
+
+### Opportunity audit after Module 84 — 2026-10-27
+
+- P0: Module 41/60 remain at 90% pending repository Code scanning/Advanced Security enablement and a fresh successful SARIF upload/status.
+- P1: publish and authenticated-smoke-test the Module 84 executable, validate least-privilege PostgreSQL deployment, SIEM delivery/retention, DNS-rebinding, penetration, load, SLO/capacity, and incident-response evidence.
+- P2: continue auditing Multi-Site policy versioning, MFA/WebAuthn/OIDC, and independent OWASP CRS corpus benchmarking.
+
+### Authoritative continuation state — 2026-10-27 (latest after Module 84)
+
+- Latest local/Hosted module progress: Module 84 = 100%; Module 83 = 100%; Module 82 = 100%; Module 81 = 100%; Module 80 = 100%; Module 79 = 100%; Module 78 = 100%; Module 77 = 100%; Module 76 = 100%; Module 75 = 100%; Module 74 = 100%; Module 73 = 100%; Module 72 = 100%.
+- Latest Hosted verification for runtime Module 78: run `40445541235`, full regression `509/509`, `TRX_REGRESSION_PASS`; CodeQL remains an explicit external gate because repository Code scanning/Advanced Security is unavailable.
+- Latest completed-modules artifact remains the Module 83 bundle until Module 84 is republished: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`, SHA-256 `9D55EF7AC4E5F25A4713E38A94FD2A0A2086BAD2F7155867137BA2D5FCC45335`.
+- Remaining incomplete gates: Module 41 = 90% and Module 60 = 90% (repository Code scanning/Advanced Security and Hosted SARIF evidence); local integration gates requiring PostgreSQL are reported as unverified when the service is absent.
+- Next continuation action: commit and publish Module 84, then run the next concrete Multi-Site hardening opportunity without weakening the evidence boundary.
+
 ### Module 83 final progress record — 2026-10-27
 
 - Before: 0%; After: 100%; Target: 100% for the defined Desktop API diagnostics gates.

@@ -164,7 +164,7 @@ public partial class SitesView : UserControl, IPage
     private static SiteHealthTrendDto ToTrend(SiteHealthComparisonDto item, int windowSize) => new(
         item.SiteId, windowSize, item.Total, item.Healthy, item.Unhealthy, item.Unknown, item.HealthyPercent,
         item.ConsecutiveUnhealthy, item.AlertState, item.LastCheckedAt, item.AcknowledgedUntil,
-        item.AcknowledgedBy, item.AlertSuppressed, item.RecoveryState);
+        item.AcknowledgedBy, item.AlertSuppressed, item.RecoveryState, item.IsStale);
     private async void OnRefresh(object sender, RoutedEventArgs e) => await RefreshAsync();
 
     private async void OnRetrySummary(object sender, RoutedEventArgs e) => await RefreshListAsync(false, RefreshCancellationReason.Retry);
@@ -392,7 +392,7 @@ public partial class SitesView : UserControl, IPage
         public string UpstreamsText => string.Join(", ", site.Upstreams.Select(x => $"{x.Id} {x.Scheme}:{x.Port} ({x.Health})"));
         public string Health => site.Health;
         public string TrendText => trend is null ? "—" : $"{trend.HealthyPercent:0.#}% / {trend.Total}";
-        private string DisplayState => SiteHealthDisplayState.Resolve(site.Health, trend?.AlertState, trend?.RecoveryState, site.PendingRestart);
+        private string DisplayState => SiteHealthDisplayState.Resolve(site.Health, trend?.AlertState, trend?.RecoveryState, site.PendingRestart, trend?.IsStale == true);
         public bool CanAcknowledge => trend is { AlertSuppressed: false } && DisplayState is "critical" or "degraded";
         public string AlertText => DisplayState switch
         {
@@ -404,6 +404,7 @@ public partial class SitesView : UserControl, IPage
             "healthy" => "ปกติ",
             "unhealthy" => "ไม่พร้อม",
             "pending-restart" => "รอเปิดใช้",
+            "stale" => "ข้อมูลเก่า · รอตรวจสอบ",
             _ => "ไม่มีข้อมูล"
         };
         public Brush AlertBrush => DisplayState switch
@@ -412,6 +413,7 @@ public partial class SitesView : UserControl, IPage
             "degraded" => Ui.Brush("Orange"),
             "healthy" or "recovered" => Ui.Brush("Green"),
             "unhealthy" => Ui.Brush("Red"),
+            "stale" => Ui.Brush("Muted"),
             _ => Ui.Brush("Muted")
         };
         public string WafPolicy => site.WafPolicy;
