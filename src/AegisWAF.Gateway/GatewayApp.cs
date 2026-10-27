@@ -626,8 +626,10 @@ public static class GatewayApp
         var trendIsStale = HealthAlertLifecycle.IsStale(trend, trendNow);
         if (!HealthAlertLifecycle.IsActionable(trend, trendNow))
             return Results.Conflict(new { error = "health_alert_not_actionable", alertState = trend.AlertState, recoveryState = trend.RecoveryState, isStale = trendIsStale });
+        IAsyncDisposable? mutationLease = null;
         try
         {
+            mutationLease = await store.AcquireSiteMutationLockAsync(ct);
             var acknowledgement = await store.AcknowledgeHealthAlertAsync(site.Id, trend.AlertState, input.CooldownSeconds, ctx.Actor() ?? "unknown", ctx.ClientIp(), ct);
             return Results.Ok(new
             {
@@ -647,8 +649,14 @@ public static class GatewayApp
                 alertSuppressed = true
             });
         }
+        catch (SiteMutationLockTimeoutException)
+        { return SiteMutationBusy(ctx); }
         catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException)
         { return SiteDatabaseUnavailable(ctx, "health-alert-acknowledged", "site_database_unavailable"); }
+        finally
+        {
+            if (mutationLease is not null) await mutationLease.DisposeAsync();
+        }
     }).Require(Roles.Operator);
     app.MapGet("/api/sites/health/summary", async (SiteDatabaseStore store, SiteHealthSummaryFailureTelemetry summaryTelemetry, int? window, int? limit, HttpContext ctx, CancellationToken ct) =>
     {

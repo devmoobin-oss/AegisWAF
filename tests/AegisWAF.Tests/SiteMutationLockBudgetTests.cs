@@ -35,7 +35,7 @@ public sealed class SiteMutationLockBudgetTests
 
         Assert.Contains("pg_try_advisory_lock", store, StringComparison.Ordinal);
         Assert.Contains("SiteMutationLockTimeoutException", store, StringComparison.Ordinal);
-        Assert.Equal(3, Count(gateway, "SiteMutationLockTimeoutException"));
+        Assert.Equal(4, Count(gateway, "SiteMutationLockTimeoutException"));
         Assert.Contains("site_mutation_busy", gateway, StringComparison.Ordinal);
     }
 
