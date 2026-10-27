@@ -2159,6 +2159,35 @@
 - Verification: PE header `MZ`; release manifest verification passed (`files=6`, `signed=false`, `workingTreeClean=true`). Manifest: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\release-manifest.json`.
 - Boundary: this is the operator-facing completed-modules artifact. It is not Authenticode-signed and does not claim CodeQL/SARIF, external penetration, DNS-rebinding, load/SLO, SIEM, or production-certification evidence.
 
+### Module 85 final progress record — 2026-10-27
+
+- Before: 0%; After: 100%; Target: 100% for the defined stale-health summary consistency gates.
+- Opportunity/root cause: the API summary counted stale historical `critical`/`degraded` trends as current alerts, while the Site row correctly displayed `ข้อมูลเก่า · รอตรวจสอบ`; this made the summary appear to report a current crisis when the live runtime state was not confirmed.
+- TDD RED: `SiteHealthSummaryAlertCountsTests` initially failed to compile because `SiteHealthSummaryAlertCounts` did not exist (`CS0103`).
+- Implementation: added a gateway-side summary counter that excludes stale critical/degraded items from active counts, added `staleCriticalSites` and `staleDegradedSites` to the summary response and client DTO, and updated the Desktop summary in Thai to distinguish `วิกฤติปัจจุบัน`/`เฝ้าระวังปัจจุบัน` from old stale severity.
+- Verification: focused in-process health/UI contracts passed **34/34**, failed `0`, skipped `0`; Release solution build passed **0 warnings / 0 errors**; `git diff --check` passed. Standard VSTest was bounded after the known testhost/loopback hang and is not claimed as passing.
+- Evidence: `artifacts/module-verification/module85-stale-summary-alert-counts.json`.
+- Source commit: `51d836cbfb649e655e0c8755f545ffb351a4da48`.
+- Boundary: this proves local source, focused health contracts, and Release compilation. It does not claim fresh Hosted regression, CodeQL/SARIF, PostgreSQL integration, external penetration testing, load/SLO, SIEM, Authenticode signing, or production certification.
+
+### Published EXE — Module 85 completed modules bundle — 2026-10-27
+
+- Scope: republished only the completed runtime/UI modules after Module 85 stale-summary alert-count hardening.
+- Publish gate progress: Before 0%; After 100%; Target 100%.
+- Source commit: `51d836cbfb649e655e0c8755f545ffb351a4da48`; the working tree was clean when the publish was created.
+- Artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`, `net10.0-windows`, self-contained `win-x64`, single-file, `170,621,291` bytes.
+- SHA-256: `AA22CB5C18AF5ADD3587D912B0B42E350CB7AEC7E5688A7712D022A98D0B7A32`.
+- Verification: PE header `MZ`; release manifest verification passed (`files=6`, `signed=false`, `workingTreeClean=true`). Manifest: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\release-manifest.json`.
+- Boundary: this is the operator-facing completed-modules artifact. It is not Authenticode-signed and does not claim CodeQL/SARIF, external penetration, DNS-rebinding, load/SLO, SIEM, or production-certification evidence.
+
+### Authoritative continuation state — 2026-10-27 (latest after Module 85)
+
+- Latest local/Hosted module progress: Module 85 = 100%; Module 84 = 100%; Module 83 = 100%; Module 82 = 100%; Module 81 = 100%; Module 80 = 100%; Module 79 = 100%; Module 78 = 100%; Module 77 = 100%; Module 76 = 100%; Module 75 = 100%; Module 74 = 100%; Module 73 = 100%; Module 72 = 100%.
+- Latest completed-modules artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`, SHA-256 `AA22CB5C18AF5ADD3587D912B0B42E350CB7AEC7E5688A7712D022A98D0B7A32`.
+- Latest Hosted verification for runtime Module 78 remains run `40445541235`, full regression `509/509`, `TRX_REGRESSION_PASS`; CodeQL remains an explicit external gate because repository Code scanning/Advanced Security is unavailable.
+- Remaining incomplete gates: Module 41 = 90% and Module 60 = 90% (repository Code scanning/Advanced Security and Hosted SARIF evidence); local integration gates requiring PostgreSQL are reported as unverified when the service is absent.
+- Next opportunity audit: continue Multi-Site runtime/API security hardening, prioritizing authenticated published-EXE smoke evidence, least-privilege PostgreSQL deployment, SIEM delivery/retention, DNS-rebinding, penetration, load/SLO/capacity, incident-response evidence, policy versioning, MFA/WebAuthn/OIDC, and independent OWASP CRS benchmarking.
+
 ### Authoritative continuation state — 2026-10-27 (latest after Module 81 publish)
 
 - Latest local/Hosted module progress: Module 81 = 100%; Module 80 = 100%; Module 79 = 100%; Module 78 = 100%; Module 77 = 100%; Module 76 = 100%; Module 75 = 100%; Module 74 = 100%; Module 73 = 100%; Module 72 = 100%.
