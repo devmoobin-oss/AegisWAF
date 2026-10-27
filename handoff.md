@@ -2191,3 +2191,21 @@
 - Latest completed-modules artifact remains the Module 81 bundle until Module 82 is republished: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`, SHA-256 `5C4949432F9D838C55E35D4CE3C5EDA9242B8218A97CE8AA7DD599023E9CA90E`.
 - Remaining incomplete gates: Module 41 = 90% and Module 60 = 90% (repository Code scanning/Advanced Security and Hosted SARIF evidence); local integration gates requiring PostgreSQL are reported as unverified when the service is absent.
 - Next continuation action: commit and publish Module 82, then run the next concrete Multi-Site hardening opportunity without weakening the evidence boundary.
+
+### Published EXE — Module 82 completed modules bundle — 2026-10-27
+
+- Scope: republished the completed runtime modules after Module 82 route-path canonicalization.
+- Publish gate progress: Before 0%; After 100%; Target 100%.
+- Source commit: `d76a7f582748c33ee140ba6b87cb2d5c95ec8e8d`; the working tree was clean when the publish was created.
+- Artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`, `net10.0-windows`, self-contained `win-x64`, single-file, `170,613,099` bytes.
+- SHA-256: `2998BC7428D4B147A531C5A006BB268EAA83A708CD453BE0D21E6737842CF814`.
+- Verification: PE header `MZ`; release manifest verification passed (`files=6`, `signed=false`, `workingTreeClean=true`). Manifest: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\release-manifest.json`.
+- Boundary: this is the operator-facing completed-modules artifact. It is not Authenticode-signed and does not claim CodeQL/SARIF, external penetration, DNS-rebinding, load/SLO, SIEM, or production-certification evidence.
+
+### Authoritative continuation state — 2026-10-27 (latest after Module 82 publish)
+
+- Latest local/Hosted module progress: Module 82 = 100%; Module 81 = 100%; Module 80 = 100%; Module 79 = 100%; Module 78 = 100%; Module 77 = 100%; Module 76 = 100%; Module 75 = 100%; Module 74 = 100%; Module 73 = 100%; Module 72 = 100%.
+- Latest Hosted verification for runtime Module 78: run `40445541235`, full regression `509/509`, `TRX_REGRESSION_PASS`; CodeQL remains an explicit external gate because repository Code scanning/Advanced Security is unavailable.
+- Latest completed-modules artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`, SHA-256 `2998BC7428D4B147A531C5A006BB268EAA83A708CD453BE0D21E6737842CF814`.
+- Remaining incomplete gates: Module 41 = 90% and Module 60 = 90% (repository Code scanning/Advanced Security and Hosted SARIF evidence); local integration gates requiring PostgreSQL are reported as unverified when the service is absent.
+- Next continuation action: run the next concrete Multi-Site hardening opportunity and do not weaken the evidence boundary.
