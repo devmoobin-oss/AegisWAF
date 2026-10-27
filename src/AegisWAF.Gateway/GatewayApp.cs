@@ -648,6 +648,7 @@ public static class GatewayApp
             (site.Id, histories.TryGetValue(site.Id, out var observations) ? observations : (IReadOnlyList<SiteHealthObservation>)[]));
         var expectedUpstreamCounts = storedSites.ToDictionary(x => x.Id, x => x.Upstreams.Count, StringComparer.OrdinalIgnoreCase);
         var comparison = SiteHealthComparisonCalculator.Calculate(inputs, boundedWindow, boundedLimit, DateTimeOffset.UtcNow, expectedUpstreamCounts);
+        var alertCounts = SiteHealthSummaryAlertCounts.Calculate(comparison);
         var now = DateTimeOffset.UtcNow;
         summaryTimer.Stop();
         var queryDurationMs = (int)Math.Min(int.MaxValue, summaryTimer.ElapsedMilliseconds);
@@ -681,12 +682,14 @@ public static class GatewayApp
         {
             windowSize = boundedWindow,
             totalSites = projected.Length,
-            criticalSites = projected.Count(x => x.alertState == "critical"),
-            degradedSites = projected.Count(x => x.alertState == "degraded" && x.recoveryState != "recovered"),
-            healthySites = projected.Count(x => x.alertState == "healthy"),
-            noDataSites = projected.Count(x => x.alertState == "no-data"),
-            recoveredSites = projected.Count(x => x.recoveryState == "recovered"),
-            staleSites = projected.Count(x => x.isStale),
+            criticalSites = alertCounts.CriticalSites,
+            degradedSites = alertCounts.DegradedSites,
+            healthySites = alertCounts.HealthySites,
+            noDataSites = alertCounts.NoDataSites,
+            recoveredSites = alertCounts.RecoveredSites,
+            staleSites = alertCounts.StaleSites,
+            staleCriticalSites = alertCounts.StaleCriticalSites,
+            staleDegradedSites = alertCounts.StaleDegradedSites,
             expiredAcknowledgementsRemoved,
             generatedAt = summaryGeneratedAt,
             queryDurationMs,

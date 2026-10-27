@@ -143,6 +143,10 @@ public sealed class UiContractTests
         Assert.Contains("recovered", code);
         Assert.Contains("กลับมาปกติ", code);
         Assert.Contains("RecoveredSites", code);
+        Assert.Contains("StaleCriticalSites", code);
+        Assert.Contains("StaleDegradedSites", code);
+        Assert.Contains("วิกฤติปัจจุบัน", code);
+        Assert.Contains("ข้อมูลเก่า", code);
         Assert.Contains("SiteHealthDisplayState.Resolve", code);
         Assert.Contains("DisplayState", code);
         Assert.Contains("กลับมาปกติ · มีประวัติเก่า", code);

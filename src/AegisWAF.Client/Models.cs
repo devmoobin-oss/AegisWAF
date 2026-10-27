@@ -55,7 +55,8 @@ public sealed record SiteHealthSummaryDto(int WindowSize, int TotalSites, int Cr
     int HealthySites, int NoDataSites, int StaleSites, SiteHealthComparisonDto[] Sites,
     int ExpiredAcknowledgementsRemoved = 0, DateTimeOffset? GeneratedAt = null, int QueryDurationMs = 0,
     int QueryBudgetMs = 2_000, bool WithinBudget = true, string Status = "ready",
-    long SummaryFailureCount = 0, long SummaryConsecutiveFailures = 0, int RecoveredSites = 0);
+    long SummaryFailureCount = 0, long SummaryConsecutiveFailures = 0, int RecoveredSites = 0,
+    int StaleCriticalSites = 0, int StaleDegradedSites = 0);
 public sealed record AuditEntryDto(DateTimeOffset OccurredAt, string Action, string Target, string? Actor, string? ClientIp, string Outcome)
 {
     public string LocalTime => OccurredAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");
