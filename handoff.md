@@ -2522,11 +2522,31 @@
 - Verification: PE header `MZ`; release manifest verification passed (`files=6`, `signed=false`, `workingTreeClean=true`).
 - Boundary: this artifact is not Authenticode-signed and does not claim PostgreSQL integration, authenticated published-EXE smoke, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, or production certification.
 
+### Module 94 final progress record — 2026-10-27
+
+- Before: 0%; After: 100%; Target: 100% for the defined distributed Site mutation serialization gates.
+- Opportunity/root cause: POST/PUT/DELETE Site workflows validated and persisted separately without a cross-Gateway mutation lock, allowing concurrent instances to validate against the same snapshot and race cross-Site policy changes.
+- TDD RED: the new serialization contract initially failed because the store and endpoints had no advisory-lock lease.
+- Implementation: added a PostgreSQL session advisory lock with stable key `aegiswaf.site_mutation.v1`; POST, PUT, and DELETE hold it through validation, persistence, commit notification, and immediate runtime activation.
+- Verification: focused serialization contract passed **1/1**; non-PostgreSQL Multi-Site regression passed **92/92**; Release solution build passed **0 warnings / 0 errors**; `git diff --check` passed before commit; publish manifest passed with `files=6`, `signed=false`, `workingTreeClean=true`.
+- Evidence: `artifacts/module-verification/module94-distributed-site-mutation-lock.json`.
+- Source commit: `cad2971f924ca4e1527d3521726455be9d5ba920`.
+- Boundary: PostgreSQL advisory-lock execution, concurrent multi-instance mutation, and authenticated published-EXE smoke remain unverified because PostgreSQL is unavailable at `127.0.0.1:5432`; no external security or production-certification claim is made.
+
+### Published EXE — Module 94 completed modules bundle — 2026-10-27
+
+- Scope: published the completed modules through Module 94 only; incomplete modules and external gates were not promoted.
+- Publish configuration: `Release`, `win-x64`, self-contained, single-file, `net10.0-windows`.
+- Artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`, SHA-256 `B431CFE8D858714C08DEEE92B59F89CF922A85A1B850848B9E8E452BE6957CBB`, `170,632,555` bytes.
+- Source commit at publish time: `cad2971f924ca4e1527d3521726455be9d5ba920`.
+- Verification: PE header `MZ`; release manifest verification passed (`files=6`, `signed=false`, `workingTreeClean=true`).
+- Boundary: this artifact is not Authenticode-signed and does not claim PostgreSQL integration, concurrent multi-instance mutation, authenticated published-EXE smoke, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, or production certification.
+
 ### Current handoff pointer — 2026-10-27
 
 - This is the authoritative continuation block. Read this block before starting further work; older historical records above are retained for audit only.
-- Latest completed modules: Module 93 = 100%; Module 92 = 100%; Module 91 = 100%; Module 90 = 100%; Module 89 = 100%; Module 88 = 100%; Module 87 = 100%; Module 86 = 100%; Module 85 = 100%; Module 84 = 100%; Module 83 = 100%; Module 82 = 100%; Module 81 = 100%; Module 80 = 100%; Module 79 = 100%; Module 78 = 100%; Module 77 = 100%; Module 76 = 100%; Module 75 = 100%; Module 74 = 100%; Module 73 = 100%; Module 72 = 100%.
-- Latest artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`; SHA-256 `FB1EF19C2468A6508E860EE1BFD784EADA588E504BBA25E05655E178453E5A67`; source commit `1df7f3ccab6ba8316b27a5d861a7ea8faf5bd1b1`.
+- Latest completed modules: Module 94 = 100%; Module 93 = 100%; Module 92 = 100%; Module 91 = 100%; Module 90 = 100%; Module 89 = 100%; Module 88 = 100%; Module 87 = 100%; Module 86 = 100%; Module 85 = 100%; Module 84 = 100%; Module 83 = 100%; Module 82 = 100%; Module 81 = 100%; Module 80 = 100%; Module 79 = 100%; Module 78 = 100%; Module 77 = 100%; Module 76 = 100%; Module 75 = 100%; Module 74 = 100%; Module 73 = 100%; Module 72 = 100%.
+- Latest artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`; SHA-256 `B431CFE8D858714C08DEEE92B59F89CF922A85A1B850848B9E8E452BE6957CBB`; source commit `cad2971f924ca4e1527d3521726455be9d5ba920`.
 - Latest Hosted evidence remains run `40445541235`, full regression `509/509`, `TRX_REGRESSION_PASS`; Module 41 = 90% and Module 60 = 90% pending GitHub Code scanning/Advanced Security and fresh Hosted SARIF evidence.
 - Local PostgreSQL-dependent integration and authenticated published-EXE smoke gates remain unverified when their external services/credentials are unavailable.
 - Next action: audit and implement the next concrete Multi-Site hardening opportunity; preserve the 0% → 100% progress record, evidence file, artifact pointer, and stated verification boundary.
