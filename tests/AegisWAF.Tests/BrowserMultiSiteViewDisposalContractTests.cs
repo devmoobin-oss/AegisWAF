@@ -9,14 +9,18 @@ public sealed class BrowserMultiSiteViewDisposalContractTests
     {
         var root = FindRepoRoot();
         var source = File.ReadAllText(Path.Combine(root, "src", "AegisWAF.Gateway", "wwwroot", "assets", "app.js"), Encoding.UTF8);
-        var start = source.IndexOf("const loadSectionWithSiteCrud=loadSection", StringComparison.Ordinal);
-        Assert.True(start >= 0, "Could not locate the Multi-Site section wrapper.");
-        var wrapper = source[start..];
+        var lifecycleStart = source.IndexOf("function disposeSiteView", StringComparison.Ordinal);
+        var lifecycleEnd = source.IndexOf("async function loadSitesCrud", lifecycleStart, StringComparison.Ordinal);
+        var wrapperStart = source.IndexOf("const loadSectionWithSiteCrud=loadSection", StringComparison.Ordinal);
+        Assert.True(lifecycleStart >= 0 && lifecycleEnd > lifecycleStart && wrapperStart >= 0, "Could not locate the Multi-Site disposal lifecycle.");
+        var lifecycle = source[lifecycleStart..lifecycleEnd];
+        var wrapper = source[wrapperStart..];
 
+        Assert.Contains("siteViewAbortController?.abort()", lifecycle, StringComparison.Ordinal);
+        Assert.Contains("siteViewAbortController=null", lifecycle, StringComparison.Ordinal);
+        Assert.Contains("siteViewGeneration++", lifecycle, StringComparison.Ordinal);
         Assert.Contains("if(active==='sites')", wrapper, StringComparison.Ordinal);
-        Assert.Contains("siteViewAbortController?.abort()", wrapper, StringComparison.Ordinal);
-        Assert.Contains("siteViewAbortController=null", wrapper, StringComparison.Ordinal);
-        Assert.Contains("siteViewGeneration++", wrapper, StringComparison.Ordinal);
+        Assert.Contains("disposeSiteView()", wrapper, StringComparison.Ordinal);
     }
 
     private static string FindRepoRoot()
