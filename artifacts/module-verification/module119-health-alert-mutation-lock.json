@@ -26,5 +26,13 @@
   },
   "boundaries": [
     "Live PostgreSQL lock-contention execution, authenticated browser/published-EXE smoke, visual responsive verification, full VSTest testhost connectivity, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification remain unverified."
-  ]
+  ],
+  "release": {
+    "path": "D:\\AegisWAF\\dist\\AegisWAF-Desktop-CompletedModules\\AegisWAF.exe",
+    "configuration": "Release win-x64 self-contained single-file net10.0-windows",
+    "bytes": 170648427,
+    "sha256": "AC28856E02F55F49D82796194632B26D04AA49BAA5E57F0957E22397DF8332F2",
+    "peHeader": "MZ",
+    "manifest": "files=6; signed=false; workingTreeClean=true; sourceCommit=024ab3dcd3746c8e0fb2e66f685f069f9b0bdf44"
+  }
 }
