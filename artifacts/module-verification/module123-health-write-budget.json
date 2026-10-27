@@ -1,0 +1,39 @@
+{
+  "module": 123,
+  "title": "Bounded interactive Multi-Site health writes",
+  "progress": {
+    "before": 0,
+    "after": 100,
+    "target": 100
+  },
+  "opportunity": "Manual Health history persistence and alert acknowledgement writes passed the request token directly to PostgreSQL without an explicit write budget.",
+  "rootCause": "A slow transaction could leave an interactive Health action waiting or surface an uncategorized cancellation even though the read and mutation-lock phases already had bounded policies.",
+  "implementation": [
+    "Added a two-second linked SiteHealthWriteBudget with explicit client-cancellation distinction.",
+    "Applied it to manual health history persistence and to acknowledgement persistence after the existing mutation lock is acquired.",
+    "Returned site_health_write_timeout for acknowledgement write expiry, while manual probe responses safely report historyPersisted=false when history persistence times out.",
+    "Added localized Thai recovery copy for the new API problem code."
+  ],
+  "tdd": {
+    "red": "SiteHealthWriteBudgetTests initially failed to compile because the write budget policy did not exist; the endpoint contract then failed until both write paths were bounded.",
+    "focused": "4/4"
+  },
+  "verification": {
+    "relevantRegression": "93/93 across 45 classes",
+    "nodeSyntax": "passed",
+    "releaseBuild": "0 warnings / 0 errors",
+    "gitDiffCheck": "passed",
+    "impeccableDetector": "0 anti-patterns; four pre-existing advisory design-system-color findings in app.js (#ff4d5e, #22374f, #ff6378); no new finding"
+  },
+  "boundaries": [
+    "Live PostgreSQL slow-write execution, authenticated browser/published-EXE smoke, visual responsive verification, full VSTest testhost connectivity, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification remain unverified."
+  ],
+  "release": {
+    "path": "D:\\AegisWAF\\dist\\AegisWAF-Desktop-CompletedModules\\AegisWAF.exe",
+    "configuration": "Release win-x64 self-contained single-file net10.0-windows",
+    "bytes": 170652011,
+    "sha256": "F486C14D1FB759F273617C77F312EA26C34A10F76F80C9B952D6F15DA8419846",
+    "peHeader": "MZ",
+    "manifest": "files=6; signed=false; workingTreeClean=true; sourceCommit=71b79439d7696f7314d756a76810dcd85cf857b7"
+  }
+}
