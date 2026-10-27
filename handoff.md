@@ -2029,3 +2029,30 @@
 - Latest published artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-Module74\AegisWAF.exe`, SHA-256 `2D28E5E989740DA20F8449761A09023F9DBE9E8220CDEB24011DDD0495164957`.
 - Remaining incomplete gates: Module 41 = 90% and Module 60 = 90% (repository Code scanning/Advanced Security and Hosted SARIF evidence).
 - Next continuation action: enable repository Code scanning/Advanced Security if approved and rerun Hosted Security Verification; preserve the Module74 artifact because Modules 76–77 changed documentation/tests only.
+
+### Module 78 final progress record — 2026-10-27
+
+- Before: 0%; After: 100%; Target: 100% for the defined Multi-Site hostname canonicalization gates.
+- Opportunity/root cause: hostname validation and request matching did not canonicalize internationalized domain names (IDN) to DNS ASCII form; a typed snapshot could therefore treat a punycode Site and an equivalent Unicode Host header as different routes.
+- TDD RED: added contracts for Unicode-to-punycode configuration loading, request matching, and generated proxy host routes before implementation. The local VSTest host failed to connect within 90 seconds, so assertion-level pre-fix execution is recorded as infrastructure-unverified rather than claimed.
+- Implementation: shared `IdnMapping` (`UseStd3AsciiRules`) canonicalization with bounded total/label lengths, IP-literal preservation, and fail-closed invalid-host handling; `SiteMatcher`, `SiteConfigurationEditor`, and `SiteProxyConfiguration` now use the same canonical boundary.
+- Verification local: `SiteMatcherTests` + `SiteConfigurationTests` + `SiteProxyConfigurationTests` direct in-process verification passed `36/36`; Release solution/test build passed `0 warnings / 0 errors`; `git diff --check` passed.
+- Hosted verification: run `40445541235` / run number `25` on merge ref `c9a09f79ce51df2f8d681f9dab8df609e941d8da` completed. Full `.NET tests and dependency audit` passed **509/509**, `TRX_COUNTERS total=509 executed=509 passed=509 failed=0 skipped=0`, and `TRX_REGRESSION_PASS`; dependency audit, SBOM, Secret scan, and Direct-origin guardrail passed.
+- CodeQL boundary: CodeQL preflight failed closed because repository Code scanning/Advanced Security is unavailable; CodeQL initialize/build/analyze were skipped. No CodeQL pass is claimed; Module 41 and Module 60 remain at 90%.
+- Published artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-Module78\AegisWAF.exe`, self-contained `win-x64`, single-file, `170,611,051` bytes, SHA-256 `3E2F8633306BFABFC922AF49D132AE044720CA47D8221620D81D4AC8AF4512EA`; manifest verification passed (`files=6`, `signed=false`, `workingTreeClean=true`, source commit `555749855f77b891c62914c5a26b9ced61e6ddeb`).
+- Evidence: `artifacts/module-verification/module78-idn-hostname-canonicalization.json`.
+- Boundary: Module 78 hardens local IDN normalization, Multi-Site matching, generated proxy host routes, and the completed-modules publish. It does not claim CodeQL/SARIF success, independent penetration testing, DNS-rebinding assessment, external load/SLO validation, SIEM delivery, or production certification.
+
+### Opportunity audit after Module 78 — 2026-10-27
+
+- P0: Module 41/60 remain at 90% pending repository Code scanning/Advanced Security enablement and a fresh successful SARIF upload/status.
+- P1: provision least-privilege PostgreSQL role in the deployment environment, external SIEM delivery/retention, authenticated published-EXE Multi-Site smoke, Authenticode signing, DNS-rebinding, penetration, load, SLO/capacity, and incident-response evidence remain external/deployment gates.
+- P2: after external gates are resolved, continue auditing Multi-Site policy versioning, MFA/WebAuthn/OIDC, and independent OWASP CRS corpus benchmarking.
+
+### Authoritative continuation state — 2026-10-27 (latest after Module 78)
+
+- Latest local/Hosted module progress: Module 78 = 100%; Module 77 = 100%; Module 76 = 100%; Module 75 = 100%; Module 74 = 100%; Module 73 = 100%; Module 72 = 100%.
+- Latest Hosted verification: run `40445541235`, full regression `509/509`, `TRX_REGRESSION_PASS`; CodeQL remains an explicit external gate because repository Code scanning/Advanced Security is unavailable.
+- Latest published artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-Module78\AegisWAF.exe`, SHA-256 `3E2F8633306BFABFC922AF49D132AE044720CA47D8221620D81D4AC8AF4512EA`.
+- Remaining incomplete gates: Module 41 = 90% and Module 60 = 90% (repository Code scanning/Advanced Security and Hosted SARIF evidence).
+- Next continuation action: enable repository Code scanning/Advanced Security if approved and rerun Hosted Security Verification; preserve the Module78 artifact unless runtime code changes again.
