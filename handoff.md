@@ -1901,3 +1901,32 @@
 - Artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-Module72\AegisWAF.exe`, self-contained `win-x64`, single-file, `170,608,491` bytes.
 - SHA-256: `BBC2EA1EBCE1EF05BDEC823FD9A7F137AAC0572B8EB56F29B9B52A30B42EF85D`.
 - Verification: PE header `MZ`; release manifest verifier passed with `files=6`, `signed=false`, `workingTreeClean=true`.
+
+### Module 73 final progress record — 2026-10-27
+
+- Before: 0%; After: 100%; Target: 100%.
+- Opportunity/root cause: `SecurityRules` และ `AnomalyScorer` สร้าง compiled `Regex` ซ้ำต่อ instance; เมื่อสร้างพร้อมกันภายใต้ Hosted load การ compile/JIT อาจใช้เวลาจนชน bounded 100ms timeout แม้ payload จะมีขนาดเล็ก ทำให้เกิด `Inspection Timeout` แบบไม่คงที่.
+- TDD RED: ก่อนแก้ cache invariant ล้มเหลวเพราะ built-in pattern ของสอง `SecurityRules` instance ไม่ใช่ object เดียวกัน และ concurrent test พบ `Inspection Timeout` 2/128 รายการ.
+- Implementation: แชร์ immutable built-in rule patterns, scanner pattern และ anomaly signal patterns ผ่าน static caches; state ที่เปลี่ยนได้ (`Enabled`, threshold, custom rules) ยังคงแยกต่อ instance. `NonBacktracking`, invariant matching, bounded timeout และ fail-closed semantics ไม่เปลี่ยน.
+- Verification local: in-process `EngineUpgradeTests` ผ่าน 24/24; Release solution build 0 warnings/0 errors; release manifest/tamper/extra-file verifier tests ผ่าน; `git diff --check` ผ่าน.
+- Commit/push: `913e3ca` (`Fix concurrent WAF regex cold-start timeouts`) ถูก push ไปยัง `codex/modular-development-handoff` แล้ว.
+- Evidence: `artifacts/module-verification/module73-anomaly-regex-cache-stability.json`.
+- Hosted verification: run `40441909163` ตรวจบน PR merge ref `e434c5db7afd3080180ab532df9de1eec3448849` ผ่าน full regression `499/499`; `TRX_COUNTERS total=499 executed=499 passed=499 failed=0 skipped=0`; `TRX_REGRESSION_PASS`. Dependency vulnerability audit, SBOM, Secret scan และ Direct-origin guardrail ผ่านทั้งหมด.
+- CodeQL boundary: CodeQL preflight ยัง fail closed เพราะ repository Code scanning/Advanced Security ยัง disabled; เป็น external gate ของ Module 41/60 ไม่ใช่ regression failure ของ Module 73.
+
+### Published EXE — Module 73 current artifact — 2026-10-27
+
+- Scope: publish self-contained ของ source ที่ผ่าน local gates สำหรับโมดูลที่เสร็จแล้ว; Module 41/60 ยังเป็น external Code scanning/SARIF gates ที่ 90% และไม่ได้อ้างว่าเสร็จจากการ publish นี้.
+- Before/After for publish artifact gate: 0% -> 100%; Target: 100%.
+- Source commit: `913e3ca0977ea3abfbc5d687b8ccded8a049ce7a`.
+- Command: `dotnet publish src/AegisWAF.Desktop/AegisWAF.Desktop.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o dist/AegisWAF-Desktop-Module73 --no-restore --disable-build-servers -m:1`.
+- Artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-Module73\AegisWAF.exe`, `net10.0-windows`, `win-x64`, self-contained, single-file, `170,610,027` bytes.
+- SHA-256: `24B88877C8ADCD13E05CF62719CA57DA77EDD4D3D15C320C7462DAF04C5779C1`.
+- Verification: PE header `MZ`; release manifest verifier passed (`files=6`, `signed=false`, `workingTreeClean=true`); release manifest writer and tamper/extra-file verifier tests passed.
+
+### Authoritative continuation state — 2026-10-27 (latest)
+
+- Latest local/Hosted module progress: Module 73 = 100%; Module 72 = 100%.
+- Latest published artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-Module73\AegisWAF.exe`, SHA-256 `24B88877C8ADCD13E05CF62719CA57DA77EDD4D3D15C320C7462DAF04C5779C1`.
+- Remaining incomplete gates: Module 41 = 90% and Module 60 = 90% (repository Code scanning/Advanced Security and Hosted SARIF evidence).
+- Next continuation action: enable repository Code scanning/Advanced Security if approved, then rerun Hosted Security Verification to close Module 41/60; preserve the Module73 artifact unless runtime code changes again.
