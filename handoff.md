@@ -1659,6 +1659,15 @@
 - Hosted boundary: Run `40433189181` (ก่อน changes ชุดนี้ถูก push) พบ `.NET tests` ล้ม 1 เคสจาก readiness integration timeout 5 วินาทีบน Ubuntu และ CodeQL fail-fast เพราะ repository ยังไม่เปิด Code scanning; แก้ test timeout เป็น 15 วินาทีพร้อมเก็บ redacted `/ready` body แล้ว ต้องมี Hosted run ใหม่เพื่อยืนยัน.
 - Current module state: Module 40 = 100%, Module 42 = 100%, Module 43 = 100%, Module 44 = 100%, Module 45 = 100%, Module 46 = 100%, Module 47 = 100%, Module 48 = 100%, Module 49 = 100%, Module 50 = 100%, Module 51 = 100%, Module 52 = 100%, Module 53 = 100%, Module 54 = 100%, Module 55 = 100%, Module 56 = 100%, Module 57 = 100%, Module 58 = 100%, Module 59 = 100%, Module 60 = 90%, Module 61 = 100%, Module 62 = 100%, Module 41 = 90% pending repository Code scanning enablement and fresh Hosted evidence.
 
+### Hosted verification after Module 62 — 2026-10-27
+
+- Hosted Run `40434073756` (`run_number=6`) ตรวจ commit `86cd28b44e496e0321a36b37972ab3581dfa1059`.
+- Passed: `.NET tests and dependency audit` รวม full regression และ TRX counters, Secret scan, SBOM, Dependency vulnerability audit และ Direct origin exposure guardrail.
+- `.NET` Hosted regression ใช้ผลสำเร็จหลัง readiness timeout fix; ไม่พบ failure จาก `SiteRuntimeListenerStatusIntegrationTests`.
+- CodeQL: preflight fail-fast ที่ `Verify Code scanning is enabled` ตามที่ออกแบบไว้ เพราะ repository ยังไม่ได้เปิด Code scanning/Advanced Security; ไม่ได้ข้ามขั้นตอนและไม่อ้างว่า SAST ผ่าน.
+- Release provenance และ authorized load test ถูก skip ตามเงื่อนไข `workflow_dispatch`/input โดยเจตนา.
+- Result: Module 62 = 100%; Module 41/60 ยังคง 90% และรอ external repository setting กับ Hosted CodeQL run ที่ upload SARIF สำเร็จ.
+
 ### Opportunity audit after Module 62 — 2026-10-27
 
 - P0: Push Module 62 plus the readiness-race fix, then inspect a fresh Hosted run; Code scanning/Advanced Security remains an external repository setting.
