@@ -216,6 +216,17 @@ public static class GatewayApp
                 ["traceId"] = ctx.TraceIdentifier
             });
 
+    private static IResult SiteRuntimeActivationFailed(HttpContext ctx, string operation) =>
+        Results.Problem(
+            statusCode: StatusCodes.Status503ServiceUnavailable,
+            title: "Site runtime activation failed",
+            detail: $"The Site was {operation} in PostgreSQL, but the active runtime route could not be refreshed. Check the Site configuration and listener diagnostics.",
+            extensions: new Dictionary<string, object?>
+            {
+                ["code"] = "site_runtime_activation_failed",
+                ["traceId"] = ctx.TraceIdentifier
+            });
+
     /// <summary>Middleware and endpoints. Must run after <c>builder.Build()</c> and after <c>Bootstrap.RunAsync</c>.</summary>
     public static void MapPipeline(WebApplication app)
     {
@@ -728,8 +739,8 @@ public static class GatewayApp
                 await runtime.ActivateFromStoreAsync(store, ct);
                 return Results.Ok(new { siteId = site.Id, active = true, requiresRestart = false, message = "Site saved to PostgreSQL and route activated immediately." });
             }
-            catch (SiteRuntimeActivationException ex)
-            { return Results.Problem("Site was saved but its route could not be activated", statusCode: 503, extensions: new Dictionary<string, object?> { ["code"] = "site_runtime_activation_failed", ["detail"] = ex.Message }); }
+            catch (SiteRuntimeActivationException)
+            { return SiteRuntimeActivationFailed(ctx, "saved"); }
         }
         catch (SiteHostnameConflictException ex)
         { return Results.Conflict(new { error = ex.Message }); }
@@ -777,8 +788,8 @@ public static class GatewayApp
                     await runtime.ActivateFromStoreAsync(store, ct);
                     return Results.Ok(new { siteId = site.Id, version, etag = SiteConcurrency.ToEtag(version), active = true, requiresRestart = false, message = "Site updated in PostgreSQL and route activated immediately." });
                 }
-                catch (SiteRuntimeActivationException ex)
-                { return Results.Problem("Site was saved but its route could not be activated", statusCode: 503, extensions: new Dictionary<string, object?> { ["code"] = "site_runtime_activation_failed", ["detail"] = ex.Message }); }
+                catch (SiteRuntimeActivationException)
+                { return SiteRuntimeActivationFailed(ctx, "updated"); }
             }
             if (updated.Status == SiteUpdateStatus.Conflict)
             {
@@ -812,8 +823,8 @@ public static class GatewayApp
                 await runtime.ActivateFromStoreAsync(store, ct);
                 return Results.Ok(new { siteId = id, active = true, requiresRestart = false, message = "Site deleted from PostgreSQL and route deactivated immediately." });
             }
-            catch (SiteRuntimeActivationException ex)
-            { return Results.Problem("Site was deleted but its route could not be refreshed", statusCode: 503, extensions: new Dictionary<string, object?> { ["code"] = "site_runtime_activation_failed", ["detail"] = ex.Message }); }
+            catch (SiteRuntimeActivationException)
+            { return SiteRuntimeActivationFailed(ctx, "deleted"); }
         }
         catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
         { return SiteDatabaseUnavailable(ctx, "deleted", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
