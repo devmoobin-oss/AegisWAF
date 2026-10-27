@@ -24,7 +24,7 @@ $('changeForm').addEventListener('submit',async e=>{e.preventDefault();let n=$('
   let r=await authFetch('/api/auth/change-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({currentPassword:$('currentPassword').value,newPassword:n})});
   if(r.ok){['currentPassword','newPassword','newPassword2'].forEach(i=>$(i).value='');me.mustChangePassword=false;applySession(me);}else{let d=await r.json().catch(()=>({}));$('changeError').textContent=d.error||('HTTP '+r.status);}});
 $('changeCancel').addEventListener('click',()=>{$('changeOverlay').hidden=true;});
-$('logoutBtn').addEventListener('click',async()=>{await authFetch('/api/auth/logout',{method:'POST'});me=null;showLogin();});
+$('logoutBtn').addEventListener('click',async()=>{try{await authFetch('/api/auth/logout',{method:'POST'});}catch(error){toast('ออกจากระบบในเครื่องแล้ว','ไม่สามารถติดต่อ Gateway เพื่อยืนยันการออกจากระบบได้','error');}me=null;disposeSiteView();showLogin();});
 $('userBox').addEventListener('click',()=>{if(me)showChange(false);});
 
 async function refresh(){setUiBusy(true);try{let r=await authFetch('/api/overview',{cache:'no-store'});if(r.status===401){return;}if(!r.ok)throw Error('HTTP '+r.status);render(await r.json());}catch(e){$('connection').textContent='เชื่อมต่อไม่ได้';$('status').textContent='OFFLINE';$('sysDot').classList.add('off');toast('เชื่อมต่อ Gateway ไม่สำเร็จ','กำลังลองเชื่อมต่อใหม่โดยอัตโนมัติ','error');console.error(e);}finally{setUiBusy(false);}}
