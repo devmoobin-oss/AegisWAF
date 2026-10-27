@@ -3056,11 +3056,30 @@
 - Verification: PE header `MZ`; release manifest verification passed (`files=6`, `signed=false`, `workingTreeClean=true`).
 - Boundary: this artifact is not Authenticode-signed and does not claim live PostgreSQL timeout execution, authenticated browser smoke, visual responsive verification, concurrent multi-instance mutation, whole-console premium audit, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, or production certification.
 
-### Current handoff pointer — 2026-10-27 (after Module 115)
+### Module 116 final progress record — 2026-10-28
+
+- Before: 0%; After: 100%; Target: 100% for the defined bounded Multi-Site mutation-lock gates.
+- Opportunity/root cause: Site add/update/delete used a blocking PostgreSQL advisory lock with no wait budget; a competing or stalled mutation could leave the API request waiting indefinitely and present as an inability to add a Site.
+- TDD RED: `SiteMutationLockBudgetTests` initially failed to compile because the lock budget policy did not exist; the historical serialization contract was then updated from blocking to non-blocking lock semantics.
+- Implementation: added a five-second linked lock budget, replaced blocking `pg_advisory_lock` with `pg_try_advisory_lock` polling, added `SiteMutationLockTimeoutException`, and return 503 `site_mutation_busy` ProblemDetails for all three Site mutations while preserving client cancellation.
+- Verification: focused contracts passed **4/4**; relevant browser/Multi-Site/security regression passed **109/109** across 34 classes; Node syntax check passed; Release solution build passed **0 warnings / 0 errors**; `git diff --check` passed; backend behavior change did not alter CSS/HTML visual assets and the existing UI audit baseline remains the boundary; report: `artifacts/module-verification/module116-multisite-mutation-lock-budget.json`.
+- Source commit: `4c873763fe65bab1bb8c5d5d36148fdb0652c5c6`.
+- Boundary: live PostgreSQL lock-contention execution, full VSTest testhost connectivity, authenticated browser/published-EXE smoke, visual responsive verification, concurrent multi-instance mutation under real PostgreSQL, whole-console premium UI audit, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification remain unverified.
+
+### Published EXE — Module 116 completed modules bundle — 2026-10-28
+
+- Scope: published the completed-modules bundle through Module 116 only; incomplete modules and external gates were not promoted.
+- Publish configuration: `Release`, `win-x64`, self-contained, single-file, `net10.0-windows`.
+- Artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`, SHA-256 `64321488CAC6A3A4506046243D008B503B55A56B762F683AF8AD188D327CCAA8`, `170,643,819` bytes.
+- Source commit at publish time: `4c873763fe65bab1bb8c5d5d36148fdb0652c5c6`.
+- Verification: PE header `MZ`; release manifest verification passed (`files=6`, `signed=false`, `workingTreeClean=true`).
+- Boundary: this artifact is not Authenticode-signed and does not claim live PostgreSQL lock-contention execution, authenticated browser smoke, visual responsive verification, concurrent multi-instance mutation under real PostgreSQL, whole-console premium audit, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, or production certification.
+
+### Current handoff pointer — 2026-10-28 (after Module 116)
 
 - This is the authoritative continuation block. Read this block before starting further work; older historical records above are retained for audit only.
-- Latest completed modules: Module 115 = 100%; Module 114 = 100%; Module 113 = 100%; Module 112 = 100%; Module 111 = 100%; Module 110 = 100%; Module 109 = 100%; Module 108 = 100%; Module 107 = 100%; Module 106 = 100%; Module 105 = 100%; Module 104 = 100%; Module 103 = 100%; Module 102 = 100%; Module 101 = 100%; Module 100 = 100%; Module 99 = 100%; Module 98 = 100%; Module 97 = 100%; Module 96 = 100%; Module 95 = 100%; Module 94 = 100%; Module 93 = 100%; Module 92 = 100%; Module 91 = 100%; Module 90 = 100%; Module 89 = 100%; Module 88 = 100%; Module 87 = 100%; Module 86 = 100%; Module 85 = 100%; Module 84 = 100%; Module 83 = 100%; Module 82 = 100%; Module 81 = 100%; Module 80 = 100%; Module 79 = 100%; Module 78 = 100%; Module 77 = 100%; Module 76 = 100%; Module 75 = 100%; Module 74 = 100%; Module 73 = 100%; Module 72 = 100%.
-- Latest artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`; SHA-256 `E22E2C35BC67C3C8626EACF2744C22CC41BBC4FC2EECF0BFBA3F113F47552758`; source commit `a3234dec75e46e9778af4f14ffbce7c42efcf4c0`.
+- Latest completed modules: Module 116 = 100%; Module 115 = 100%; Module 114 = 100%; Module 113 = 100%; Module 112 = 100%; Module 111 = 100%; Module 110 = 100%; Module 109 = 100%; Module 108 = 100%; Module 107 = 100%; Module 106 = 100%; Module 105 = 100%; Module 104 = 100%; Module 103 = 100%; Module 102 = 100%; Module 101 = 100%; Module 100 = 100%; Module 99 = 100%; Module 98 = 100%; Module 97 = 100%; Module 96 = 100%; Module 95 = 100%; Module 94 = 100%; Module 93 = 100%; Module 92 = 100%; Module 91 = 100%; Module 90 = 100%; Module 89 = 100%; Module 88 = 100%; Module 87 = 100%; Module 86 = 100%; Module 85 = 100%; Module 84 = 100%; Module 83 = 100%; Module 82 = 100%; Module 81 = 100%; Module 80 = 100%; Module 79 = 100%; Module 78 = 100%; Module 77 = 100%; Module 76 = 100%; Module 75 = 100%; Module 74 = 100%; Module 73 = 100%; Module 72 = 100%.
+- Latest artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`; SHA-256 `64321488CAC6A3A4506046243D008B503B55A56B762F683AF8AD188D327CCAA8`; source commit `4c873763fe65bab1bb8c5d5d36148fdb0652c5c6`.
 - Latest Hosted evidence remains run `40445541235`, full regression `509/509`, `TRX_REGRESSION_PASS`; Module 41 = 90% and Module 60 = 90% pending GitHub Code scanning/Advanced Security and fresh Hosted SARIF evidence.
 - Local PostgreSQL-dependent integration, duplicate-hostname execution, concurrent multi-instance mutation, authenticated browser/published-EXE smoke, full VSTest testhost connectivity, visual responsive verification, and whole-console premium UI audit gates remain unverified when their external services/credentials or baseline tooling are unavailable.
 - Next action: audit and implement the next concrete Multi-Site hardening opportunity; preserve the 0% → 100% progress record, evidence file, artifact pointer, and stated verification boundary.
