@@ -100,7 +100,16 @@ public sealed class SiteRuntimeChangeListener(
 
     private async Task ReloadSnapshotAsync(CancellationToken ct)
     {
-        await runtime.ActivateFromStoreAsync(store, ct);
+        using var reloadBudget = SiteRuntimeReloadBudget.Create(ct);
+        try
+        {
+            await runtime.ActivateFromStoreAsync(store, reloadBudget.Token);
+        }
+        catch (OperationCanceledException) when (SiteRuntimeReloadBudget.IsBudgetCancellation(ct, reloadBudget.Token))
+        {
+            throw new TimeoutException("Site runtime snapshot activation exceeded its bounded reload window.");
+        }
+
         status.MarkReloaded();
         logger.LogInformation("Site runtime snapshot activated from PostgreSQL");
     }
