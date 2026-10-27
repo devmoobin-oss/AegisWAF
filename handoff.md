@@ -3081,7 +3081,7 @@
 - Scope: published the completed-modules bundle through Module 117 only; incomplete modules and external gates were not promoted.
 - Publish configuration: `Release`, `win-x64`, self-contained, single-file, `net10.0-windows`.
 - Artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`, SHA-256 `F63841F0F06FC0F2948598671205AB3A77FF0A79222BCFFAFD8D819A2B27A796`, `170,647,915` bytes.
-- Source commit at publish time: `18ebfa270be699fa35695cf505aaa6d173a6ec4e`.
+- Source commit at publish time: `ab7ddb8975059f5d047a26b4b8948a376237bcfa`.
 - Verification: PE header `MZ`; release manifest verification passed (`files=6`, `signed=false`, `workingTreeClean=true`).
 - Boundary: this artifact is not Authenticode-signed and does not claim direct-listener smoke, live PostgreSQL error-contention execution, visual responsive verification, whole-console premium audit, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, or production certification.
 
