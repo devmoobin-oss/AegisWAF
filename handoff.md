@@ -2862,8 +2862,8 @@
 
 - Scope: published the completed-modules bundle through Module 106 only; incomplete modules and external gates were not promoted.
 - Publish configuration: `Release`, `win-x64`, self-contained, single-file, `net10.0-windows`.
-- Artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`, SHA-256 `B8E95566ED7D68CA49A3A4199AD8F3B2CD51F7A1D95D034C8A1E6324C217EFBA`, `170,641,259` bytes.
-- Source commit at publish time: `0519329a03a8e24888b3f7f0150f6bd8dcb96a56`.
+- Artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`, SHA-256 `94A587BDCE1A05F37B78581C37E640E33E1F7C1BC94A4C8B5E9E729734710E04`, `170,641,259` bytes.
+- Source commit at publish time: `5aec58d6c3283dad87317a6ff04f2bfdd4694991`.
 - Verification: PE header `MZ`; release manifest verification passed (`files=6`, `signed=false`, `workingTreeClean=true`).
 - Boundary: this artifact is not Authenticode-signed and does not claim authenticated browser smoke, visual responsive verification, PostgreSQL integration, concurrent multi-instance mutation, whole-console premium audit, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, or production certification.
 
@@ -2871,7 +2871,7 @@
 
 - This is the authoritative continuation block. Read this block before starting further work; older historical records above are retained for audit only.
 - Latest completed modules: Module 106 = 100%; Module 105 = 100%; Module 104 = 100%; Module 103 = 100%; Module 102 = 100%; Module 101 = 100%; Module 100 = 100%; Module 99 = 100%; Module 98 = 100%; Module 97 = 100%; Module 96 = 100%; Module 95 = 100%; Module 94 = 100%; Module 93 = 100%; Module 92 = 100%; Module 91 = 100%; Module 90 = 100%; Module 89 = 100%; Module 88 = 100%; Module 87 = 100%; Module 86 = 100%; Module 85 = 100%; Module 84 = 100%; Module 83 = 100%; Module 82 = 100%; Module 81 = 100%; Module 80 = 100%; Module 79 = 100%; Module 78 = 100%; Module 77 = 100%; Module 76 = 100%; Module 75 = 100%; Module 74 = 100%; Module 73 = 100%; Module 72 = 100%.
-- Latest artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`; SHA-256 `B8E95566ED7D68CA49A3A4199AD8F3B2CD51F7A1D95D034C8A1E6324C217EFBA`; source commit `0519329a03a8e24888b3f7f0150f6bd8dcb96a56`.
+- Latest artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`; SHA-256 `94A587BDCE1A05F37B78581C37E640E33E1F7C1BC94A4C8B5E9E729734710E04`; source commit `5aec58d6c3283dad87317a6ff04f2bfdd4694991`.
 - Latest Hosted evidence remains run `40445541235`, full regression `509/509`, `TRX_REGRESSION_PASS`; Module 41 = 90% and Module 60 = 90% pending GitHub Code scanning/Advanced Security and fresh Hosted SARIF evidence.
 - Local PostgreSQL-dependent integration, duplicate-hostname execution, concurrent multi-instance mutation, authenticated browser/published-EXE smoke, full VSTest testhost connectivity, visual responsive verification, and whole-console premium UI audit gates remain unverified when their external services/credentials or baseline tooling are unavailable.
 - Next action: audit and implement the next concrete Multi-Site hardening opportunity; preserve the 0% → 100% progress record, evidence file, artifact pointer, and stated verification boundary.
