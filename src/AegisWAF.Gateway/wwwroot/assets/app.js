@@ -121,7 +121,7 @@ async function loadSitesCrud(){
   const el=$('sectionContent');
   $('sectionTitle').textContent='Multi-Site Gateway';
   $('sectionNote').textContent='AegisWAF v0.10.2 · Health Check enabled';
-  let editing=null, editingVersion=null, siteMap=new Map(), summaryMap=new Map(), summaryLoadState='loading';
+  let editing=null, editingVersion=null, mutationInFlight=false, siteMap=new Map(), summaryMap=new Map(), summaryLoadState='loading';
   const split=value=>String(value||'').split(/[,;\n\r]+/).map(x=>x.trim()).filter(Boolean);
   const status=(message,tone='info')=>{if(!isCurrent())return;const node=$('siteStatus');if(node){node.textContent=message;node.className=`notice ${tone}`;}};
   const parseUpstreams=value=>{
@@ -189,10 +189,11 @@ async function loadSitesCrud(){
     if(!/^\/[^?#\0]{0,127}$/.test(healthPath)||healthInterval<5||healthInterval>300||healthTimeout<1||healthTimeout>30||healthTimeout>=healthInterval||healthPassive<5||healthPassive>3600||rateRequests<1||rateRequests>1000000||rateWindow<1||rateWindow>3600||rateGlobal<1||rateGlobal>10000000){status('ค่า Health หรือ Rate Limit ไม่อยู่ในช่วงที่ระบบรองรับ กรุณาตรวจสอบคำอธิบายใต้ฟอร์ม','error');return;}
     const explicitEgress=split($('siteEgress').value),allowedHosts=explicitEgress.length?explicitEgress:[...new Set(upstreams.map(x=>x.host))],allowedPorts=[...new Set(upstreams.map(x=>x.port))],allowedSchemes=[...new Set(upstreams.map(x=>x.scheme))];
     const body={id,hostnames:hosts,pathPrefixes:paths,upstreamAddress:upstreams[0].address,Upstreams:upstreams.map(x=>({id:x.id,address:x.address,weight:x.weight})),wafPolicy:$('sitePolicy').value.trim()||'default',allowedHosts,allowedPorts,allowedSchemes,Health:{Path:healthPath,IntervalSeconds:healthInterval,TimeoutSeconds:healthTimeout,PassiveReactivationSeconds:healthPassive},RateLimit:{Requests:rateRequests,WindowSeconds:rateWindow,GlobalRequests:rateGlobal},enabled:true,...(editingVersion?{expectedVersion:editingVersion}: {})};
+    if(mutationInFlight)return;mutationInFlight=true;
     const button=$('siteSubmit');button.disabled=true;let mutationCommitted=false;
     try{const method=editing?'PUT':'POST',url=editing?`/api/sites/${encodeURIComponent(editing)}`:'/api/sites';const response=await authFetch(url,{method,headers:{'Content-Type':'application/json'},signal:eventController.signal,body:JSON.stringify(body)});if(!response.ok)throw Error(await readApiError(response));mutationCommitted=true;const action=editing?'แก้ไข':'เพิ่ม';reset();status(`${action} Site สำเร็จแล้ว และเปิดใช้งาน route ทันที`,'success');await load();}
     catch(error){status(mutationCommitted?`บันทึก Site สำเร็จแล้ว แต่โหลดรายการใหม่ไม่สำเร็จ: ${error.message}`:'บันทึก Site ไม่สำเร็จ: '+error.message,'error');}
-    finally{button.disabled=false;}
+    finally{button.disabled=false;mutationInFlight=false;}
   };
   el.addEventListener('click',event=>{if(!isCurrent())return;
     const health=event.target.closest('[data-site-health]'),edit=event.target.closest('[data-site-edit]'),remove=event.target.closest('[data-site-delete]');
