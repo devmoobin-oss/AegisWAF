@@ -1,0 +1,27 @@
+{
+  "module": "Module 133",
+  "title": "Prevent stale Multi-Site health summary double counting",
+  "recordedAt": "2026-10-28",
+  "progress": {
+    "beforePercent": 0,
+    "afterPercent": 100,
+    "targetPercent": 100
+  },
+  "sourceCommit": "8ade097",
+  "implementation": [
+    "Excluded stale healthy and no-data trends from current HealthySites and NoDataSites counts.",
+    "Excluded stale recovered history from RecoveredSites so stale data is represented only by StaleSites and its stale severity breakdown.",
+    "Added regression coverage proving current and stale summary counts do not overlap."
+  ],
+  "verification": {
+    "tddRed": "The new stale-count test initially reported HealthySites=2 instead of the expected current HealthySites=1.",
+    "focused": "3/3 passed",
+    "regressionWithoutPostgres": "126/126 passed across 57 classes",
+    "releaseBuild": "0 warnings / 0 errors",
+    "gitDiffCheck": "passed"
+  },
+  "boundary": [
+    "Live PostgreSQL stale summary serialization, authenticated browser/published-EXE smoke, and visual responsive verification remain externally unverified.",
+    "Full VSTest testhost connectivity, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification remain outside this local run."
+  ]
+}
