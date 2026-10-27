@@ -31,7 +31,7 @@ public sealed class SiteHealthReadBudgetTests
     {
         var root = FindRepoRoot();
         var gateway = File.ReadAllText(Path.Combine(root, "src", "AegisWAF.Gateway", "GatewayApp.cs"), Encoding.UTF8);
-        Assert.Equal(3, Count(gateway, "SiteHealthReadBudget.Create"));
+        Assert.True(Count(gateway, "SiteHealthReadBudget.Create") >= 3);
         Assert.True(Count(gateway, "site_health_read_timeout") >= 3);
         Assert.Contains("readBudget.Token", gateway, StringComparison.Ordinal);
     }

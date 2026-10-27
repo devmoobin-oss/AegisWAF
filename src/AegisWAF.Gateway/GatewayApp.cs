@@ -428,11 +428,15 @@ public static class GatewayApp
     }))).Require(Roles.Viewer);
     app.MapGet("/api/sites", async (SiteRegistry registry, SiteHealthRegistry legacyHealth, IProxyStateLookup proxy, SiteDatabaseStore store, HttpContext ctx, CancellationToken ct) =>
     {
+        using var readBudget = SiteHealthReadBudget.Create(ct);
+        var readCt = readBudget.Token;
         var activeSites = registry.Current.Sites;
         IReadOnlyList<GatewaySite> storedSites;
-        try { storedSites = await store.ListAsync(ct); }
+        try { storedSites = await store.ListAsync(readCt); }
         catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
         { return SiteDatabaseUnavailable(ctx, "listed", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
+        catch (OperationCanceledException) when (SiteHealthReadBudget.IsBudgetCancellation(ct, readCt))
+        { return SiteDatabaseUnavailable(ctx, "list-timeout", "site_health_read_timeout"); }
         var result = storedSites.Select(site =>
         {
             var active = activeSites.FirstOrDefault(x => x.Id.Equals(site.Id, StringComparison.OrdinalIgnoreCase));
@@ -517,10 +521,14 @@ public static class GatewayApp
     }).Require(Roles.Viewer);
     app.MapPost("/api/sites/{id}/health", async (string id, SiteRegistry registry, SiteHealthRegistry legacyHealth, IProxyStateLookup proxy, SiteDatabaseStore store, SiteHealthProbe probe, SiteHealthHistory history, HttpContext ctx, CancellationToken ct) =>
     {
+        using var readBudget = SiteHealthReadBudget.Create(ct);
+        var readCt = readBudget.Token;
         IReadOnlyList<GatewaySite> storedSites;
-        try { storedSites = await store.ListAsync(ct); }
+        try { storedSites = await store.ListAsync(readCt); }
         catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
         { return SiteDatabaseUnavailable(ctx, "health-checked", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
+        catch (OperationCanceledException) when (SiteHealthReadBudget.IsBudgetCancellation(ct, readCt))
+        { return SiteDatabaseUnavailable(ctx, "health-check-timeout", "site_health_read_timeout"); }
         var site = storedSites.FirstOrDefault(x => x.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
         if (site is null) return Results.NotFound(new { error = $"Site '{id}' was not found" });
         var active = registry.Current.Sites.FirstOrDefault(x => x.Id.Equals(site.Id, StringComparison.OrdinalIgnoreCase));

@@ -1,6 +1,6 @@
 namespace AegisWAF.Gateway.Sites;
 
-/// <summary>Bounds database reads for individual Multi-Site health history and trend requests.</summary>
+/// <summary>Bounds database reads for individual Multi-Site list and health requests.</summary>
 internal static class SiteHealthReadBudget
 {
     public const int DefaultMilliseconds = 2_000;
