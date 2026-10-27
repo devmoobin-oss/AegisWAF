@@ -2551,6 +2551,27 @@
 - Local PostgreSQL-dependent integration and authenticated published-EXE smoke gates remain unverified when their external services/credentials are unavailable.
 - Next action: audit and implement the next concrete Multi-Site hardening opportunity; preserve the 0% → 100% progress record, evidence file, artifact pointer, and stated verification boundary.
 
+### Module 96 final progress record — 2026-10-27
+
+- Before: 0%; After: 100%; Target: 100% for the defined browser Multi-Site RFC7807 diagnostics and Site-form resilience gates.
+- Opportunity/root cause: the browser Multi-Site workflow only read the legacy `error` field, reducing RFC7807 responses from Site activation, database, and hostname-conflict failures to generic HTTP 409/503 messages.
+- TDD RED: `BrowserMultiSiteProblemDetailsContractTests` initially failed because `readApiError` did not exist and Site actions still used `detail.error||HTTP status` only.
+- Implementation: added a shared bounded `readApiError` helper that prefers legacy `error`, otherwise combines `title/detail`; applied it to Site list/create/update/health/delete failures; excluded `traceId`; added `novalidate` and `resize:none` to the generated Site form.
+- Verification: focused contract passed **1/1**; UI and relevant non-PostgreSQL Multi-Site regression passed **72/72** across 14 classes; Node syntax check passed; Release solution build passed **0 warnings / 0 errors**; `git diff --check` passed; Impeccable detector exited 0 with 4 pre-existing advisory color findings; release manifest passed with `files=6`, `signed=false`, `workingTreeClean=true`.
+- Premium audit boundary: strict audit reduced from 36 to 34 baseline findings (2 unresolved), but whole browser console strict-audit compliance is not claimed; report: `artifacts/module-verification/module96-premium-audit-after.json`.
+- Evidence: `artifacts/module-verification/module96-browser-multisite-problem-details.json`.
+- Source commit: `48ae45d7fb3d248a14777d348387a9809f2b023c`.
+- Boundary: authenticated browser smoke, PostgreSQL runtime execution, duplicate-hostname execution, concurrent multi-instance mutation, whole-console premium audit, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification remain unverified.
+
+### Published EXE — Module 96 completed modules bundle — 2026-10-27
+
+- Scope: published the completed-modules bundle through Module 96 only; incomplete modules and external gates were not promoted.
+- Publish configuration: `Release`, `win-x64`, self-contained, single-file, `net10.0-windows`.
+- Artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`, SHA-256 `E3239FF2A103BE72C53424B2948ABEFE6032C59506AFDD6114F84996995CE2F4`, `170,633,067` bytes.
+- Source commit at publish time: `48ae45d7fb3d248a14777d348387a9809f2b023c`.
+- Verification: PE header `MZ`; release manifest verification passed with `files=6`, `signed=false`, `workingTreeClean=true`.
+- Boundary: this artifact is not Authenticode-signed and does not claim authenticated browser smoke, PostgreSQL integration, concurrent multi-instance mutation, whole-console premium audit, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, or production certification.
+
 ### Module 95 final progress record — 2026-10-27
 
 - Before: 0%; After: 100%; Target: 100% for the defined Multi-Site hostname-conflict response hardening gates.
@@ -2578,4 +2599,13 @@
 - Latest artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`; SHA-256 `5D3BFCAA070FFA06D4FFC99D8A0C9A7C012C9A8DC8CD5DEEED9EAA430BB7EB6F`; source commit `1285d9ecc92d81137907719e6400a7d123b866cc`.
 - Latest Hosted evidence remains run `40445541235`, full regression `509/509`, `TRX_REGRESSION_PASS`; Module 41 = 90% and Module 60 = 90% pending GitHub Code scanning/Advanced Security and fresh Hosted SARIF evidence.
 - Local PostgreSQL-dependent integration, duplicate-hostname execution, concurrent multi-instance mutation, and authenticated published-EXE smoke gates remain unverified when their external services/credentials are unavailable.
+- Next action: audit and implement the next concrete Multi-Site hardening opportunity; preserve the 0% → 100% progress record, evidence file, artifact pointer, and stated verification boundary.
+
+### Current handoff pointer — 2026-10-27 (after Module 96)
+
+- This is the authoritative continuation block. Read this block before starting further work; older historical records above are retained for audit only.
+- Latest completed modules: Module 96 = 100%; Module 95 = 100%; Module 94 = 100%; Module 93 = 100%; Module 92 = 100%; Module 91 = 100%; Module 90 = 100%; Module 89 = 100%; Module 88 = 100%; Module 87 = 100%; Module 86 = 100%; Module 85 = 100%; Module 84 = 100%; Module 83 = 100%; Module 82 = 100%; Module 81 = 100%; Module 80 = 100%; Module 79 = 100%; Module 78 = 100%; Module 77 = 100%; Module 76 = 100%; Module 75 = 100%; Module 74 = 100%; Module 73 = 100%; Module 72 = 100%.
+- Latest artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`; SHA-256 `E3239FF2A103BE72C53424B2948ABEFE6032C59506AFDD6114F84996995CE2F4`; source commit `48ae45d7fb3d248a14777d348387a9809f2b023c`.
+- Latest Hosted evidence remains run `40445541235`, full regression `509/509`, `TRX_REGRESSION_PASS`; Module 41 = 90% and Module 60 = 90% pending GitHub Code scanning/Advanced Security and fresh Hosted SARIF evidence.
+- Local PostgreSQL-dependent integration, duplicate-hostname execution, concurrent multi-instance mutation, authenticated browser/published-EXE smoke, and whole-console premium UI audit gates remain unverified when their external services/credentials or baseline cleanup are unavailable.
 - Next action: audit and implement the next concrete Multi-Site hardening opportunity; preserve the 0% → 100% progress record, evidence file, artifact pointer, and stated verification boundary.
