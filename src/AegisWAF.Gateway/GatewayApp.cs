@@ -227,6 +227,17 @@ public static class GatewayApp
                 ["traceId"] = ctx.TraceIdentifier
             });
 
+    private static IResult SiteHostnameConflict(HttpContext ctx) =>
+        Results.Problem(
+            statusCode: StatusCodes.Status409Conflict,
+            title: "Site hostname conflict",
+            detail: "The Site could not be saved because one or more hostnames are already assigned to another Site.",
+            extensions: new Dictionary<string, object?>
+            {
+                ["code"] = "site_hostname_conflict",
+                ["traceId"] = ctx.TraceIdentifier
+            });
+
     /// <summary>Middleware and endpoints. Must run after <c>builder.Build()</c> and after <c>Bootstrap.RunAsync</c>.</summary>
     public static void MapPipeline(WebApplication app)
     {
@@ -743,8 +754,8 @@ public static class GatewayApp
             catch (SiteRuntimeActivationException)
             { return SiteRuntimeActivationFailed(ctx, "saved"); }
         }
-        catch (SiteHostnameConflictException ex)
-        { return Results.Conflict(new { error = ex.Message }); }
+        catch (SiteHostnameConflictException)
+        { return SiteHostnameConflict(ctx); }
         catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
         { return SiteDatabaseUnavailable(ctx, "saved", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
     }).Require(Roles.SecurityAdmin);
@@ -801,8 +812,8 @@ public static class GatewayApp
             }
             return Results.NotFound(new { error = $"Site '{id}' was not found" });
         }
-        catch (SiteHostnameConflictException ex)
-        { return Results.Conflict(new { error = ex.Message }); }
+        catch (SiteHostnameConflictException)
+        { return SiteHostnameConflict(ctx); }
         catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
         { return SiteDatabaseUnavailable(ctx, "updated", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
     }).Require(Roles.SecurityAdmin);
