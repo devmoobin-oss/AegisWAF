@@ -310,11 +310,12 @@ static class Normalizer
 sealed class SecurityRules
 {
     private sealed record Rule(string Id, string Name, string Category, Regex Pattern) { public volatile bool Enabled = true; }
+    private sealed record RuleTemplate(string Id, string Name, string Category, Regex Pattern);
 
     // All patterns are NonBacktracking (linear time, no ReDoS) and run against the Normalizer's canonical forms.
     private static Regex R(string pattern) => new(pattern, RegexOptions.Compiled | RegexOptions.NonBacktracking | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
 
-    private readonly List<Rule> _rules =
+    private static readonly RuleTemplate[] BuiltInRuleTemplates =
     [
         new("sqli-01", "SQL Injection — UNION SELECT", "SQL Injection", R(@"union\s+(all\s+)?select")),
         new("sqli-02", "SQL Injection — boolean (OR/AND x=x)", "SQL Injection", R(@"['""\s](or|and)\s+['""]?[\w.]+['""]?\s*(=|like|<|>)\s*['""]?[\w.]+")),
@@ -334,9 +335,14 @@ sealed class SecurityRules
         new("ssti-01", "Template Injection (SSTI)", "Template Injection", R(@"\{\{\s*\d+\s*[-+*/]\s*\d+\s*\}\}|\$\{\s*\d+\s*[-+*/]\s*\d+\s*\}|\{\{.{0,120}?(config|self|request|session|cycler|joiner|namespace|lipsum|__class__|__globals__|__subclasses__|__mro__|__import__|__builtins__|os\.|subprocess|popen|getruntime|freemarker|processbuilder).{0,120}?\}\}|\$\{.{0,120}?(class|getclass|runtime|getruntime|processbuilder|lang\.runtime|javax|exec\s*\().{0,120}?\}|<%.{0,160}?(runtime|processbuilder|exec\s*\(|request\.|system\s*\().{0,160}?%>|#\{.{0,120}?(class|runtime|exec|facescontext|t\s*\().{0,120}?\}|@\{.{0,120}?(system|process|exec).{0,120}?\}"))
     ];
 
+    private readonly List<Rule> _rules = BuiltInRuleTemplates
+        .Select(template => new Rule(template.Id, template.Name, template.Category, template.Pattern))
+        .ToList();
+
     // Matched only against the User-Agent, where these names are high-signal and low false-positive.
+    private static readonly Regex ScannerPattern = R(@"\b(sqlmap|nikto|nessus|netsparker|acunetix|nuclei|wpscan|havij|fimap|dirbuster|gobuster|hydra|masscan|zgrab|openvas|arachni|w3af|commix|xsstrike|feroxbuster|ffuf)\b");
     private readonly Rule _scanner = new("scanner-01", "Malicious Scanner / Tool", "Malicious Scanner",
-        R(@"\b(sqlmap|nikto|nessus|netsparker|acunetix|nuclei|wpscan|havij|fimap|dirbuster|gobuster|hydra|masscan|zgrab|openvas|arachni|w3af|commix|xsstrike|feroxbuster|ffuf)\b"));
+        ScannerPattern);
 
     // Score-based heuristic layer (anomaly scoring): several weak signals that individually should not block but,
     // when enough co-occur in one value, indicate obfuscated probing. Off by default because it raises false positives.
@@ -444,7 +450,7 @@ sealed class AnomalyScorer
     // while still bounding a single anomaly evaluation under load.
     private static Regex R(string p) => new(p, RegexOptions.Compiled | RegexOptions.NonBacktracking | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
 
-    private readonly (Regex Pattern, int Weight)[] _signals =
+    private static readonly (Regex Pattern, int Weight)[] Signals =
     [
         (R(@"\b(select|union|insert|update|delete|drop|where|from|having|concat|substring|char|cast|convert)\b"), 3),
         (R(@"(--|#|/\*|\*/|;)"), 2),
@@ -465,7 +471,7 @@ sealed class AnomalyScorer
         foreach (var v in variants)
         {
             var s = 0;
-            foreach (var (pattern, weight) in _signals)
+            foreach (var (pattern, weight) in Signals)
                 if (pattern.IsMatch(v)) s += weight;
             if (s > best) best = s;
         }

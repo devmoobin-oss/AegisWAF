@@ -1,5 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
+using System.Collections;
+using System.Reflection;
 using System.Text;
 using AegisWAF.Gateway;
 using Microsoft.Extensions.Configuration;
@@ -111,6 +113,30 @@ public class EngineUpgradeTests
     public void Anomaly_scoring_blocks_when_enough_weak_signals_combine()
     {
         Assert.Equal("Anomaly Score", Rules(anomaly: true).Match("a' select/* <b"));
+    }
+
+    [Fact]
+    public void Concurrent_cold_rule_instances_do_not_timeout_anomaly_scoring()
+    {
+        var results = new string?[128];
+        Parallel.For(0, results.Length, index =>
+            results[index] = Rules(anomaly: true).Match("a' select/* <b"));
+
+        Assert.All(results, result => Assert.Equal("Anomaly Score", result));
+    }
+
+    [Fact]
+    public void Security_rule_instances_share_compiled_pattern_cache()
+    {
+        var first = Rules(anomaly: true);
+        var second = Rules(anomaly: true);
+        var field = typeof(SecurityRules).GetField("_rules", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var firstEntry = ((IEnumerable)field.GetValue(first)!).Cast<object>().First();
+        var secondEntry = ((IEnumerable)field.GetValue(second)!).Cast<object>().First();
+        var firstPattern = firstEntry.GetType().GetProperty("Pattern")!.GetValue(firstEntry);
+        var secondPattern = secondEntry.GetType().GetProperty("Pattern")!.GetValue(secondEntry);
+
+        Assert.Same(firstPattern, secondPattern);
     }
 
     [Fact]
