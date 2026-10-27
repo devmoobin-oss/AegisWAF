@@ -54,7 +54,10 @@ public static class SiteProxyConfiguration
             var sharedUpstreamBasePath = upstreamBasePaths.Length == 1 && upstreamBasePaths[0] != "/"
                 ? upstreamBasePaths[0]
                 : null;
-            foreach (var hostname in site.Hostnames)
+            foreach (var hostname in site.Hostnames
+                .Select(SiteConfigurationValidator.NormalizeHostname)
+                .Where(x => x.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase))
             {
                 foreach (var prefix in site.PathPrefixes)
                 {

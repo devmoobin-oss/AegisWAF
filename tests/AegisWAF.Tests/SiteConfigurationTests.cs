@@ -33,6 +33,21 @@ public sealed class SiteConfigurationTests
     }
 
     [Fact]
+    public void Canonicalizes_internationalized_hostnames_to_punycode()
+    {
+        var config = Config(new Dictionary<string, string?>
+        {
+            ["Sites:site-idn:Enabled"] = "true",
+            ["Sites:site-idn:Hostnames:0"] = "例え.テスト",
+            ["Sites:site-idn:Upstreams:0:Address"] = "https://origin.example.com/"
+        });
+
+        var snapshot = SiteConfigurationLoader.Load(config);
+
+        Assert.Equal("xn--r8jz45g.xn--zckzah", snapshot.Sites.Single().Hostnames.Single());
+    }
+
+    [Fact]
     public void Legacy_reverse_proxy_configuration_becomes_default_site()
     {
         var config = Config(new Dictionary<string, string?>

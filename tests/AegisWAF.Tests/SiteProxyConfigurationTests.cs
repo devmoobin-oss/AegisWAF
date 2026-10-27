@@ -66,6 +66,18 @@ public sealed class SiteProxyConfigurationTests
     }
 
     [Fact]
+    public void Emits_punycode_hosts_for_idn_site_routes()
+    {
+        var site = new GatewaySite("site-idn", true, ["例え.テスト"], ["/"],
+            [new SiteUpstream("primary", new Uri("https://origin.example.com/"))], "default",
+            new SiteRateLimitPolicy(), new SiteEgressPolicy(["origin.example.com"], [443], ["https"]));
+
+        var values = SiteProxyConfiguration.Build(new SiteConfigurationSnapshot([site], false));
+
+        Assert.Equal("xn--r8jz45g.xn--zckzah", values["ReverseProxy:Routes:site-site-idn:Match:Hosts:0"]);
+    }
+
+    [Fact]
     public void Configures_active_and_passive_health_checks_for_each_generated_cluster()
     {
         var site = new GatewaySite("site-a", true, ["app-a.example.com"], ["/"],

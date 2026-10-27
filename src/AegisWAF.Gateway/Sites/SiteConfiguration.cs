@@ -1,10 +1,12 @@
 using System.Net;
 using Microsoft.Extensions.Configuration;
+using System.Globalization;
 
 namespace AegisWAF.Gateway.Sites;
 
 public static class SiteConfigurationValidator
 {
+    private static readonly IdnMapping HostnameIdn = new() { UseStd3AsciiRules = true };
     private const int MaxHostnamesPerSite = 32;
     private const int MaxPathPrefixesPerSite = 64;
     private const int MaxUpstreamsPerSite = 32;
@@ -291,9 +293,22 @@ public static class SiteConfigurationValidator
 
     internal static string NormalizeHostname(string value)
     {
-        var hostname = value.Trim().TrimEnd('.').ToLowerInvariant();
-        if (hostname.Contains(':') && IPAddress.TryParse(hostname, out _)) return hostname;
-        return Uri.CheckHostName(hostname) == UriHostNameType.Unknown ? string.Empty : hostname;
+        var hostname = (value ?? "").Trim().TrimEnd('.').ToLowerInvariant();
+        if (hostname.Length == 0 || hostname.Length > 253) return string.Empty;
+        if (IPAddress.TryParse(hostname, out var address)) return address.ToString().ToLowerInvariant();
+
+        try
+        {
+            var ascii = HostnameIdn.GetAscii(hostname).ToLowerInvariant();
+            if (ascii.Length == 0 || ascii.Length > 253 ||
+                ascii.Split('.').Any(label => label.Length is 0 or > 63))
+                return string.Empty;
+            return Uri.CheckHostName(ascii) == UriHostNameType.Dns ? ascii : string.Empty;
+        }
+        catch (ArgumentException)
+        {
+            return string.Empty;
+        }
     }
 
     internal static string NormalizePath(string value)

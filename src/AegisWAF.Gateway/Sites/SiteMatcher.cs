@@ -13,7 +13,8 @@ public static class SiteMatcher
         SiteMatchResult? best = null;
         foreach (var site in snapshot.Sites)
         {
-            if (!site.Enabled || !site.Hostnames.Contains(hostname, StringComparer.OrdinalIgnoreCase)) continue;
+            if (!site.Enabled || !site.Hostnames.Any(candidate =>
+                    string.Equals(SiteConfigurationValidator.NormalizeHostname(candidate), hostname, StringComparison.OrdinalIgnoreCase))) continue;
             foreach (var prefix in site.PathPrefixes)
             {
                 if (!PathMatches(path, prefix)) continue;
@@ -30,7 +31,8 @@ public static class SiteMatcher
         if (hostname.Length == 0) return null;
 
         var site = snapshot.Sites.FirstOrDefault(x =>
-            x.Enabled && x.Hostnames.Contains(hostname, StringComparer.OrdinalIgnoreCase));
+            x.Enabled && x.Hostnames.Any(candidate =>
+                string.Equals(SiteConfigurationValidator.NormalizeHostname(candidate), hostname, StringComparison.OrdinalIgnoreCase)));
         return site is null ? null : new SiteMatchResult(site, hostname, "");
     }
 

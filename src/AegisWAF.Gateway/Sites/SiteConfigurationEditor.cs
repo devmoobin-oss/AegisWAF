@@ -191,8 +191,5 @@ public static class SiteConfigurationEditor
     }
 
     private static string NormalizeHostname(string value)
-    {
-        var host = (value ?? "").Trim().TrimEnd('.').ToLowerInvariant();
-        return Uri.CheckHostName(host) == UriHostNameType.Unknown || host.Contains('*') ? "" : host;
-    }
+        => SiteConfigurationValidator.NormalizeHostname(value);
 }

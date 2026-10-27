@@ -64,6 +64,19 @@ public sealed class SiteMatcherTests
         Assert.Equal("127.0.0.1", match.Hostname);
     }
 
+    [Fact]
+    public void Matches_unicode_request_host_against_a_punycode_site_hostname()
+    {
+        var site = Site("site-idn", "xn--r8jz45g.xn--zckzah", ["/"]);
+        var snapshot = new SiteConfigurationSnapshot([site], false);
+
+        var match = SiteMatcher.Match(snapshot, "例え.テスト:80", "/");
+
+        Assert.NotNull(match);
+        Assert.Equal("site-idn", match.Site.Id);
+        Assert.Equal("xn--r8jz45g.xn--zckzah", match.Hostname);
+    }
+
     private static GatewaySite Site(string id, string host, string[] prefixes, bool enabled = true) =>
         new(id, enabled, [host], prefixes, [new SiteUpstream("primary", new Uri("https://origin.example.com/"))], "default",
             new SiteRateLimitPolicy(), new SiteEgressPolicy(["origin.example.com"], [443], ["https"]));
