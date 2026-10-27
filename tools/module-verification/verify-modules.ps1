@@ -15,6 +15,14 @@ function Get-ModuleManifest([string]$Path) {
     return (Get-Content -Raw -LiteralPath $Path | ConvertFrom-Json)
 }
 
+function Get-EnvironmentUnverifiedReason([string]$Stdout, [string]$Stderr) {
+    $text = "$Stdout`n$Stderr"
+    if ($text -match '(?i)(Failed to connect to (?:127\.0\.0\.1|localhost|\[?::1\])(?::5432)|(?:PostgreSQL|Npgsql).*(?:connection refused|actively refused)|(?:connection refused|actively refused).*(?:5432|postgres))') {
+        return 'PostgreSQL service is unavailable on the local test endpoint'
+    }
+    return $null
+}
+
 function Resolve-Module($Manifest, [string]$Id) {
     $module = @($Manifest.modules | Where-Object { $_.id -eq $Id }) | Select-Object -First 1
     if ($null -eq $module) { throw "Unknown module: $Id" }
@@ -49,12 +57,18 @@ function Invoke-Gate([string]$Command, [int]$TimeoutSeconds = 120) {
     $stdout = $stdoutTask.GetAwaiter().GetResult()
     $stderr = $stderrTask.GetAwaiter().GetResult()
     $status = if ($timedOut) { 'timeout' } elseif ($process.ExitCode -eq 0) { 'passed' } else { 'failed' }
+    $unverifiedReason = $null
+    if ($status -eq 'failed') {
+        $unverifiedReason = Get-EnvironmentUnverifiedReason -Stdout $stdout -Stderr $stderr
+        if ($null -ne $unverifiedReason) { $status = 'unverified' }
+    }
     [pscustomobject]@{
         status = $status
         exitCode = if ($timedOut) { $null } else { $process.ExitCode }
         durationMs = [Math]::Round($watch.Elapsed.TotalMilliseconds, 0)
         stdout = $stdout.Trim()
         stderr = $stderr.Trim()
+        unverifiedReason = $unverifiedReason
     }
 }
 
@@ -66,7 +80,7 @@ function Invoke-ModuleVerification($Manifest, $SelectedModule, [switch]$SkipTest
             continue
         }
         $outcome = Invoke-Gate -Command $gate.command -TimeoutSeconds ([int]$gate.timeoutSeconds)
-        $results.Add([pscustomobject]@{ id = $gate.id; kind = $gate.kind; weight = [int]$gate.weight; command = $gate.command; status = $outcome.status; exitCode = $outcome.exitCode; durationMs = $outcome.durationMs; stdout = $outcome.stdout; stderr = $outcome.stderr })
+        $results.Add([pscustomobject]@{ id = $gate.id; kind = $gate.kind; weight = [int]$gate.weight; command = $gate.command; status = $outcome.status; exitCode = $outcome.exitCode; durationMs = $outcome.durationMs; stdout = $outcome.stdout; stderr = $outcome.stderr; unverifiedReason = $outcome.unverifiedReason })
     }
     $passedWeight = [int](($results | Where-Object { $_.status -eq 'passed' } | Measure-Object -Property weight -Sum).Sum)
     if ($null -eq $passedWeight) { $passedWeight = 0 }
@@ -77,7 +91,7 @@ function Invoke-ModuleVerification($Manifest, $SelectedModule, [switch]$SkipTest
         target = 100
         gates = @($results)
         passed = @($results | Where-Object { $_.status -eq 'passed' }).Count
-        unverified = @($results | Where-Object { $_.status -in @('timeout', 'skipped') }).Count
+        unverified = @($results | Where-Object { $_.status -in @('timeout', 'skipped', 'unverified') }).Count
         failed = @($results | Where-Object { $_.status -eq 'failed' }).Count
     }
 }

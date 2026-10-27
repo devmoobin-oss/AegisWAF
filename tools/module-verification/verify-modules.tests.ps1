@@ -23,6 +23,16 @@ $failure = Invoke-Gate -Command 'Write-Error "expected failure"; exit 7' -Timeou
 Assert-Equal $failure.status 'failed' 'A non-zero command should fail'
 Assert-Equal $failure.exitCode 7 'The non-zero exit code should be preserved'
 
+$databaseUnavailable = Invoke-Gate -Command 'Write-Error "Failed to connect to 127.0.0.1:5432"; exit 1' -TimeoutSeconds 5
+Assert-Equal $databaseUnavailable.status 'unverified' 'A missing local PostgreSQL service should be unverified, not a code failure'
+Assert-True ($databaseUnavailable.unverifiedReason -match 'PostgreSQL') 'The unverified result should name the unavailable dependency'
+
+$assertionFailure = Invoke-Gate -Command 'Write-Error "Assert.Equal failed: expected healthy"; exit 1' -TimeoutSeconds 5
+Assert-Equal $assertionFailure.status 'failed' 'A real assertion failure must remain failed'
+
+$upstreamFailure = Invoke-Gate -Command 'Write-Error "upstream connection refused"; exit 1' -TimeoutSeconds 5
+Assert-Equal $upstreamFailure.status 'failed' 'A generic upstream connection failure must remain failed'
+
 $quoted = Invoke-Gate -Command 'Write-Output "quoted argument with spaces"' -TimeoutSeconds 5
 Assert-Equal $quoted.status 'passed' 'Quoted arguments should remain one command'
 Assert-True ($quoted.stdout -match 'quoted argument with spaces') 'Quoted command output should be captured intact'

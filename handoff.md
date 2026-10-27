@@ -2056,3 +2056,28 @@
 - Latest published artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-Module78\AegisWAF.exe`, SHA-256 `3E2F8633306BFABFC922AF49D132AE044720CA47D8221620D81D4AC8AF4512EA`.
 - Remaining incomplete gates: Module 41 = 90% and Module 60 = 90% (repository Code scanning/Advanced Security and Hosted SARIF evidence).
 - Next continuation action: enable repository Code scanning/Advanced Security if approved and rerun Hosted Security Verification; preserve the Module78 artifact unless runtime code changes again.
+
+### Module 79 final progress record — 2026-10-27
+
+- Before: 0%; After: 100%; Target: 100% for the defined module-verifier classification gates.
+- Opportunity/root cause: `verify-modules.ps1 -All` classified local PostgreSQL connection refusal as `failed`, although the same integration gates pass in the Hosted PostgreSQL service; this made local infrastructure absence look like a code regression and distorted the reported percentage.
+- TDD RED: the new verifier contract failed as expected with `Expected 'unverified', got 'failed'` for a simulated PostgreSQL connection refusal.
+- Implementation: `Invoke-Gate` now classifies only PostgreSQL-specific local connection-unavailable signatures as `unverified`, preserves stdout/stderr and exit code, and leaves generic assertion/upstream connection failures as `failed`. Module summaries count `unverified` separately from `failed`.
+- Verification: `tools/module-verification/verify-modules.tests.ps1` passed; it covers passed commands, real failures, PostgreSQL-unavailable classification, generic upstream refusal, timeout, and handoff percentage boundaries. A real `waf-engine` probe now reports `75%`, `passed=3`, `failed=0`, `unverified=1` for the missing local PostgreSQL service instead of treating that gate as a code failure. `git diff --check` passed.
+- Artifact boundary: verification tooling/tests only; no runtime code changed and no new EXE publish was required. Module78 remains the authoritative distributable.
+- Evidence: `artifacts/module-verification/module79-verifier-environment-classification.json`.
+- Boundary: this improves reporting truthfulness; it does not convert an unavailable dependency into a pass. Hosted regression and external CodeQL/SARIF gates remain authoritative for their respective scopes.
+
+### Opportunity audit after Module 79 — 2026-10-27
+
+- P0: Module 41/60 remain at 90% pending repository Code scanning/Advanced Security enablement and a fresh successful SARIF upload/status.
+- P1: provision least-privilege PostgreSQL role in the deployment environment, external SIEM delivery/retention, authenticated published-EXE Multi-Site smoke, Authenticode signing, DNS-rebinding, penetration, load, SLO/capacity, and incident-response evidence remain external/deployment gates.
+- P2: after external gates are resolved, continue auditing Multi-Site policy versioning, MFA/WebAuthn/OIDC, and independent OWASP CRS corpus benchmarking.
+
+### Authoritative continuation state — 2026-10-27 (latest after Module 79)
+
+- Latest local/Hosted module progress: Module 79 = 100%; Module 78 = 100%; Module 77 = 100%; Module 76 = 100%; Module 75 = 100%; Module 74 = 100%; Module 73 = 100%; Module 72 = 100%.
+- Latest Hosted verification for runtime Module 78: run `40445541235`, full regression `509/509`, `TRX_REGRESSION_PASS`; CodeQL remains an explicit external gate because repository Code scanning/Advanced Security is unavailable.
+- Latest published artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-Module78\AegisWAF.exe`, SHA-256 `3E2F8633306BFABFC922AF49D132AE044720CA47D8221620D81D4AC8AF4512EA`.
+- Remaining incomplete gates: Module 41 = 90% and Module 60 = 90% (repository Code scanning/Advanced Security and Hosted SARIF evidence); local integration gates requiring PostgreSQL are now reported as unverified when the service is absent.
+- Next continuation action: enable repository Code scanning/Advanced Security if approved and rerun Hosted Security Verification; preserve the Module78 artifact unless runtime code changes again.
