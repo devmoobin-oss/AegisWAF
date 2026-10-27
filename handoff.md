@@ -2980,11 +2980,30 @@
 - Verification: PE header `MZ`; release manifest verification passed (`files=6`, `signed=false`, `workingTreeClean=true`).
 - Boundary: this artifact is not Authenticode-signed and does not claim authenticated browser smoke, visual responsive verification, PostgreSQL integration, concurrent multi-instance mutation, whole-console premium audit, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, or production certification.
 
-### Current handoff pointer — 2026-10-27 (after Module 111)
+### Module 112 final progress record — 2026-10-27
+
+- Before: 0%; After: 100%; Target: 100% for the defined fail-closed explicit logout and Multi-Site disposal gates.
+- Opportunity/root cause: the explicit logout handler awaited the gateway logout request without handling a network failure, so a failed request could leave the UI session active and leave a Multi-Site view lifecycle running.
+- TDD RED: `BrowserMultiSiteLogoutResilienceContractTests` initially failed because the explicit logout handler had no try/catch boundary.
+- Implementation: catch gateway logout failures with a bounded Thai notification, then always clear local session state, dispose the Multi-Site view, and return to the login screen.
+- Verification: focused contracts passed **3/3**; relevant browser/Multi-Site/security regression passed **101/101** across 30 classes; Node syntax check passed; Release solution build passed **0 warnings / 0 errors**; `git diff --check` passed; behavior-only change did not alter CSS/HTML visual assets and the existing UI audit baseline remains the boundary; report: `artifacts/module-verification/module112-multisite-logout-resilience.json`.
+- Source commit: `df9fb87dee0b8535fba62354459ee1c69bd4e702`.
+- Boundary: full VSTest testhost connectivity, authenticated browser/published-EXE smoke, visual responsive verification, PostgreSQL runtime execution, concurrent multi-instance mutation, whole-console premium UI audit, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification remain unverified.
+
+### Published EXE — Module 112 completed modules bundle — 2026-10-27
+
+- Scope: published the completed-modules bundle through Module 112 only; incomplete modules and external gates were not promoted.
+- Publish configuration: `Release`, `win-x64`, self-contained, single-file, `net10.0-windows`.
+- Artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`, SHA-256 `57D0C23DB1616A08A8ACC0A0D302A89EC112F98F10125551B22DD20F6B36062E`, `170,641,259` bytes.
+- Source commit at publish time: `df9fb87dee0b8535fba62354459ee1c69bd4e702`.
+- Verification: PE header `MZ`; release manifest verification passed (`files=6`, `signed=false`, `workingTreeClean=true`).
+- Boundary: this artifact is not Authenticode-signed and does not claim authenticated browser smoke, visual responsive verification, PostgreSQL integration, concurrent multi-instance mutation, whole-console premium audit, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, or production certification.
+
+### Current handoff pointer — 2026-10-27 (after Module 112)
 
 - This is the authoritative continuation block. Read this block before starting further work; older historical records above are retained for audit only.
-- Latest completed modules: Module 111 = 100%; Module 110 = 100%; Module 109 = 100%; Module 108 = 100%; Module 107 = 100%; Module 106 = 100%; Module 105 = 100%; Module 104 = 100%; Module 103 = 100%; Module 102 = 100%; Module 101 = 100%; Module 100 = 100%; Module 99 = 100%; Module 98 = 100%; Module 97 = 100%; Module 96 = 100%; Module 95 = 100%; Module 94 = 100%; Module 93 = 100%; Module 92 = 100%; Module 91 = 100%; Module 90 = 100%; Module 89 = 100%; Module 88 = 100%; Module 87 = 100%; Module 86 = 100%; Module 85 = 100%; Module 84 = 100%; Module 83 = 100%; Module 82 = 100%; Module 81 = 100%; Module 80 = 100%; Module 79 = 100%; Module 78 = 100%; Module 77 = 100%; Module 76 = 100%; Module 75 = 100%; Module 74 = 100%; Module 73 = 100%; Module 72 = 100%.
-- Latest artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`; SHA-256 `62038101337D9C3F35B537A8E9AEC7737C4F42F91296FA5D711A15719148F393`; source commit `27990d40e9437ae60c9bd94e4b2c17534511f244`.
+- Latest completed modules: Module 112 = 100%; Module 111 = 100%; Module 110 = 100%; Module 109 = 100%; Module 108 = 100%; Module 107 = 100%; Module 106 = 100%; Module 105 = 100%; Module 104 = 100%; Module 103 = 100%; Module 102 = 100%; Module 101 = 100%; Module 100 = 100%; Module 99 = 100%; Module 98 = 100%; Module 97 = 100%; Module 96 = 100%; Module 95 = 100%; Module 94 = 100%; Module 93 = 100%; Module 92 = 100%; Module 91 = 100%; Module 90 = 100%; Module 89 = 100%; Module 88 = 100%; Module 87 = 100%; Module 86 = 100%; Module 85 = 100%; Module 84 = 100%; Module 83 = 100%; Module 82 = 100%; Module 81 = 100%; Module 80 = 100%; Module 79 = 100%; Module 78 = 100%; Module 77 = 100%; Module 76 = 100%; Module 75 = 100%; Module 74 = 100%; Module 73 = 100%; Module 72 = 100%.
+- Latest artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`; SHA-256 `57D0C23DB1616A08A8ACC0A0D302A89EC112F98F10125551B22DD20F6B36062E`; source commit `df9fb87dee0b8535fba62354459ee1c69bd4e702`.
 - Latest Hosted evidence remains run `40445541235`, full regression `509/509`, `TRX_REGRESSION_PASS`; Module 41 = 90% and Module 60 = 90% pending GitHub Code scanning/Advanced Security and fresh Hosted SARIF evidence.
 - Local PostgreSQL-dependent integration, duplicate-hostname execution, concurrent multi-instance mutation, authenticated browser/published-EXE smoke, full VSTest testhost connectivity, visual responsive verification, and whole-console premium UI audit gates remain unverified when their external services/credentials or baseline tooling are unavailable.
 - Next action: audit and implement the next concrete Multi-Site hardening opportunity; preserve the 0% → 100% progress record, evidence file, artifact pointer, and stated verification boundary.
