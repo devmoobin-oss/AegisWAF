@@ -29,4 +29,29 @@ public sealed class SiteHealthSummaryRecoveryRankingTests
         Assert.Equal("a-recovered", ordered[1].SiteId);
     }
 
+    [Fact]
+    public void Current_actionable_alerts_outrank_stale_alerts_of_the_same_severity()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var ordered = SiteHealthComparisonCalculator.Calculate(
+            [
+                ("stale-critical", (IReadOnlyList<SiteHealthObservation>)[
+                    new("primary", "unhealthy", "timeout", now.AddMinutes(-30))]),
+                ("current-critical", (IReadOnlyList<SiteHealthObservation>)[
+                    new("primary", "unhealthy", "timeout", now)])
+            ],
+            window: 20,
+            limit: 10,
+            now,
+            new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["stale-critical"] = 1,
+                ["current-critical"] = 1
+            });
+
+        Assert.Equal("current-critical", ordered[0].SiteId);
+        Assert.Equal("stale-critical", ordered[1].SiteId);
+        Assert.True(ordered[1].IsStale);
+    }
+
 }

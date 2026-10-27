@@ -84,6 +84,7 @@ public static class SiteHealthComparisonCalculator
                 return new SiteHealthComparisonItem(x.SiteId, trend, stale);
             })
             .OrderBy(x => AlertRank(x.Trend))
+            .ThenBy(x => IsStaleActionable(x) ? x.IsStale : false)
             .ThenByDescending(x => x.IsStale)
             .ThenBy(x => x.SiteId, StringComparer.OrdinalIgnoreCase)
             .Take(boundedLimit)
@@ -101,4 +102,7 @@ public static class SiteHealthComparisonCalculator
             _ => 2
         };
     }
+
+    private static bool IsStaleActionable(SiteHealthComparisonItem item) =>
+        item.IsStale && HealthAlertLifecycle.IsActionable(item.Trend);
 }
