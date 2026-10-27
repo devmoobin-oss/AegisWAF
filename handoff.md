@@ -2550,3 +2550,32 @@
 - Latest Hosted evidence remains run `40445541235`, full regression `509/509`, `TRX_REGRESSION_PASS`; Module 41 = 90% and Module 60 = 90% pending GitHub Code scanning/Advanced Security and fresh Hosted SARIF evidence.
 - Local PostgreSQL-dependent integration and authenticated published-EXE smoke gates remain unverified when their external services/credentials are unavailable.
 - Next action: audit and implement the next concrete Multi-Site hardening opportunity; preserve the 0% → 100% progress record, evidence file, artifact pointer, and stated verification boundary.
+
+### Module 95 final progress record — 2026-10-27
+
+- Before: 0%; After: 100%; Target: 100% for the defined Multi-Site hostname-conflict response hardening gates.
+- Opportunity/root cause: Site POST and PUT endpoints returned `SiteHostnameConflictException.Message` directly. Although the current exception text is bounded, public API behavior was coupled to exception text and could expose future database details.
+- TDD RED: `SiteHostnameConflictProblemContractTests` initially failed because the stable `site_hostname_conflict` response did not exist and the endpoint still returned `ex.Message`.
+- Implementation: added a fixed HTTP 409 ProblemDetails response with stable title/detail/code and trace ID; removed exception-message propagation from Site create/update hostname-conflict handlers; added a source contract for the safety boundary.
+- Verification: focused contract passed **1/1**; relevant non-PostgreSQL Multi-Site regression passed **71/71** across 13 classes; Debug build passed **0 warnings / 0 errors**; Release solution build passed **0 warnings / 0 errors**; `git diff --check` passed; publish manifest passed with `files=6`, `signed=false`, `workingTreeClean=true`.
+- Evidence: `artifacts/module-verification/module95-hostname-conflict-problem.json`.
+- Source commit: `1285d9ecc92d81137907719e6400a7d123b866cc`.
+- Boundary: PostgreSQL duplicate-hostname execution, authenticated published-EXE smoke, concurrent multi-instance mutation, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification remain unverified.
+
+### Published EXE — Module 95 completed modules bundle — 2026-10-27
+
+- Scope: published the completed-modules bundle through Module 95 only; incomplete modules and external gates were not promoted.
+- Publish configuration: `Release`, `win-x64`, self-contained, single-file, `net10.0-windows`.
+- Artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`, SHA-256 `5D3BFCAA070FFA06D4FFC99D8A0C9A7C012C9A8DC8CD5DEEED9EAA430BB7EB6F`, `170,633,067` bytes.
+- Source commit at publish time: `1285d9ecc92d81137907719e6400a7d123b866cc`.
+- Verification: PE header `MZ`; release manifest verification passed with `files=6`, `signed=false`, `workingTreeClean=true`.
+- Boundary: this artifact is not Authenticode-signed and does not claim PostgreSQL integration, authenticated published-EXE smoke, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, or production certification.
+
+### Current handoff pointer — 2026-10-27 (after Module 95)
+
+- This is the authoritative continuation block. Read this block before starting further work; older historical records above are retained for audit only.
+- Latest completed modules: Module 95 = 100%; Module 94 = 100%; Module 93 = 100%; Module 92 = 100%; Module 91 = 100%; Module 90 = 100%; Module 89 = 100%; Module 88 = 100%; Module 87 = 100%; Module 86 = 100%; Module 85 = 100%; Module 84 = 100%; Module 83 = 100%; Module 82 = 100%; Module 81 = 100%; Module 80 = 100%; Module 79 = 100%; Module 78 = 100%; Module 77 = 100%; Module 76 = 100%; Module 75 = 100%; Module 74 = 100%; Module 73 = 100%; Module 72 = 100%.
+- Latest artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`; SHA-256 `5D3BFCAA070FFA06D4FFC99D8A0C9A7C012C9A8DC8CD5DEEED9EAA430BB7EB6F`; source commit `1285d9ecc92d81137907719e6400a7d123b866cc`.
+- Latest Hosted evidence remains run `40445541235`, full regression `509/509`, `TRX_REGRESSION_PASS`; Module 41 = 90% and Module 60 = 90% pending GitHub Code scanning/Advanced Security and fresh Hosted SARIF evidence.
+- Local PostgreSQL-dependent integration, duplicate-hostname execution, concurrent multi-instance mutation, and authenticated published-EXE smoke gates remain unverified when their external services/credentials are unavailable.
+- Next action: audit and implement the next concrete Multi-Site hardening opportunity; preserve the 0% → 100% progress record, evidence file, artifact pointer, and stated verification boundary.
