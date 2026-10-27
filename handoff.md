@@ -3295,11 +3295,20 @@
 - Boundary: loopback health smoke tests returned `socket_AccessDenied` in this environment; live aggregate timeout execution, PostgreSQL integration, authenticated browser/published-EXE smoke, visual responsive verification, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification remain unverified.
 - Source commit: `0a91e6d4fc5232566dbba3eb720acb25c62549e4`.
 
+### Published EXE — Module 128 completed modules bundle — 2026-10-28
+
+- Scope: published the completed-modules bundle through Module 128 only; incomplete modules and external gates were not promoted.
+- Publish configuration: `Release`, `win-x64`, self-contained, single-file, `net10.0-windows`.
+- Artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`, SHA-256 `571D6C14C5937DCD78D2B3CF61EA9F2404876C69A644E39273543F3C6C254CC3`, `170,656,619` bytes.
+- Source commit at publish time: `410908a58056342b3f9faf598ea5112335ea2160`.
+- Verification: PE header `MZ`; release manifest verification passed (`files=6`, `signed=false`, `workingTreeClean=true`).
+- Boundary: this artifact is not Authenticode-signed and does not claim live aggregate health-probe timeout execution, PostgreSQL integration, authenticated browser/published-EXE smoke, visual responsive verification, whole-console premium audit, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, or production certification.
+
 ### Current handoff pointer — 2026-10-28 (after Module 128)
 
 - This is the authoritative continuation block. Read this block before starting further work; older historical records above are retained for audit only.
 - Latest completed modules: Module 128 = 100%; Module 127 = 100%; Module 126 = 100%; Module 125 = 100%; Module 124 = 100%; Module 123 = 100%; Module 122 = 100%; Module 121 = 100%; Module 120 = 100%; Module 119 = 100%; Module 118 = 100%; Module 117 = 100%; Module 116 = 100%; Module 115 = 100%; Module 114 = 100%; Module 113 = 100%; Module 112 = 100%; Module 111 = 100%; Module 110 = 100%; Module 109 = 100%; Module 108 = 100%; Module 107 = 100%; Module 106 = 100%; Module 105 = 100%; Module 104 = 100%; Module 103 = 100%; Module 102 = 100%; Module 101 = 100%; Module 100 = 100%; Module 99 = 100%; Module 98 = 100%; Module 97 = 100%; Module 96 = 100%; Module 95 = 100%; Module 94 = 100%; Module 93 = 100%; Module 92 = 100%; Module 91 = 100%; Module 90 = 100%; Module 89 = 100%; Module 88 = 100%; Module 87 = 100%; Module 86 = 100%; Module 85 = 100%; Module 84 = 100%; Module 83 = 100%; Module 82 = 100%; Module 81 = 100%; Module 80 = 100%; Module 79 = 100%; Module 78 = 100%; Module 77 = 100%; Module 76 = 100%; Module 75 = 100%; Module 74 = 100%; Module 73 = 100%; Module 72 = 100%.
-- Latest artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`; SHA-256 `52B03F01DFD7B639C45A14D84A80DD3B6027295A5F2836A1A2CE4A1854A56BB0`; source commit `00c0343353bc0e23eb0501ceec592dea2ab38657`.
+- Latest artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`; SHA-256 `571D6C14C5937DCD78D2B3CF61EA9F2404876C69A644E39273543F3C6C254CC3`; source commit `410908a58056342b3f9faf598ea5112335ea2160`.
 - Latest Hosted evidence remains run `40445541235`, full regression `509/509`, `TRX_REGRESSION_PASS`; Module 41 = 90% and Module 60 = 90% pending GitHub Code scanning/Advanced Security and fresh Hosted SARIF evidence.
 - Local PostgreSQL-dependent integration, duplicate-hostname execution, concurrent multi-instance mutation, authenticated browser/published-EXE smoke, full VSTest testhost connectivity, visual responsive verification, and whole-console premium UI audit gates remain unverified when their external services/credentials or baseline tooling are unavailable.
-- Next action: publish the completed-modules bundle from the Module 128 source commit, then audit and implement the next concrete Multi-Site hardening opportunity while preserving the 0% → 100% progress record, evidence file, artifact pointer, and stated verification boundary.
+- Next action: audit and implement the next concrete Multi-Site hardening opportunity while preserving the 0% → 100% progress record, evidence file, artifact pointer, and stated verification boundary.
