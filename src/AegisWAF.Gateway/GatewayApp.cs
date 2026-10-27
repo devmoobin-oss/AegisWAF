@@ -544,15 +544,16 @@ public static class GatewayApp
         catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
         { return SiteDatabaseUnavailable(ctx, "health-trend-listed", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
         var trend = SiteHealthTrendCalculator.Calculate(observations, boundedWindow, site.Upstreams.Count);
+        var trendNow = DateTimeOffset.UtcNow;
+        var trendIsStale = HealthAlertLifecycle.IsStale(trend, trendNow);
         SiteHealthAlertAcknowledgement? acknowledgement = null;
-        if (HealthAlertLifecycle.IsActionable(trend))
+        if (HealthAlertLifecycle.IsActionable(trend, trendNow))
         {
             try { acknowledgement = await store.GetHealthAlertAcknowledgementAsync(site.Id, trend.AlertState, ct); }
             catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
             { return SiteDatabaseUnavailable(ctx, "health-trend-listed", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
         }
-        var now = DateTimeOffset.UtcNow;
-        var suppressed = HealthAlertLifecycle.IsActionable(trend) && acknowledgement is not null && HealthAlertLifecycle.IsSuppressed(trend.AlertState, acknowledgement.AlertState, acknowledgement.AcknowledgedUntil, now);
+        var suppressed = HealthAlertLifecycle.IsActionable(trend, trendNow) && acknowledgement is not null && HealthAlertLifecycle.IsSuppressed(trend.AlertState, acknowledgement.AlertState, acknowledgement.AcknowledgedUntil, trendNow);
         return Results.Ok(new
         {
             siteId = site.Id,
@@ -566,6 +567,7 @@ public static class GatewayApp
             alertState = trend.AlertState,
             recoveryState = trend.RecoveryState,
             lastCheckedAt = trend.LastCheckedAt,
+            isStale = trendIsStale,
             acknowledgedUntil = acknowledgement?.AcknowledgedUntil,
             acknowledgedBy = acknowledgement?.AcknowledgedBy,
             alertSuppressed = suppressed
