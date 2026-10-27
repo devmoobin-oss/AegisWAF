@@ -1727,7 +1727,7 @@
 ### Authoritative continuation state — 2026-10-27
 
 - Latest completed module: Module 72 = 100% (toast accent restraint / side-tab UI refinement); evidence is `artifacts/module-verification/module72-toast-accent-refinement.json`.
-- Latest release artifact for completed modules: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`, SHA-256 `21B0583D0296FC08A21E47C0256D0815B24E7450387F3C95CFC32B0F92697DC6`.
+- Latest release artifact for completed modules: `D:\AegisWAF\dist\AegisWAF-Desktop-Module72\AegisWAF.exe`, SHA-256 `BBC2EA1EBCE1EF05BDEC823FD9A7F137AAC0572B8EB56F29B9B52A30B42EF85D`.
 - Remaining incomplete gates: Module 41 = 90% and Module 60 = 90%, both waiting for the external GitHub Code scanning/Advanced Security repository setting and a Hosted SARIF-upload pass.
 - Next development target: inspect and close the remaining Hosted CodeQL/SARIF gates if repository permissions allow; otherwise preserve them as explicit external blockers and continue the authenticated Multi-Site smoke after operator takeover.
 
@@ -1891,3 +1891,13 @@
 - P0: enable repository Code scanning/Advanced Security and rerun Hosted Security Verification to close Module 41/60; no local code change can substitute for the required SARIF evidence.
 - P1: republish the completed-modules EXE from the Module 72 commit so the distributable contains the refined stylesheet; preserve the existing bundle if it is locked.
 - P1: authenticated published-EXE Multi-Site smoke, approved Authenticode signing, external SIEM delivery/retention, DNS-rebinding, penetration, load, SLO/capacity, and incident-response evidence remain open.
+
+### Published EXE — Module 72 artifact — 2026-10-27
+
+- Scope: republished the completed runtime/UI source after Module 72; Module 41/60 remain external evidence gates at 90% and are not claimed complete by this artifact.
+- Before/After for the publish artifact gate: 0% -> 100%; Target: 100%.
+- Source commit: `baef2be5e2d8a6b7ba68e856393dfea46295e4f9`.
+- Command: `dotnet publish src/AegisWAF.Desktop/AegisWAF.Desktop.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o dist/AegisWAF-Desktop-Module72 --no-restore --disable-build-servers -m:1`.
+- Artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-Module72\AegisWAF.exe`, self-contained `win-x64`, single-file, `170,608,491` bytes.
+- SHA-256: `BBC2EA1EBCE1EF05BDEC823FD9A7F137AAC0572B8EB56F29B9B52A30B42EF85D`.
+- Verification: PE header `MZ`; release manifest verifier passed with `files=6`, `signed=false`, `workingTreeClean=true`.
