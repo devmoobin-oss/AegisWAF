@@ -2188,6 +2188,35 @@
 - Remaining incomplete gates: Module 41 = 90% and Module 60 = 90% (repository Code scanning/Advanced Security and Hosted SARIF evidence); local integration gates requiring PostgreSQL are reported as unverified when the service is absent.
 - Next opportunity audit: continue Multi-Site runtime/API security hardening, prioritizing authenticated published-EXE smoke evidence, least-privilege PostgreSQL deployment, SIEM delivery/retention, DNS-rebinding, penetration, load/SLO/capacity, incident-response evidence, policy versioning, MFA/WebAuthn/OIDC, and independent OWASP CRS benchmarking.
 
+### Module 88 final progress record — 2026-10-27
+
+- Before: 0%; After: 100%; Target: 100% for the defined authoritative Site-mutation validation gates.
+- Opportunity/root cause: POST/PUT Site validation used `registry.Current`, which can lag PostgreSQL during listener propagation or multi-instance operation; a request could validate against an old snapshot and fail only after persistence during runtime activation.
+- TDD RED: `SiteMutationValidationSourceContractTests` initially failed because both mutation endpoints lacked `storedSitesForValidation` and still referenced `registry.Current.Sites`.
+- Implementation: POST and PUT now load `storedSitesForValidation` from `SiteDatabaseStore` before `ValidateSnapshot`; database-read failures use the existing structured database-unavailable response before mutation.
+- Verification: focused in-process mutation/configuration/runtime/health/UI contracts passed **49/49**, failed `0`, skipped `0`; Release solution build passed **0 warnings / 0 errors**; `git diff --check` passed.
+- Evidence: `artifacts/module-verification/module88-authoritative-site-mutation-validation.json`.
+- Source commit: `3ec4d278011bae14e33f64a5283c6c1593d1517a`.
+- Boundary: this proves local source, mutation endpoint source wiring, configuration/runtime contracts, and Release compilation. It does not claim fresh Hosted regression, CodeQL/SARIF, PostgreSQL integration, external penetration testing, load/SLO, SIEM, Authenticode signing, or production certification.
+
+### Published EXE — Module 88 completed modules bundle — 2026-10-27
+
+- Scope: republished only the completed runtime/UI modules after Module 88 authoritative Site-mutation validation hardening.
+- Publish gate progress: Before 0%; After 100%; Target 100%.
+- Source commit: `3ec4d278011bae14e33f64a5283c6c1593d1517a`; the working tree was clean when the publish was created.
+- Artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`, `net10.0-windows`, self-contained `win-x64`, single-file, `170,626,411` bytes.
+- SHA-256: `1623C9FE1B0BA6C673113D4B3E7A8FF4CF7F785EE66DB14C33D9C0EEC2E1B792`.
+- Verification: PE header `MZ`; release manifest verification passed (`files=6`, `signed=false`, `workingTreeClean=true`). Manifest: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\release-manifest.json`.
+- Boundary: this is the operator-facing completed-modules artifact. It is not Authenticode-signed and does not claim CodeQL/SARIF, external penetration, DNS-rebinding, load/SLO, SIEM, or production-certification evidence.
+
+### Authoritative continuation state — 2026-10-27 (latest after Module 88)
+
+- Latest local/Hosted module progress: Module 88 = 100%; Module 87 = 100%; Module 86 = 100%; Module 85 = 100%; Module 84 = 100%; Module 83 = 100%; Module 82 = 100%; Module 81 = 100%; Module 80 = 100%; Module 79 = 100%; Module 78 = 100%; Module 77 = 100%; Module 76 = 100%; Module 75 = 100%; Module 74 = 100%; Module 73 = 100%; Module 72 = 100%.
+- Latest completed-modules artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`, SHA-256 `1623C9FE1B0BA6C673113D4B3E7A8FF4CF7F785EE66DB14C33D9C0EEC2E1B792`.
+- Latest Hosted verification for runtime Module 78 remains run `40445541235`, full regression `509/509`, `TRX_REGRESSION_PASS`; CodeQL remains an explicit external gate because repository Code scanning/Advanced Security is unavailable.
+- Remaining incomplete gates: Module 41 = 90% and Module 60 = 90% (repository Code scanning/Advanced Security and Hosted SARIF evidence); local integration gates requiring PostgreSQL are reported as unverified when the service is absent.
+- Next opportunity audit: continue Multi-Site runtime/API security hardening, prioritizing authenticated published-EXE smoke evidence, least-privilege PostgreSQL deployment, SIEM delivery/retention, DNS-rebinding, penetration, load/SLO/capacity, incident-response evidence, policy versioning, MFA/WebAuthn/OIDC, and independent OWASP CRS benchmarking.
+
 ### Module 87 final progress record — 2026-10-27
 
 - Before: 0%; After: 100%; Target: 100% for the defined direct health-trend freshness gates.
