@@ -1,17 +1,18 @@
 # Current Production WAF Progress Snapshot
 
-Updated against the latest Production guardrail commit in the `feature/multi-site-gateway` worktree on 2026-10-19.
+Updated against Hosted Security Verification run `40444181184` on 2026-10-27.
 
 ## Verified local evidence
 
 | Evidence | Result |
 |---|---|
-| Full automated security/regression suite | **328 passed, 0 failed, 0 skipped** |
+| Full automated security/regression suite | **505 passed, 0 failed, 0 skipped** |
+| Hosted supporting security gates | **Dependency audit, secret scan, SBOM, and direct-origin guardrail passed; CodeQL/SARIF pending repository enablement** |
 | Release solution build | **4 projects, 0 warnings, 0 errors** |
 | Dependency vulnerability scan | **No vulnerable packages reported** by NuGet sources |
 | Healthy-upstream real-socket load test | **82 requests; 78 blocked, 4 proxied, 0 errors** |
 | Local synthetic load test without an upstream | **92 requests; 76 blocked (403), 16 upstream 502s, 0 client errors; JSON/CSV evidence recorded** |
-| Worktree integrity | **`git diff --check` passed; source changes are present in this worktree and not yet committed** |
+| Worktree integrity | **`git diff --check` passed; authoritative module history and current artifact are recorded in `handoff.md`** |
 
 ## Workstream progress
 
