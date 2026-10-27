@@ -1621,3 +1621,22 @@
 - Implementation: เพิ่ม top-level `actions: read` ใน `.github/workflows/security-verification.yml` เพื่อให้ CodeQL action อ่าน workflow metadata และส่งผลวิเคราะห์ได้ครบ.
 - Local verification: full regression `496/496`, failed=0, skipped=0; TRX verifier ผ่าน `total=496 executed=496 passed=496 failed=0 skipped=0`.
 - Boundary: รอ Hosted run หลัง commit แก้ permission เพื่อยืนยัน CodeQL ผ่าน แล้วจึงปิด Module 60 และยกระดับ Module 41 จาก 90% เป็น 100%.
+
+### Hosted gate result after Module 60 implementation — 2026-10-27
+
+- Hosted Run `40432140584` ตรวจ commit `29491f01cfad7e30e831548b81d20f453e1cbbdc`.
+- Passed: Secret scan, Direct-origin exposure guardrail, Dependency vulnerability audit, SBOM และ `.NET tests and dependency audit`.
+- CodeQL: วิเคราะห์โค้ดและสร้าง SARIF สำเร็จ (`166/169` C# files) แต่ upload/status step fail-closed เพราะ repository ยังไม่ได้เปิด Code scanning/Advanced Security: `Code scanning is not enabled for this repository`.
+- Result: Module 60 = 90% (implementation/local verification complete, Hosted external setting pending); Module 41 = 90%. ไม่ลดความเข้มงวดด้วยการตั้ง `continue-on-error` หรืออ้าง CodeQL ว่าผ่านโดยไม่มีผลอัปโหลดจริง.
+- Required external action: เปิด Code scanning/CodeQL ใน GitHub repository settings แล้ว rerun Hosted Security Verification; การเชื่อมต่อ GitHub ปัจจุบันไม่มี operation สำหรับเปิด repository security feature โดยตรง.
+- Current module state: Module 40 = 100%, Module 42 = 100%, Module 43 = 100%, Module 44 = 100%, Module 45 = 100%, Module 46 = 100%, Module 47 = 100%, Module 48 = 100%, Module 49 = 100%, Module 50 = 100%, Module 51 = 100%, Module 52 = 100%, Module 53 = 100%, Module 54 = 100%, Module 55 = 100%, Module 56 = 100%, Module 57 = 100%, Module 58 = 100%, Module 59 = 100%, Module 60 = 90%, Module 41 = 90% pending repository Code scanning enablement.
+
+### Module 61 final progress record — 2026-10-27
+
+- Before: 0%; After: 100%; Target: 100%.
+- Opportunity completed: CodeQL เดิมใช้เวลาสร้างฐานข้อมูลและวิเคราะห์ก่อนค่อยพบว่า repository ไม่เปิด Code scanning ทำให้ feedback ช้าและแก้สาเหตุยาก.
+- TDD: `CodeScanningPreflightContractTests` ล้มก่อนมี `tools/ci/check-code-scanning.py`; หลังเพิ่ม script และ workflow step ผ่าน `1/1`.
+- Implementation: เพิ่ม standard-library Python preflight ที่เรียก GitHub `code-scanning/analyses` ด้วย token, ไม่พิมพ์ response body, fail-closed พร้อมข้อความเปิด Code scanning/Advanced Security และตรวจสิทธิ์ `security-events`; workflow เรียกก่อน CodeQL init.
+- Verification: preflight ไม่มี token ล้มด้วย exit `1`; Python compile ผ่าน; local full regression `497/497`, failed=0, skipped=0; TRX verifier ผ่าน `total=497 executed=497 passed=497 failed=0 skipped=0`.
+- Boundary: Module 61 เป็นการปรับ feedback/gate ภายในและครบ 100%; Module 41/60 ยังรอ external repository setting และ Hosted run ใหม่เพื่อยืนยัน CodeQL upload จริง.
+- Current module state: Module 40 = 100%, Module 42 = 100%, Module 43 = 100%, Module 44 = 100%, Module 45 = 100%, Module 46 = 100%, Module 47 = 100%, Module 48 = 100%, Module 49 = 100%, Module 50 = 100%, Module 51 = 100%, Module 52 = 100%, Module 53 = 100%, Module 54 = 100%, Module 55 = 100%, Module 56 = 100%, Module 57 = 100%, Module 58 = 100%, Module 59 = 100%, Module 60 = 90%, Module 61 = 100%, Module 41 = 90% pending repository Code scanning enablement.

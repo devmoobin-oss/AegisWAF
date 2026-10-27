@@ -56,6 +56,15 @@
         ],
         "createdAt": "2026-10-18T10:48:32.684Z",
         "reason": "Claude: closed decision-round sketch, not shipped; DESIGN.md declares Segoe UI Variable Text for the WPF app"
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "src/AegisWAF.Gateway/wwwroot/assets/style.css"
+        ],
+        "createdAt": "2026-10-27T01:28:40.717Z",
+        "reason": "Agent: current detector rerun produced no side-tab finding; the referenced line is OWASP navigation/badge styling, not a side-tab accent border."
       }
     ]
   }
