@@ -11,6 +11,7 @@ namespace AegisWAF.Client;
 public sealed class ApiClient : IDisposable
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+    private const int MaxApiErrorMessageLength = 512;
     private readonly HttpClient _http;
     private readonly bool _ownsHttp;
     private string _csrf = "";
@@ -168,7 +169,20 @@ public sealed class ApiClient : IDisposable
         try
         {
             var doc = await resp.Content.ReadFromJsonAsync<JsonElement>(Json, ct);
-            if (doc.ValueKind == JsonValueKind.Object && doc.TryGetProperty("error", out var e) && e.ValueKind == JsonValueKind.String) message = e.GetString()!;
+            if (doc.ValueKind == JsonValueKind.Object)
+            {
+                if (doc.TryGetProperty("error", out var error) && error.ValueKind == JsonValueKind.String &&
+                    !string.IsNullOrWhiteSpace(error.GetString()))
+                    message = error.GetString()!;
+                else
+                {
+                    var title = ReadString(doc, "title");
+                    var detail = ReadString(doc, "detail");
+                    message = title is not null && detail is not null && !title.Equals(detail, StringComparison.Ordinal)
+                        ? title + ": " + detail
+                        : title ?? detail ?? message;
+                }
+            }
         }
         catch (Exception ex) when (ex is JsonException or NotSupportedException or InvalidOperationException) { /* non-JSON body */ }
         var status = (int)resp.StatusCode;
@@ -178,7 +192,21 @@ public sealed class ApiClient : IDisposable
             Session = null; _csrf = "";
             SessionExpired?.Invoke();
         }
-        throw new ApiException(status, message);
+        throw new ApiException(status, BoundErrorMessage(message));
+    }
+
+    private static string? ReadString(JsonElement document, string property) =>
+        document.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.String &&
+        !string.IsNullOrWhiteSpace(value.GetString())
+            ? value.GetString()!.Trim()
+            : null;
+
+    private static string BoundErrorMessage(string message)
+    {
+        var trimmed = message.Trim();
+        return trimmed.Length <= MaxApiErrorMessageLength
+            ? trimmed
+            : trimmed[..MaxApiErrorMessageLength] + "…";
     }
 
     public void Dispose() { if (_ownsHttp) _http.Dispose(); }

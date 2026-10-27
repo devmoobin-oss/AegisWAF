@@ -2209,3 +2209,28 @@
 - Latest completed-modules artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`, SHA-256 `2998BC7428D4B147A531C5A006BB268EAA83A708CD453BE0D21E6737842CF814`.
 - Remaining incomplete gates: Module 41 = 90% and Module 60 = 90% (repository Code scanning/Advanced Security and Hosted SARIF evidence); local integration gates requiring PostgreSQL are reported as unverified when the service is absent.
 - Next continuation action: run the next concrete Multi-Site hardening opportunity and do not weaken the evidence boundary.
+
+### Module 83 final progress record — 2026-10-27
+
+- Before: 0%; After: 100%; Target: 100% for the defined Desktop API diagnostics gates.
+- Opportunity/root cause: RFC7807 failures from Site operations exposed `title`/`detail`, but `ApiClient` only read the legacy `error` field; the Desktop could therefore show only `HTTP 503` instead of an actionable reason when Site activation or database operations failed.
+- TDD RED: the new problem-details contract initially received `HTTP 503` instead of the expected title/detail message; the legacy error fixture also verified the expected status contract before implementation.
+- Implementation: `ApiClient` now prefers a non-empty legacy `error`, otherwise combines RFC7807 `title` and `detail`, bounds the displayed message to 512 characters, and does not expose unrelated fields such as `traceId`.
+- Verification: focused API-client contracts passed **2/2**; Release solution build passed **0 warnings / 0 errors**; `git diff --check` passed.
+- Artifact boundary: Client/UI diagnostics changed, so the completed-modules EXE must be republished from the Module 83 commit. Hosted full regression and authenticated published-EXE smoke remain external gates.
+- Evidence: `artifacts/module-verification/module83-api-problem-details-diagnostics.json`.
+- Boundary: this improves operator diagnostics without changing authorization or WAF decisions; it does not claim fresh Hosted regression, CodeQL/SARIF, independent penetration testing, DNS-rebinding, external load/SLO validation, SIEM delivery, Authenticode signing, or production certification.
+
+### Opportunity audit after Module 83 — 2026-10-27
+
+- P0: Module 41/60 remain at 90% pending repository Code scanning/Advanced Security enablement and a fresh successful SARIF upload/status.
+- P1: publish and authenticated-smoke-test the Module 83 executable, validate least-privilege PostgreSQL deployment, SIEM delivery/retention, DNS-rebinding, penetration, load, SLO/capacity, and incident-response evidence.
+- P2: continue auditing Multi-Site policy versioning, MFA/WebAuthn/OIDC, and independent OWASP CRS corpus benchmarking.
+
+### Authoritative continuation state — 2026-10-27 (latest after Module 83)
+
+- Latest local/Hosted module progress: Module 83 = 100%; Module 82 = 100%; Module 81 = 100%; Module 80 = 100%; Module 79 = 100%; Module 78 = 100%; Module 77 = 100%; Module 76 = 100%; Module 75 = 100%; Module 74 = 100%; Module 73 = 100%; Module 72 = 100%.
+- Latest Hosted verification for runtime Module 78: run `40445541235`, full regression `509/509`, `TRX_REGRESSION_PASS`; CodeQL remains an explicit external gate because repository Code scanning/Advanced Security is unavailable.
+- Latest completed-modules artifact remains the Module 82 bundle until Module 83 is republished: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`, SHA-256 `2998BC7428D4B147A531C5A006BB268EAA83A708CD453BE0D21E6737842CF814`.
+- Remaining incomplete gates: Module 41 = 90% and Module 60 = 90% (repository Code scanning/Advanced Security and Hosted SARIF evidence); local integration gates requiring PostgreSQL are reported as unverified when the service is absent.
+- Next continuation action: commit and publish Module 83, then run the next concrete Multi-Site hardening opportunity without weakening the evidence boundary.
