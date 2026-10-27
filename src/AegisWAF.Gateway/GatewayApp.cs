@@ -804,6 +804,7 @@ public static class GatewayApp
         if (!SiteConfigurationEditor.TryNormalize(input, out var site, out var inputError))
             return Results.BadRequest(new { error = inputError });
         var candidate = SiteDatabaseStore.ToGatewaySite(site);
+        CancellationTokenSource? writeBudget = null;
         try
         {
             await using var mutationLock = await store.AcquireSiteMutationLockAsync(ct);
@@ -820,7 +821,8 @@ public static class GatewayApp
                 new SiteConfigurationSnapshot(proposedSites, false), configuration);
             if (validationErrors.Count > 0)
                 return Results.BadRequest(new { error = "Site configuration rejected: " + string.Join("; ", validationErrors), code = "site_configuration_invalid", errors = validationErrors });
-            var inserted = await store.InsertAsync(candidate, ctx.Actor(), ctx.ClientIp(), ct);
+            writeBudget = SiteMutationWriteBudget.Create(ct);
+            var inserted = await store.InsertAsync(candidate, ctx.Actor(), ctx.ClientIp(), writeBudget.Token);
             if (!inserted) return Results.Conflict(new { error = $"Site ID '{site.Id}' already exists" });
             try
             {
@@ -830,18 +832,23 @@ public static class GatewayApp
             catch (SiteRuntimeActivationException)
             { return SiteRuntimeActivationFailed(ctx, "saved"); }
         }
+        catch (OperationCanceledException) when (writeBudget is not null && SiteMutationWriteBudget.IsBudgetCancellation(ct, writeBudget.Token))
+        { return SiteDatabaseUnavailable(ctx, "write-timeout", "site_mutation_write_timeout"); }
         catch (SiteHostnameConflictException)
         { return SiteHostnameConflict(ctx); }
         catch (SiteMutationLockTimeoutException)
         { return SiteMutationBusy(ctx); }
         catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
         { return SiteDatabaseUnavailable(ctx, "saved", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
+        finally
+        { writeBudget?.Dispose(); }
     }).Require(Roles.SecurityAdmin);
     app.MapPut("/api/sites/{id}", async (string id, SiteManagementRequest input, SiteRegistry registry, SiteDatabaseStore store, SiteRuntimeCoordinator runtime, IConfiguration configuration, HttpContext ctx, CancellationToken ct) =>
     {
         if (!SiteConfigurationEditor.TryNormalize(input with { Id = id }, out var site, out var inputError))
             return Results.BadRequest(new { error = inputError });
         var candidate = SiteDatabaseStore.ToGatewaySite(site);
+        CancellationTokenSource? writeBudget = null;
         try
         {
             await using var mutationLock = await store.AcquireSiteMutationLockAsync(ct);
@@ -873,7 +880,8 @@ public static class GatewayApp
             }
             if (!expectedVersion.HasValue)
                 return Results.Conflict(new { error = "A current Site version or If-Match ETag is required", code = "site_version_required" });
-            var updated = await store.UpdateWithConcurrencyAsync(candidate, expectedVersion.Value, ctx.Actor(), ctx.ClientIp(), ct);
+            writeBudget = SiteMutationWriteBudget.Create(ct);
+            var updated = await store.UpdateWithConcurrencyAsync(candidate, expectedVersion.Value, ctx.Actor(), ctx.ClientIp(), writeBudget.Token);
             if (updated.Status == SiteUpdateStatus.Updated)
             {
                 var version = updated.CurrentVersion!.Value;
@@ -894,21 +902,27 @@ public static class GatewayApp
             }
             return Results.NotFound(new { error = $"Site '{id}' was not found" });
         }
+        catch (OperationCanceledException) when (writeBudget is not null && SiteMutationWriteBudget.IsBudgetCancellation(ct, writeBudget.Token))
+        { return SiteDatabaseUnavailable(ctx, "write-timeout", "site_mutation_write_timeout"); }
         catch (SiteHostnameConflictException)
         { return SiteHostnameConflict(ctx); }
         catch (SiteMutationLockTimeoutException)
         { return SiteMutationBusy(ctx); }
         catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
         { return SiteDatabaseUnavailable(ctx, "updated", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
+        finally
+        { writeBudget?.Dispose(); }
     }).Require(Roles.SecurityAdmin);
     app.MapDelete("/api/sites/{id}", async (string id, SiteDatabaseStore store, SiteRuntimeCoordinator runtime, HttpContext ctx, CancellationToken ct) =>
     {
         if (!SiteConcurrency.TryParseEtag(ctx.Request.Headers.IfMatch.ToString(), out var expectedVersion))
             return Results.Conflict(new { error = "If-Match with the current Site ETag is required before delete", code = "site_version_required" });
+        CancellationTokenSource? writeBudget = null;
         try
         {
             await using var mutationLock = await store.AcquireSiteMutationLockAsync(ct);
-            var result = await store.DeleteWithConcurrencyAsync(id.Trim().ToLowerInvariant(), expectedVersion, ctx.Actor(), ctx.ClientIp(), ct);
+            writeBudget = SiteMutationWriteBudget.Create(ct);
+            var result = await store.DeleteWithConcurrencyAsync(id.Trim().ToLowerInvariant(), expectedVersion, ctx.Actor(), ctx.ClientIp(), writeBudget.Token);
             if (result.Status == SiteDeleteStatus.Conflict)
             {
                 var version = result.CurrentVersion!.Value;
@@ -924,10 +938,14 @@ public static class GatewayApp
             catch (SiteRuntimeActivationException)
             { return SiteRuntimeActivationFailed(ctx, "deleted"); }
         }
+        catch (OperationCanceledException) when (writeBudget is not null && SiteMutationWriteBudget.IsBudgetCancellation(ct, writeBudget.Token))
+        { return SiteDatabaseUnavailable(ctx, "write-timeout", "site_mutation_write_timeout"); }
         catch (SiteMutationLockTimeoutException)
         { return SiteMutationBusy(ctx); }
         catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
         { return SiteDatabaseUnavailable(ctx, "deleted", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
+        finally
+        { writeBudget?.Dispose(); }
     }).Require(Roles.SecurityAdmin);
     app.MapAuth();
     app.MapGet("/api/ip-policies", (IpAccessPolicy policies) => Results.Ok(policies.List())).Require(Roles.Viewer);
