@@ -21,6 +21,7 @@ public sealed class BrowserMultiSiteErrorCopyContractTests
         Assert.Contains("site_runtime_activation_timeout", mapper, StringComparison.Ordinal);
         Assert.Contains("site_health_write_timeout", mapper, StringComparison.Ordinal);
         Assert.Contains("site_health_summary_timeout", mapper, StringComparison.Ordinal);
+        Assert.Contains("site_health_probe_timeout", mapper, StringComparison.Ordinal);
         Assert.Contains("site_runtime_activation_failed", mapper, StringComparison.Ordinal);
         Assert.Contains("slice(0,512)", mapper, StringComparison.Ordinal);
         Assert.DoesNotContain("traceId", mapper, StringComparison.Ordinal);

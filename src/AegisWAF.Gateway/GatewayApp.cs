@@ -249,6 +249,17 @@ public static class GatewayApp
                 ["traceId"] = ctx.TraceIdentifier
             });
 
+    private static IResult SiteHealthProbeTimedOut(HttpContext ctx) =>
+        Results.Problem(
+            statusCode: StatusCodes.Status503ServiceUnavailable,
+            title: "Site health probe timed out",
+            detail: "The aggregate upstream health check exceeded the time limit. Retry the health check or review upstream availability.",
+            extensions: new Dictionary<string, object?>
+            {
+                ["code"] = "site_health_probe_timeout",
+                ["traceId"] = ctx.TraceIdentifier
+            });
+
     private static IResult SiteHostnameConflict(HttpContext ctx) =>
         Results.Problem(
             statusCode: StatusCodes.Status409Conflict,
@@ -546,7 +557,11 @@ public static class GatewayApp
         if (active is null || active.Version != site.Version || !SiteConfigurationEditor.AreEquivalent(active, site))
             return Results.Ok(new { siteId = site.Id, health = "pending-restart", pendingRestart = true, activationStatus = "pending-restart", version = site.Version, activeVersion = active?.Version, etag = SiteConcurrency.ToEtag(site.Version), fresh = false, source = "pending-restart", checkedAt = DateTimeOffset.UtcNow, upstreams = site.Upstreams.Select(x => new { id = x.Id, address = x.Address.ToString(), health = "pending-restart", reason = (string?)null }) });
 
-        var probeResults = await probe.ProbeAsync(site, ct);
+        using var probeBudget = SiteHealthProbeBudget.Create(ct);
+        IReadOnlyList<SiteHealthProbeResult> probeResults;
+        try { probeResults = await probe.ProbeAsync(site, probeBudget.Token); }
+        catch (OperationCanceledException) when (SiteHealthProbeBudget.IsBudgetCancellation(ct, probeBudget.Token))
+        { return SiteHealthProbeTimedOut(ctx); }
         history.Record(site.Id, probeResults);
         var historyPersisted = true;
         using var writeBudget = SiteHealthWriteBudget.Create(ct);
