@@ -19,10 +19,10 @@ public static class SiteHealthSummaryAlertCounts
         return new(
             CriticalSites: materialized.Count(x => !x.IsStale && Is(x.Trend.AlertState, "critical") && !Is(x.Trend.RecoveryState, "recovered")),
             DegradedSites: materialized.Count(x => !x.IsStale && Is(x.Trend.AlertState, "degraded") && !Is(x.Trend.RecoveryState, "recovered")),
-            HealthySites: materialized.Count(x => Is(x.Trend.AlertState, "healthy")),
-            NoDataSites: materialized.Count(x => Is(x.Trend.AlertState, "no-data")),
+            HealthySites: materialized.Count(x => !x.IsStale && Is(x.Trend.AlertState, "healthy")),
+            NoDataSites: materialized.Count(x => !x.IsStale && Is(x.Trend.AlertState, "no-data")),
             StaleSites: materialized.Count(x => x.IsStale),
-            RecoveredSites: materialized.Count(x => Is(x.Trend.RecoveryState, "recovered")),
+            RecoveredSites: materialized.Count(x => !x.IsStale && Is(x.Trend.RecoveryState, "recovered")),
             StaleCriticalSites: materialized.Count(x => x.IsStale && Is(x.Trend.AlertState, "critical")),
             StaleDegradedSites: materialized.Count(x => x.IsStale && Is(x.Trend.AlertState, "degraded")));
     }

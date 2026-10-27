@@ -38,6 +38,27 @@ public sealed class SiteHealthSummaryAlertCountsTests
         Assert.Equal(1, counts.RecoveredSites);
     }
 
+    [Fact]
+    public void Stale_healthy_no_data_and_recovered_history_are_not_counted_as_current_states()
+    {
+        var freshHealthy = Item("fresh-healthy", "healthy", "none", isStale: false);
+        var staleHealthy = Item("stale-healthy", "healthy", "none", isStale: true);
+        var staleNoData = Item("stale-no-data", "no-data", "none", isStale: true);
+        var staleRecovered = Item("stale-recovered", "critical", "recovered", isStale: true);
+
+        var counts = SiteHealthSummaryAlertCounts.Calculate([
+            freshHealthy,
+            staleHealthy,
+            staleNoData,
+            staleRecovered
+        ]);
+
+        Assert.Equal(1, counts.HealthySites);
+        Assert.Equal(0, counts.NoDataSites);
+        Assert.Equal(0, counts.RecoveredSites);
+        Assert.Equal(3, counts.StaleSites);
+    }
+
     private static SiteHealthComparisonItem Item(string siteId, string alertState, string recoveryState, bool isStale) =>
         new(siteId, new SiteHealthTrend(
             WindowSize: 20,
