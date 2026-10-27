@@ -145,13 +145,14 @@ async function loadSitesCrud(){
     }
     return items;
   };
-  const healthLabel=state=>({healthy:'ปกติ',degraded:'เฝ้าระวัง',critical:'วิกฤต',unhealthy:'ไม่พร้อม',unknown:'ไม่ทราบ','no-data':'ยังไม่มีข้อมูล','pending-restart':'รอเปิดใช้',invalid:'ตั้งค่าไม่ถูกต้อง',recovered:'กู้คืนแล้ว'}[String(state||'unknown').toLowerCase()]||'ไม่ทราบ');
+  const healthLabel=state=>({healthy:'ปกติ',degraded:'เฝ้าระวัง',critical:'วิกฤต',unhealthy:'ไม่พร้อม',unknown:'ไม่ทราบ',stale:'ข้อมูลเก่า','no-data':'ยังไม่มีข้อมูล','pending-restart':'รอเปิดใช้',invalid:'ตั้งค่าไม่ถูกต้อง',recovered:'กู้คืนแล้ว'}[String(state||'unknown').toLowerCase()]||'ไม่ทราบ');
   const healthExplanation=(state,summary,site)=>{
     state=String(state||'unknown').toLowerCase();
     if(state==='critical')return `วิกฤต: ปลายทางไม่พร้อมต่อเนื่อง ${Math.max(0,Math.min(999,Number(summary?.consecutiveUnhealthy)||0))} รอบ`;
     if(state==='degraded')return `เฝ้าระวัง: พบปลายทางไม่พร้อม ${Math.max(0,Math.min(999,Number(summary?.unhealthy)||0))} รายการ`;
     if(state==='healthy')return 'ปกติ: ตรวจสอบปลายทางล่าสุดผ่าน';
     if(state==='recovered')return 'กู้คืนแล้ว: ปลายทางกลับมาทำงานได้';
+    if(state==='stale')return 'ข้อมูลสรุปเก่า: ยังไม่มีผลตรวจล่าสุดเพียงพอสำหรับยืนยันวิกฤต';
     if(state==='pending-restart')return 'บันทึกแล้ว แต่ runtime ยังรอเปิดใช้';
     if(state==='unhealthy')return 'ไม่พร้อม: ตรวจสอบปลายทางหรือเส้นทาง upstream';
     if(state==='no-data')return 'ยังไม่มีข้อมูลตรวจสอบ health';
@@ -162,6 +163,7 @@ async function loadSitesCrud(){
     if(site?.pendingRestart)return 'pending-restart';
     const liveHealth=String(site?.health||'unknown').toLowerCase();
     const historicalAlert=String(summary?.alertState||'').toLowerCase();
+    if(liveHealth==='unknown'&&summary?.isStale)return 'stale';
     if(liveHealth==='healthy')return historicalAlert==='critical'||historicalAlert==='degraded'||summary?.recoveryState==='recovered'?'recovered':'healthy';
     if(liveHealth==='unhealthy')return historicalAlert==='critical'||historicalAlert==='degraded'?historicalAlert:'unhealthy';
     if(liveHealth==='invalid')return 'invalid';

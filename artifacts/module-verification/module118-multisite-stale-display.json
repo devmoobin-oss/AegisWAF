@@ -1,0 +1,31 @@
+{
+  "module": 118,
+  "title": "Prevent stale Multi-Site health history from presenting a current crisis",
+  "progress": {
+    "before": 0,
+    "after": 100,
+    "target": 100
+  },
+  "opportunity": "The browser Multi-Site view consumed the server isStale flag but ignored it when resolving an unknown live state, allowing an old critical trend to remain visible as a current crisis.",
+  "rootCause": "displayHealthState used historical alertState without applying summary.isStale for unknown runtime health.",
+  "implementation": [
+    "Added a stale display state and Thai explanation that explicitly says the summary is too old to confirm a crisis.",
+    "When live health is unknown and the summary is stale, the browser now renders stale instead of critical/degraded/healthy historical state.",
+    "Preserved current runtime healthy, unhealthy, invalid and pending-restart precedence."
+  ],
+  "tdd": {
+    "red": "BrowserMultiSiteStaleDisplayContractTests initially failed because the browser workflow did not inspect summary.isStale or provide stale copy.",
+    "focused": "1/1"
+  },
+  "verification": {
+    "relevantRegression": "82/82 across 39 classes",
+    "nodeSyntax": "passed",
+    "releaseBuild": "0 warnings / 0 errors",
+    "gitDiffCheck": "passed",
+    "impeccableDetector": "passed with four pre-existing advisory color findings (#ff4d5e, #22374f, #ff6378); no new finding",
+    "uiAuditBoundary": "browser copy/state refinement; no CSS/HTML visual assets changed; existing UI audit baseline retained"
+  },
+  "boundaries": [
+    "Authenticated browser/published-EXE smoke, visual responsive verification, full VSTest testhost connectivity, live PostgreSQL behavior, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification remain unverified."
+  ]
+}
