@@ -32,7 +32,7 @@
     "path": "D:\\AegisWAF\\dist\\AegisWAF-Desktop-CompletedModules\\AegisWAF.exe",
     "configuration": "Release win-x64 self-contained single-file net10.0-windows",
     "bytes": 170647915,
-    "sha256": "F63841F0F06FC0F2948598671205AB3A77FF0A79222BCFFAFD8D819A2B27A796",
+    "sha256": "A2E98EEDFCD2DFC56C96A31E217CFF210ED6CBD55CF9D87D7448813250634532",
     "peHeader": "MZ",
     "manifest": "files=6; signed=false; workingTreeClean=true; sourceCommit=ab7ddb8975059f5d047a26b4b8948a376237bcfa"
   }
