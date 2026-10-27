@@ -538,9 +538,15 @@ public static class GatewayApp
         var probeResults = await probe.ProbeAsync(site, ct);
         history.Record(site.Id, probeResults);
         var historyPersisted = true;
+        using var writeBudget = SiteHealthWriteBudget.Create(ct);
+        var writeCt = writeBudget.Token;
         try
         {
-            await store.RecordHealthHistoryAsync(site.Id, probeResults.Select(x => new SiteHealthObservation(x.UpstreamId, x.Health, x.Reason, x.CheckedAt)).ToArray(), ct);
+            await store.RecordHealthHistoryAsync(site.Id, probeResults.Select(x => new SiteHealthObservation(x.UpstreamId, x.Health, x.Reason, x.CheckedAt)).ToArray(), writeCt);
+        }
+        catch (OperationCanceledException) when (SiteHealthWriteBudget.IsBudgetCancellation(ct, writeCt))
+        {
+            historyPersisted = false;
         }
         catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException)
         {
@@ -655,10 +661,12 @@ public static class GatewayApp
         if (!HealthAlertLifecycle.IsActionable(trend, trendNow))
             return Results.Conflict(new { error = "health_alert_not_actionable", alertState = trend.AlertState, recoveryState = trend.RecoveryState, isStale = trendIsStale });
         IAsyncDisposable? mutationLease = null;
+        CancellationTokenSource? writeBudget = null;
         try
         {
             mutationLease = await store.AcquireSiteMutationLockAsync(ct);
-            var acknowledgement = await store.AcknowledgeHealthAlertAsync(site.Id, trend.AlertState, input.CooldownSeconds, ctx.Actor() ?? "unknown", ctx.ClientIp(), ct);
+            writeBudget = SiteHealthWriteBudget.Create(ct);
+            var acknowledgement = await store.AcknowledgeHealthAlertAsync(site.Id, trend.AlertState, input.CooldownSeconds, ctx.Actor() ?? "unknown", ctx.ClientIp(), writeBudget.Token);
             return Results.Ok(new
             {
                 siteId = site.Id,
@@ -677,12 +685,15 @@ public static class GatewayApp
                 alertSuppressed = true
             });
         }
+        catch (OperationCanceledException) when (writeBudget is not null && SiteHealthWriteBudget.IsBudgetCancellation(ct, writeBudget.Token))
+        { return SiteDatabaseUnavailable(ctx, "health-alert-write-timeout", "site_health_write_timeout"); }
         catch (SiteMutationLockTimeoutException)
         { return SiteMutationBusy(ctx); }
         catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException)
         { return SiteDatabaseUnavailable(ctx, "health-alert-acknowledged", "site_database_unavailable"); }
         finally
         {
+            writeBudget?.Dispose();
             if (mutationLease is not null) await mutationLease.DisposeAsync();
         }
     }).Require(Roles.Operator);
