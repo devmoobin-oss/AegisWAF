@@ -50,7 +50,7 @@ public sealed class HandoffLatestStateContractTests
         Assert.Contains("Module 88 = 100%", pointer);
         Assert.Contains("Module 87 = 100%", pointer);
         Assert.Contains("Module 41 = 90% and Module 60 = 90%", pointer);
-        Assert.Contains("B6CF3537F34829DCCDEFEC5C35DAC84B103E3784B886F19DB91877C62349E1C3", pointer);
+        Assert.Contains("E7EB4611927F3C861BEF2607AB7A0C2CC678C0C2C2118361758BC9A689B7B4A6", pointer);
         Assert.Contains("D:\\AegisWAF\\dist\\AegisWAF-Desktop-CompletedModules\\AegisWAF.exe", pointer);
         Assert.Equal(markerIndex, handoff.LastIndexOf(marker, StringComparison.Ordinal));
     }
