@@ -2622,11 +2622,33 @@
 - Verification: PE header `MZ`; release manifest verification passed with `files=6`, `signed=false`, `workingTreeClean=true`.
 - Boundary: this artifact is not Authenticode-signed and does not claim authenticated browser smoke, PostgreSQL integration, concurrent multi-instance mutation, whole-console premium audit, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, or production certification.
 
-### Current handoff pointer — 2026-10-27 (after Module 97)
+### Module 98 final progress record — 2026-10-27
+
+- Before: 0%; After: 100%; Target: 100% for the defined browser security-action dialog and feedback gates.
+- Opportunity/root cause: Custom Rules and IP Policy still used native `confirm()`/`alert()`, which gave inconsistent accessibility, localization, focus behavior, and mutation error recovery.
+- TDD RED: `BrowserSecurityActionDialogContractTests` initially failed because the shared `showAppDialog` primitive did not exist; a second RED cycle caught successful confirmation being unable to close while pending.
+- Implementation: added shared `showAppDialog` with `role=alertdialog`, accessible name/description, inert background, Cancel-first focus, Escape cancellation, Tab focus trap, focus restoration, bounded error rendering, and pending duplicate-submit protection; migrated Custom Rules/IP Policy save, delete, and toggle error paths to `readApiError` and inline status feedback; corrected IP success feedback to render after authoritative reload.
+- Verification: focused contract passed **1/1**; relevant browser/Multi-Site/security regression passed **88/88** across 17 classes; native dialogs were absent from the scoped workflows; Node syntax check passed; Release solution build passed **0 warnings / 0 errors**; `git diff --check` passed; Impeccable detector exited 0 with 4 pre-existing advisory color findings; publish manifest passed with `files=6`, `signed=false`, `workingTreeClean=true`.
+- Full VSTest note: the full `dotnet test` invocation was aborted by VSTest after it could not connect to testhost within 90 seconds; it is not counted as a pass and is recorded as an environment verification boundary.
+- Premium audit boundary: strict audit remains at 34 baseline errors with 2 unresolved ownership findings; report: `artifacts/module-verification/module98-premium-audit.json`.
+- Evidence: `artifacts/module-verification/module98-security-action-dialogs.json`.
+- Source commit: `c8b6bbd46ca1ba46451e7004d7f74635152c4f22`.
+- Boundary: authenticated browser smoke, PostgreSQL runtime execution, duplicate-hostname execution, concurrent multi-instance mutation, whole-console premium audit, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification remain unverified.
+
+### Published EXE — Module 98 completed modules bundle — 2026-10-27
+
+- Scope: published the completed-modules bundle through Module 98 only; incomplete modules and external gates were not promoted.
+- Publish configuration: `Release`, `win-x64`, self-contained, single-file, `net10.0-windows`.
+- Artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`, SHA-256 `AF027860B6D02B587602BC6353AE45DA8403CFE287006A6EB241CE29BF0478C8`, `170,637,163` bytes.
+- Source commit at publish time: `c8b6bbd46ca1ba46451e7004d7f74635152c4f22`.
+- Verification: PE header `MZ`; release manifest verification passed with `files=6`, `signed=false`, `workingTreeClean=true`.
+- Boundary: this artifact is not Authenticode-signed and does not claim authenticated browser smoke, PostgreSQL integration, concurrent multi-instance mutation, whole-console premium audit, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, or production certification.
+
+### Current handoff pointer — 2026-10-27 (after Module 98)
 
 - This is the authoritative continuation block. Read this block before starting further work; older historical records above are retained for audit only.
-- Latest completed modules: Module 97 = 100%; Module 96 = 100%; Module 95 = 100%; Module 94 = 100%; Module 93 = 100%; Module 92 = 100%; Module 91 = 100%; Module 90 = 100%; Module 89 = 100%; Module 88 = 100%; Module 87 = 100%; Module 86 = 100%; Module 85 = 100%; Module 84 = 100%; Module 83 = 100%; Module 82 = 100%; Module 81 = 100%; Module 80 = 100%; Module 79 = 100%; Module 78 = 100%; Module 77 = 100%; Module 76 = 100%; Module 75 = 100%; Module 74 = 100%; Module 73 = 100%; Module 72 = 100%.
-- Latest artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`; SHA-256 `ABFA22BB0B9A364B6AC2A5F4FB66D5EE15A6D550CB93210EBCCED34F67DC5979`; source commit `de1912b455cb5f7394416b8c143a92319939982e`.
+- Latest completed modules: Module 98 = 100%; Module 97 = 100%; Module 96 = 100%; Module 95 = 100%; Module 94 = 100%; Module 93 = 100%; Module 92 = 100%; Module 91 = 100%; Module 90 = 100%; Module 89 = 100%; Module 88 = 100%; Module 87 = 100%; Module 86 = 100%; Module 85 = 100%; Module 84 = 100%; Module 83 = 100%; Module 82 = 100%; Module 81 = 100%; Module 80 = 100%; Module 79 = 100%; Module 78 = 100%; Module 77 = 100%; Module 76 = 100%; Module 75 = 100%; Module 74 = 100%; Module 73 = 100%; Module 72 = 100%.
+- Latest artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`; SHA-256 `AF027860B6D02B587602BC6353AE45DA8403CFE287006A6EB241CE29BF0478C8`; source commit `c8b6bbd46ca1ba46451e7004d7f74635152c4f22`.
 - Latest Hosted evidence remains run `40445541235`, full regression `509/509`, `TRX_REGRESSION_PASS`; Module 41 = 90% and Module 60 = 90% pending GitHub Code scanning/Advanced Security and fresh Hosted SARIF evidence.
-- Local PostgreSQL-dependent integration, duplicate-hostname execution, concurrent multi-instance mutation, authenticated browser/published-EXE smoke, and whole-console premium UI audit gates remain unverified when their external services/credentials or baseline cleanup are unavailable.
+- Local PostgreSQL-dependent integration, duplicate-hostname execution, concurrent multi-instance mutation, authenticated browser/published-EXE smoke, full VSTest testhost connectivity, and whole-console premium UI audit gates remain unverified when their external services/credentials or baseline tooling are unavailable.
 - Next action: audit and implement the next concrete Multi-Site hardening opportunity; preserve the 0% → 100% progress record, evidence file, artifact pointer, and stated verification boundary.
