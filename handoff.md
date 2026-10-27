@@ -1866,3 +1866,12 @@
 - SHA-256: `21B0583D0296FC08A21E47C0256D0815B24E7450387F3C95CFC32B0F92697DC6`.
 - Verification: PE header `MZ`; release manifest verifier passed with `files=6`, `signed=false`, `workingTreeClean=true`; release manifest writer test and tamper/extra-file verifier tests passed.
 - Note: the original `dist/AegisWAF-Desktop/AegisWAF.exe` was locked by the operating system, so the artifact was published to a separate non-destructive output directory rather than overwriting or deleting the existing bundle.
+
+### External Hosted gate refresh after completed-modules publish — 2026-10-27
+
+- Status before/after: Module 41 = 90% -> 90%; Module 60 = 90% -> 90%; Target: 100%.
+- Fresh Hosted Security Verification run `40439914482` / run number `10` for commit `3c81c0c0469d5e922359e210f748be2c3a02692d` completed.
+- Full regression evidence: `.NET tests and dependency audit` passed `497/497`; `TRX_COUNTERS total=497 executed=497 passed=497 failed=0 skipped=0`; `TRX_REGRESSION_PASS`.
+- Additional green jobs: dependency vulnerability audit, SBOM, Secret scan, and Direct origin exposure guardrail.
+- CodeQL evidence: preflight `Verify Code scanning is enabled` failed closed again because repository Code scanning/Advanced Security is unavailable; CodeQL initialize/build/analyze were skipped. No CodeQL pass is claimed.
+- Next required external action: enable repository Code scanning/Advanced Security (subject to GitHub plan/owner approval), then rerun Hosted Security Verification and verify SARIF upload/status.
