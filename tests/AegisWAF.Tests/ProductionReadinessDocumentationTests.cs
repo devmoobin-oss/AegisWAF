@@ -10,14 +10,14 @@ public sealed class ProductionReadinessDocumentationTests
         var security = File.ReadAllText(Path.Combine(root, "docs", "SECURITY.md"));
         var progress = File.ReadAllText(Path.Combine(root, "docs", "PROGRESS.md"));
 
-        Assert.Contains("40444181184", readiness, StringComparison.Ordinal);
-        Assert.Contains("505/505", readiness, StringComparison.Ordinal);
+        Assert.Contains("40445541235", readiness, StringComparison.Ordinal);
+        Assert.Contains("509/509", readiness, StringComparison.Ordinal);
         Assert.Contains("Code scanning/Advanced Security", readiness, StringComparison.Ordinal);
-        Assert.Contains("40444181184", security, StringComparison.Ordinal);
+        Assert.Contains("40445541235", security, StringComparison.Ordinal);
         Assert.Contains("secret scan", security, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("SBOM", security, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("CodeQL", security, StringComparison.Ordinal);
-        Assert.Contains("505 passed, 0 failed, 0 skipped", progress, StringComparison.Ordinal);
+        Assert.Contains("509/509 passed, 0 failed, 0 skipped", progress, StringComparison.Ordinal);
         Assert.DoesNotContain("continuous SAST/secret/SBOM scanning remain open gates", security, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("still needs a successful hosted run", readiness, StringComparison.OrdinalIgnoreCase);
     }

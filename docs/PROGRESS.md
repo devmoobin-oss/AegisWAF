@@ -1,12 +1,12 @@
 # Current Production WAF Progress Snapshot
 
-Updated against Hosted Security Verification run `40444181184` on 2026-10-27.
+Updated against Hosted Security Verification run `40445541235` on 2026-10-27.
 
 ## Verified local evidence
 
 | Evidence | Result |
 |---|---|
-| Full automated security/regression suite | **505 passed, 0 failed, 0 skipped** |
+| Full automated security/regression suite | **509/509 passed, 0 failed, 0 skipped** |
 | Hosted supporting security gates | **Dependency audit, secret scan, SBOM, and direct-origin guardrail passed; CodeQL/SARIF pending repository enablement** |
 | Release solution build | **4 projects, 0 warnings, 0 errors** |
 | Dependency vulnerability scan | **No vulnerable packages reported** by NuGet sources |

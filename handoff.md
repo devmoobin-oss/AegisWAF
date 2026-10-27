@@ -2057,6 +2057,17 @@
 - Remaining incomplete gates: Module 41 = 90% and Module 60 = 90% (repository Code scanning/Advanced Security and Hosted SARIF evidence).
 - Next continuation action: enable repository Code scanning/Advanced Security if approved and rerun Hosted Security Verification; preserve the Module78 artifact unless runtime code changes again.
 
+### Published EXE — completed modules bundle — 2026-10-27
+
+- Scope: published only the completed runtime modules currently authoritative in this workspace. Module 78 is the latest completed runtime module; Module 79 changed verification tooling only and does not require a new runtime feature gate.
+- Publish gate progress: Before 0%; After 100%; Target 100%.
+- Source commit: `e7265c6204a5108c6c273a58bac9ef081a97065f`; the working tree was clean when the publish was created.
+- Command: `dotnet publish src/AegisWAF.Desktop/AegisWAF.Desktop.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o dist/AegisWAF-Desktop-CompletedModules --no-restore --disable-build-servers -m:1`.
+- Artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`, `net10.0-windows`, self-contained, single-file, `170,611,051` bytes.
+- SHA-256: `E991FDEDC8B69DC60B1D05CDF3EAE69B4DDB3A5FA8FFECE7E3D52A985C6BE7CE`.
+- Verification: PE header `MZ`; release manifest verification passed (`files=6`, `signed=false`, `workingTreeClean=true`). Manifest: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\release-manifest.json`.
+- Boundary: this bundle includes completed runtime work only; Module 41/60 remain at 90% because repository Code scanning/Advanced Security and SARIF evidence are unavailable. The executable is not Authenticode-signed.
+
 ### Module 79 final progress record — 2026-10-27
 
 - Before: 0%; After: 100%; Target: 100% for the defined module-verifier classification gates.
@@ -2081,3 +2092,34 @@
 - Latest published artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-Module78\AegisWAF.exe`, SHA-256 `3E2F8633306BFABFC922AF49D132AE044720CA47D8221620D81D4AC8AF4512EA`.
 - Remaining incomplete gates: Module 41 = 90% and Module 60 = 90% (repository Code scanning/Advanced Security and Hosted SARIF evidence); local integration gates requiring PostgreSQL are now reported as unverified when the service is absent.
 - Next continuation action: enable repository Code scanning/Advanced Security if approved and rerun Hosted Security Verification; preserve the Module78 artifact unless runtime code changes again.
+
+### Authoritative published artifact pointer — 2026-10-27
+
+- Latest completed-modules executable: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`.
+- SHA-256: `E991FDEDC8B69DC60B1D05CDF3EAE69B4DDB3A5FA8FFECE7E3D52A985C6BE7CE`.
+- This bundle supersedes the individual Module78 output as the operator-facing completed-modules distribution; it contains the same completed runtime scope and was verified from source commit `e7265c6204a5108c6c273a58bac9ef081a97065f`.
+
+### Module 80 final progress record — 2026-10-27
+
+- Before: 0%; After: 100%; Target: 100% for the defined Hosted-evidence consistency gates.
+- Opportunity/root cause: `docs/PROGRESS.md`, `docs/SECURITY.md`, `docs/PRODUCTION_READINESS.md`, and `docs/SECURITY_ASSESSMENT.md` still referenced older Hosted runs after the latest runtime verification `40445541235` passed 509/509. This created a documentation evidence-drift risk.
+- TDD RED: `HostedEvidenceConsistencyDocumentationTests` failed as expected because `PROGRESS.md` did not contain the authoritative run `40445541235`.
+- Implementation: added a contract that parses the latest Hosted runtime verification from `handoff.md` and checks all four authoritative documents for the same run and regression count. Updated the four documents and their existing documentation contracts to `40445541235` / `509/509` while preserving the explicit CodeQL/SARIF boundary.
+- Verification: focused documentation contracts passed **3/3**; Release solution build passed **0 warnings / 0 errors**; `git diff --check` passed.
+- Artifact boundary: documentation/tests only; no runtime behavior changed and no new EXE publish was required. The completed-modules executable remains `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe` with SHA-256 `E991FDEDC8B69DC60B1D05CDF3EAE69B4DDB3A5FA8FFECE7E3D52A985C6BE7CE`.
+- Evidence: `artifacts/module-verification/module80-hosted-evidence-consistency.json`.
+- Boundary: this prevents stale Hosted identifiers from being presented as current evidence; it does not claim a new Hosted rerun, CodeQL/SARIF success, independent penetration testing, external load/SLO validation, SIEM delivery, or production certification.
+
+### Opportunity audit after Module 80 — 2026-10-27
+
+- P0: Module 41/60 remain at 90% pending repository Code scanning/Advanced Security enablement and a fresh successful SARIF upload/status.
+- P1: provision least-privilege PostgreSQL role in the deployment environment, external SIEM delivery/retention, authenticated published-EXE Multi-Site smoke, Authenticode signing, DNS-rebinding, penetration, load, SLO/capacity, and incident-response evidence remain external/deployment gates.
+- P2: continue auditing Multi-Site policy versioning, MFA/WebAuthn/OIDC, and independent OWASP CRS corpus benchmarking after the external gates are resolved.
+
+### Authoritative continuation state — 2026-10-27 (latest after Module 80)
+
+- Latest local/Hosted module progress: Module 80 = 100%; Module 79 = 100%; Module 78 = 100%; Module 77 = 100%; Module 76 = 100%; Module 75 = 100%; Module 74 = 100%; Module 73 = 100%; Module 72 = 100%.
+- Latest Hosted verification for runtime Module 78: run `40445541235`, full regression `509/509`, `TRX_REGRESSION_PASS`; CodeQL remains an explicit external gate because repository Code scanning/Advanced Security is unavailable.
+- Latest completed-modules artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`, SHA-256 `E991FDEDC8B69DC60B1D05CDF3EAE69B4DDB3A5FA8FFECE7E3D52A985C6BE7CE`.
+- Remaining incomplete gates: Module 41 = 90% and Module 60 = 90% (repository Code scanning/Advanced Security and Hosted SARIF evidence); local integration gates requiring PostgreSQL are reported as unverified when the service is absent.
+- Next continuation action: enable repository Code scanning/Advanced Security if approved and rerun Hosted Security Verification; otherwise continue the next concrete Multi-Site hardening opportunity without weakening the evidence boundary.

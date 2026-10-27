@@ -20,7 +20,7 @@ A second 15-second run against the Gateway with the configured upstream intentio
 
 ### Latest Hosted Security Verification evidence
 
-On 2026-10-27, Hosted Security Verification run `40443868707` evaluated the Module 76 change at commit `9ce2c7564dc80343326323a53d6bb287476c62eb`. The full .NET regression evidence was **505/505 passed, 0 failed, 0 skipped**, with `TRX_COUNTERS total=505 executed=505 passed=505 failed=0 skipped=0` and `TRX_REGRESSION_PASS`. Dependency vulnerability audit, SBOM generation, secret scan, and the direct-origin exposure guardrail also passed.
+On 2026-10-27, Hosted Security Verification run `40445541235` evaluated the Module 78 runtime change at commit `555749855f77b891c62914c5a26b9ced61e6ddeb`. The full .NET regression evidence was **509/509 passed, 0 failed, 0 skipped**, with `TRX_COUNTERS total=509 executed=509 passed=509 failed=0 skipped=0` and `TRX_REGRESSION_PASS`. Dependency vulnerability audit, SBOM generation, secret scan, and the direct-origin exposure guardrail also passed.
 
 The Hosted CodeQL stage did not pass: its preflight failed closed because repository Code scanning/Advanced Security was unavailable, so CodeQL initialize/build/analyze and SARIF upload were skipped. This is not a CodeQL pass; Module 41 and Module 60 remain at 90% until the repository setting is enabled and a fresh SARIF result is verified.
 

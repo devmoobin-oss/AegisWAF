@@ -1,6 +1,6 @@
 # AegisWAF Security Notes (v0.7)
 
-Status: **Production Candidate / not production-certified.** The Multi-Site worktree has local parser, egress, health/failover, distributed-control and real-socket evidence; Hosted run `40444181184` also passed the 505-test regression, dependency audit, secret scan, and SBOM gates. CodeQL/SARIF repository enablement, external penetration testing, independent load testing, DNS-rebinding assessment, and operational SIEM validation remain open gates. See [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md) for the authoritative deployment gate.
+Status: **Production Candidate / not production-certified.** The Multi-Site worktree has local parser, egress, health/failover, distributed-control and real-socket evidence; Hosted run `40445541235` also passed the 509/509 regression, dependency audit, secret scan, and SBOM gates. CodeQL/SARIF repository enablement, external penetration testing, independent load testing, DNS-rebinding assessment, and operational SIEM validation remain open gates. See [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md) for the authoritative deployment gate.
 
 The v0.7 findings below are historical baseline findings. Where later Production-elevation work superseded a finding, the current implementation and readiness document take precedence.
 
@@ -45,7 +45,7 @@ Password hashing, lockout, session handling and the forced change of administrat
 * The bootstrap password is read from the environment (or `Bootstrap:AdminPassword`), never logged, and used only when no users exist. Change it after first login.
 * Dependency scan (2026-10-17, `dotnet list package --vulnerable --include-transitive`): no known vulnerable packages. This is a one-off check; continuous scanning in CI is not yet configured.
 * Parser-aware inspection, bounded decompression, explicit upstream egress policy, shared authentication throttling, audit-chain integrity alerting, and a local security/load-test harness were added in the 2026-10-18 production-elevation work. These controls still require independent penetration testing, SIEM delivery/retention validation, and multi-instance operational validation.
-* Hosted Security Verification run `40444181184` (2026-10-27): dependency audit, Gitleaks secret scan, and SBOM generation passed; CodeQL remained fail-closed at the repository Code scanning/Advanced Security preflight and is not claimed as passed.
+* Hosted Security Verification run `40445541235` (2026-10-27): the 509/509 regression, dependency audit, Gitleaks secret scan, SBOM generation, and direct-origin guardrail passed; CodeQL remained fail-closed at the repository Code scanning/Advanced Security preflight and is not claimed as passed.
 * Parser-aware inspection, bounded decompression, explicit upstream egress policy, shared authentication throttling, audit-chain integrity alerting, and a local security/load-test harness were added in the 2026-10-18 production-elevation work. These controls still require independent penetration testing, SIEM delivery/retention validation, and multi-instance operational validation.
 
 ## Testing policy
