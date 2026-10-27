@@ -1597,3 +1597,27 @@
 - P1: ตรวจ workflow hosted จริงหลัง push โดยยืนยัน `dotnet-tests`, direct-origin, dependency audit, CodeQL, secret scan, SBOM และ optional release-provenance artifacts ครบ.
 - P2: MFA/WebAuthn/OIDC และ per-Site WAF policy versioning.
 - Current module state: Module 40 = 100%, Module 42 = 100%, Module 43 = 100%, Module 44 = 100%, Module 45 = 100%, Module 46 = 100%, Module 47 = 100%, Module 48 = 100%, Module 49 = 100%, Module 50 = 100%, Module 51 = 100%, Module 52 = 100%, Module 53 = 100%, Module 54 = 100%, Module 55 = 100%, Module 56 = 100%, Module 57 = 100%, Module 58 = 100%, Module 41 = 90% pending hosted evidence.
+
+### Published EXE verification — 2026-10-26 21:00:00 +07:00
+
+- Scope: publish จาก source ปัจจุบัน commit `24697e425022f6fa01a997d5c967796a4de44d22` ซึ่งรวมโมดูลที่พัฒนาเสร็จแล้วใน source ทั้งหมด; Module 41 ที่ยังรอ Hosted CI เป็นหลักฐาน release gate ไม่ได้ถูกตัดออกจาก runtime code.
+- Command: `dotnet restore src/AegisWAF.Desktop/AegisWAF.Desktop.csproj -r win-x64` แล้ว `dotnet publish src/AegisWAF.Desktop/AegisWAF.Desktop.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o D:\AegisWAF\dist\AegisWAF-Desktop --no-restore`.
+- Artifact: `D:\AegisWAF\dist\AegisWAF-Desktop\AegisWAF.exe`, self-contained `win-x64`, single-file, 170,608,491 bytes, SHA-256 `6135F7AC75E287F2BB8ED4369FEC238A822B79351EB9C130CBF173A7F31A50DB`.
+- Verification: PE header `MZ`; release manifest regenerated and verifier passed with 7 manifest files, `signed=false`, `workingTreeClean=true`; manifest source commit ตรงกับ publish commit.
+
+### Module 59 final progress record — 2026-10-27
+
+- Before: 0%; After: 100%; Target: 100%.
+- Opportunity completed: Hosted regression ต้องรองรับสิทธิ์ของ Secret scan และ contract tests ต้องทำงานได้เท่ากันบน Windows/Linux; เดิม Secret scan ขาด `pull-requests: read` และ Linux พบ test fixture ที่ใช้ path/certificate แบบ Windows รวมถึง UI contract ที่ผูกกับ syntax เฉพาะ.
+- Implementation: เพิ่ม `pull-requests: read` ใน `.github/workflows/security-verification.yml`; ทำ `ProductionReadinessPolicyTests` ให้ใช้ path/certificate ตาม platform; ปรับ `UiContractTests` ให้ตรวจพฤติกรรม `Sites.ToDictionary` แทนข้อความ syntax `summary.Sites` แบบตรงตัว.
+- Verification: Hosted Run `40334723688` ผ่าน Secret scan, .NET tests (`496/496`), Dependency audit, SBOM และ Direct-origin guardrail; focused contract `1/1` และ local full regression `496/496`, failed=0, skipped=0.
+- Commits: `1cfbb7d3c53cc71f7d0b4608ab7eb1eba525df26`, `24697e425022f6fa01a997d5c967796a4de44d22`.
+
+### Module 60 implementation progress — 2026-10-27
+
+- Before: 0%; After: 90%; Target: 100%.
+- Opportunity: CodeQL วิเคราะห์และสร้าง SARIF สำเร็จ แต่ job จบเป็น configuration error เพราะ token ไม่มีสิทธิ์อ่าน workflow run metadata (`Resource not accessible by integration`).
+- TDD: เพิ่ม assertion `actions: read` ใน `HostedRegressionEvidenceContractTests`; red ก่อนแก้ workflow และ green หลังเพิ่ม permission, `1/1`.
+- Implementation: เพิ่ม top-level `actions: read` ใน `.github/workflows/security-verification.yml` เพื่อให้ CodeQL action อ่าน workflow metadata และส่งผลวิเคราะห์ได้ครบ.
+- Local verification: full regression `496/496`, failed=0, skipped=0; TRX verifier ผ่าน `total=496 executed=496 passed=496 failed=0 skipped=0`.
+- Boundary: รอ Hosted run หลัง commit แก้ permission เพื่อยืนยัน CodeQL ผ่าน แล้วจึงปิด Module 60 และยกระดับ Module 41 จาก 90% เป็น 100%.
