@@ -1926,7 +1926,25 @@
 
 ### Authoritative continuation state — 2026-10-27 (latest)
 
-- Latest local/Hosted module progress: Module 73 = 100%; Module 72 = 100%.
-- Latest published artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-Module73\AegisWAF.exe`, SHA-256 `24B88877C8ADCD13E05CF62719CA57DA77EDD4D3D15C320C7462DAF04C5779C1`.
+- Latest local/Hosted module progress: Module 74 = 100%; Module 73 = 100%; Module 72 = 100%.
+- Latest published artifact: Module 73 artifact remains authoritative until Module 74 republish is verified; `D:\AegisWAF\dist\AegisWAF-Desktop-Module73\AegisWAF.exe`, SHA-256 `24B88877C8ADCD13E05CF62719CA57DA77EDD4D3D15C320C7462DAF04C5779C1`.
 - Remaining incomplete gates: Module 41 = 90% and Module 60 = 90% (repository Code scanning/Advanced Security and Hosted SARIF evidence).
-- Next continuation action: enable repository Code scanning/Advanced Security if approved, then rerun Hosted Security Verification to close Module 41/60; preserve the Module73 artifact unless runtime code changes again.
+- Next continuation action: publish and verify the Module74 artifact, then enable repository Code scanning/Advanced Security if approved and rerun Hosted Security Verification to close Module 41/60.
+
+### Module 74 final progress record — 2026-10-27
+
+- Before: 0%; After: 100%; Target: 100%.
+- Opportunity: Desktop `SitesView` ใช้ `trend.AlertState` จากประวัติโดยตรงใน `AlertText` และ `AlertBrush`; เมื่อ runtime กลับมา healthy จึงยังอาจเห็น “วิกฤติ” ค้าง. Web display ยังต้องกันกรณี historical `healthy` ไปกลบ live `unhealthy` ด้วย.
+- TDD RED: เพิ่ม display-state tests แล้วพบ compile failure ก่อนมี resolver; หลังสร้าง resolver เพิ่ม test ที่จับ precedence ผิด และแก้จนผ่าน.
+- Implementation: เพิ่ม `AegisWAF.Client.SiteHealthDisplayState.Resolve` เป็นกติกากลาง; `pending-restart` มาก่อน, live healthy เปลี่ยน historical critical/degraded เป็น `recovered`, live unhealthy ไม่ถูก historical healthy กลบ, และ Desktop summary ระบุชัดว่า counters เป็น `health trend` พร้อมให้ดู runtime state ในแถว Site. Web `displayHealthState` ใช้ precedence เดียวกัน.
+- Verification local: health/UI focused in-process tests ผ่าน 33/33; `node --check src/AegisWAF.Gateway/wwwroot/assets/app.js` ผ่าน; Release solution build 0 warnings/0 errors; `git diff --check` ผ่าน.
+- Commit/push: `77e6eee91c9c131a5059d9f0a568132b525f79b6` (`Align live and historical site alert display`) ถูก push แล้ว.
+- Evidence: `artifacts/module-verification/module74-live-health-alert-display-parity.json`.
+- Hosted verification: run `40442770291` ตรวจ commit `77e6eee91c9c131a5059d9f0a568132b525f79b6` ผ่าน full regression `504/504`; `TRX_COUNTERS total=504 executed=504 passed=504 failed=0 skipped=0`; `TRX_REGRESSION_PASS`. Dependency vulnerability audit, SBOM, Secret scan และ Direct-origin guardrail ผ่านทั้งหมด.
+- CodeQL boundary: CodeQL preflight ยัง fail closed เพราะ repository Code scanning/Advanced Security ยัง disabled; เป็น external gate ของ Module 41/60 ไม่ใช่ regression failure ของ Module 74.
+
+### Opportunity audit after Module 74 — 2026-10-27
+
+- P0: republish EXE จาก commit ที่รวม Module 74 แล้วบันทึก hash และ manifest provenance.
+- P0: Module 41/60 ยังรอ repository Code scanning/Advanced Security และ SARIF-upload pass; ห้ามอ้างว่า CodeQL ผ่านจาก local tests.
+- P1: authenticated published-EXE Multi-Site smoke หลัง operator login, Authenticode signing, external SIEM delivery/retention, DNS-rebinding, penetration, load, SLO/capacity และ incident-response evidence ยังเป็นงานภายนอก.
