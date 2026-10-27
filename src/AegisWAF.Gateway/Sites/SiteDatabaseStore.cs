@@ -6,6 +6,7 @@ namespace AegisWAF.Gateway.Sites;
 public sealed class SiteDatabaseStore(IConfiguration configuration)
 {
     private readonly string _connectionString = configuration.GetConnectionString("Postgres") ?? "";
+    private const string SiteMutationLockKey = "aegiswaf.site_mutation.v1";
 
     private const string SelectSql = """
         SELECT site_id, enabled, hostnames, path_prefixes, upstream_ids, upstream_addresses,
@@ -23,6 +24,29 @@ public sealed class SiteDatabaseStore(IConfiguration configuration)
         var result = new List<GatewaySite>();
         while (await reader.ReadAsync(ct)) result.Add(ReadSite(reader));
         return result;
+    }
+
+    /// <summary>
+    /// Holds one PostgreSQL session advisory lock for the complete Site mutation workflow.
+    /// The caller must keep the lease alive through validation, persistence, and activation
+    /// so separate Gateway instances cannot validate against the same stale snapshot.
+    /// </summary>
+    public async Task<IAsyncDisposable> AcquireSiteMutationLockAsync(CancellationToken ct)
+    {
+        var db = await OpenAsync(ct);
+        try
+        {
+            await using var command = new NpgsqlCommand(
+                "SELECT pg_advisory_lock(hashtextextended(@lock_key, 0))", db);
+            command.Parameters.AddWithValue("lock_key", SiteMutationLockKey);
+            await command.ExecuteScalarAsync(ct);
+            return new SiteMutationLockLease(db);
+        }
+        catch
+        {
+            await db.DisposeAsync();
+            throw;
+        }
     }
 
     public async Task RecordHealthHistoryAsync(string siteId, IReadOnlyList<SiteHealthObservation> observations, CancellationToken ct)
@@ -470,6 +494,11 @@ public sealed class SiteDatabaseStore(IConfiguration configuration)
         var path = address.AbsolutePath.TrimEnd('/');
         return path.Length == 0 ? "/" : path;
     }
+}
+
+file sealed class SiteMutationLockLease(NpgsqlConnection connection) : IAsyncDisposable
+{
+    public ValueTask DisposeAsync() => connection.DisposeAsync();
 }
 
 public sealed class SiteHostnameConflictException(string siteId, Exception inner)

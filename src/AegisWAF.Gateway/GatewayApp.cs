@@ -721,17 +721,18 @@ public static class GatewayApp
         if (!SiteConfigurationEditor.TryNormalize(input, out var site, out var inputError))
             return Results.BadRequest(new { error = inputError });
         var candidate = SiteDatabaseStore.ToGatewaySite(site);
-        IReadOnlyList<GatewaySite> storedSitesForValidation;
-        try { storedSitesForValidation = await store.ListAsync(ct); }
-        catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
-        { return SiteDatabaseUnavailable(ctx, "validated", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
-        var proposedSites = storedSitesForValidation.Append(candidate).ToArray();
-        var validationErrors = SiteConfigurationValidator.ValidateSnapshot(
-            new SiteConfigurationSnapshot(proposedSites, false), configuration);
-        if (validationErrors.Count > 0)
-            return Results.BadRequest(new { error = "Site configuration rejected: " + string.Join("; ", validationErrors), code = "site_configuration_invalid", errors = validationErrors });
         try
         {
+            await using var mutationLock = await store.AcquireSiteMutationLockAsync(ct);
+            IReadOnlyList<GatewaySite> storedSitesForValidation;
+            try { storedSitesForValidation = await store.ListAsync(ct); }
+            catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
+            { return SiteDatabaseUnavailable(ctx, "validated", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
+            var proposedSites = storedSitesForValidation.Append(candidate).ToArray();
+            var validationErrors = SiteConfigurationValidator.ValidateSnapshot(
+                new SiteConfigurationSnapshot(proposedSites, false), configuration);
+            if (validationErrors.Count > 0)
+                return Results.BadRequest(new { error = "Site configuration rejected: " + string.Join("; ", validationErrors), code = "site_configuration_invalid", errors = validationErrors });
             var inserted = await store.InsertAsync(candidate, ctx.Actor(), ctx.ClientIp(), ct);
             if (!inserted) return Results.Conflict(new { error = $"Site ID '{site.Id}' already exists" });
             try
@@ -752,32 +753,33 @@ public static class GatewayApp
         if (!SiteConfigurationEditor.TryNormalize(input with { Id = id }, out var site, out var inputError))
             return Results.BadRequest(new { error = inputError });
         var candidate = SiteDatabaseStore.ToGatewaySite(site);
-        IReadOnlyList<GatewaySite> storedSitesForValidation;
-        try { storedSitesForValidation = await store.ListAsync(ct); }
-        catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
-        { return SiteDatabaseUnavailable(ctx, "validated", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
-        var proposedSites = storedSitesForValidation
-            .Where(existing => !existing.Id.Equals(candidate.Id, StringComparison.OrdinalIgnoreCase))
-            .Append(candidate)
-            .ToArray();
-        var validationErrors = SiteConfigurationValidator.ValidateSnapshot(
-            new SiteConfigurationSnapshot(proposedSites, false), configuration);
-        if (validationErrors.Count > 0)
-            return Results.BadRequest(new { error = "Site configuration rejected: " + string.Join("; ", validationErrors), code = "site_configuration_invalid", errors = validationErrors });
-        var expectedVersion = input.ExpectedVersion;
-        if (ctx.Request.Headers.IfMatch.Count > 0)
-        {
-            var header = ctx.Request.Headers.IfMatch.ToString();
-            if (!SiteConcurrency.TryParseEtag(header, out var headerVersion))
-                return Results.BadRequest(new { error = "If-Match must contain a strong Site ETag", code = "site_etag_invalid" });
-            if (expectedVersion.HasValue && expectedVersion.Value != headerVersion)
-                return Results.BadRequest(new { error = "Expected version and If-Match do not match", code = "site_version_mismatch" });
-            expectedVersion = headerVersion;
-        }
-        if (!expectedVersion.HasValue)
-            return Results.Conflict(new { error = "A current Site version or If-Match ETag is required", code = "site_version_required" });
         try
         {
+            await using var mutationLock = await store.AcquireSiteMutationLockAsync(ct);
+            IReadOnlyList<GatewaySite> storedSitesForValidation;
+            try { storedSitesForValidation = await store.ListAsync(ct); }
+            catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
+            { return SiteDatabaseUnavailable(ctx, "validated", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
+            var proposedSites = storedSitesForValidation
+                .Where(existing => !existing.Id.Equals(candidate.Id, StringComparison.OrdinalIgnoreCase))
+                .Append(candidate)
+                .ToArray();
+            var validationErrors = SiteConfigurationValidator.ValidateSnapshot(
+                new SiteConfigurationSnapshot(proposedSites, false), configuration);
+            if (validationErrors.Count > 0)
+                return Results.BadRequest(new { error = "Site configuration rejected: " + string.Join("; ", validationErrors), code = "site_configuration_invalid", errors = validationErrors });
+            var expectedVersion = input.ExpectedVersion;
+            if (ctx.Request.Headers.IfMatch.Count > 0)
+            {
+                var header = ctx.Request.Headers.IfMatch.ToString();
+                if (!SiteConcurrency.TryParseEtag(header, out var headerVersion))
+                    return Results.BadRequest(new { error = "If-Match must contain a strong Site ETag", code = "site_etag_invalid" });
+                if (expectedVersion.HasValue && expectedVersion.Value != headerVersion)
+                    return Results.BadRequest(new { error = "Expected version and If-Match do not match", code = "site_version_mismatch" });
+                expectedVersion = headerVersion;
+            }
+            if (!expectedVersion.HasValue)
+                return Results.Conflict(new { error = "A current Site version or If-Match ETag is required", code = "site_version_required" });
             var updated = await store.UpdateWithConcurrencyAsync(candidate, expectedVersion.Value, ctx.Actor(), ctx.ClientIp(), ct);
             if (updated.Status == SiteUpdateStatus.Updated)
             {
@@ -810,6 +812,7 @@ public static class GatewayApp
             return Results.Conflict(new { error = "If-Match with the current Site ETag is required before delete", code = "site_version_required" });
         try
         {
+            await using var mutationLock = await store.AcquireSiteMutationLockAsync(ct);
             var result = await store.DeleteWithConcurrencyAsync(id.Trim().ToLowerInvariant(), expectedVersion, ctx.Actor(), ctx.ClientIp(), ct);
             if (result.Status == SiteDeleteStatus.Conflict)
             {
