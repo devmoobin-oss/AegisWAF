@@ -796,10 +796,14 @@ public static class GatewayApp
         try
         {
             await using var mutationLock = await store.AcquireSiteMutationLockAsync(ct);
+            using var validationBudget = SiteMutationReadBudget.Create(ct);
+            var validationCt = validationBudget.Token;
             IReadOnlyList<GatewaySite> storedSitesForValidation;
-            try { storedSitesForValidation = await store.ListAsync(ct); }
+            try { storedSitesForValidation = await store.ListAsync(validationCt); }
             catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
             { return SiteDatabaseUnavailable(ctx, "validated", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
+            catch (OperationCanceledException) when (SiteMutationReadBudget.IsBudgetCancellation(ct, validationCt))
+            { return SiteDatabaseUnavailable(ctx, "validation-timeout", "site_mutation_read_timeout"); }
             var proposedSites = storedSitesForValidation.Append(candidate).ToArray();
             var validationErrors = SiteConfigurationValidator.ValidateSnapshot(
                 new SiteConfigurationSnapshot(proposedSites, false), configuration);
@@ -830,10 +834,14 @@ public static class GatewayApp
         try
         {
             await using var mutationLock = await store.AcquireSiteMutationLockAsync(ct);
+            using var validationBudget = SiteMutationReadBudget.Create(ct);
+            var validationCt = validationBudget.Token;
             IReadOnlyList<GatewaySite> storedSitesForValidation;
-            try { storedSitesForValidation = await store.ListAsync(ct); }
+            try { storedSitesForValidation = await store.ListAsync(validationCt); }
             catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
             { return SiteDatabaseUnavailable(ctx, "validated", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
+            catch (OperationCanceledException) when (SiteMutationReadBudget.IsBudgetCancellation(ct, validationCt))
+            { return SiteDatabaseUnavailable(ctx, "validation-timeout", "site_mutation_read_timeout"); }
             var proposedSites = storedSitesForValidation
                 .Where(existing => !existing.Id.Equals(candidate.Id, StringComparison.OrdinalIgnoreCase))
                 .Append(candidate)
