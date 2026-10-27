@@ -15,7 +15,9 @@ public static class SiteMatcher
         {
             if (!site.Enabled || !site.Hostnames.Any(candidate =>
                     string.Equals(SiteConfigurationValidator.NormalizeHostname(candidate), hostname, StringComparison.OrdinalIgnoreCase))) continue;
-            foreach (var prefix in site.PathPrefixes)
+            foreach (var prefix in site.PathPrefixes
+                .Select(SiteConfigurationValidator.NormalizePath)
+                .Distinct(StringComparer.Ordinal))
             {
                 if (!PathMatches(path, prefix)) continue;
                 if (best is null || prefix.Length > best.PathPrefix.Length)

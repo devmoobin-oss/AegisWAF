@@ -2166,3 +2166,28 @@
 - Latest completed-modules artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`, SHA-256 `5C4949432F9D838C55E35D4CE3C5EDA9242B8218A97CE8AA7DD599023E9CA90E`.
 - Remaining incomplete gates: Module 41 = 90% and Module 60 = 90% (repository Code scanning/Advanced Security and Hosted SARIF evidence); local integration gates requiring PostgreSQL are reported as unverified when the service is absent.
 - Next continuation action: run the next Hosted PostgreSQL-backed regression from this Module 81 runtime commit when the external environment is available; preserve the verified artifact until runtime code changes again.
+
+### Module 82 final progress record — 2026-10-27
+
+- Before: 0%; After: 100%; Target: 100% for the defined route-path canonicalization gates.
+- Opportunity/root cause: a trailing-slash path prefix such as `/api/` could be accepted from a raw snapshot or persisted row, fail `SiteMatcher` boundary matching, and generate the invalid YARP pattern `/api//{**remainder}`.
+- TDD RED: three new contracts failed as expected before implementation: the matcher returned no match, the expected proxy route path was absent, and persistence returned `/api/` unchanged.
+- Implementation: canonicalized path prefixes in `SiteMatcher` and `SiteProxyConfiguration`; canonicalized persisted hostnames and path prefixes in `SitePersistenceCodec`; rejected invalid or duplicate prefixes after normalization at persistence and snapshot-validation boundaries.
+- Verification: focused routing/persistence/configuration contracts passed **43/43**; Release solution build passed **0 warnings / 0 errors**; `git diff --check` passed.
+- Artifact boundary: runtime routing hardening only; a new completed-modules EXE must be published from the Module 82 runtime commit. Full PostgreSQL-backed and Hosted regression evidence remains an external gate.
+- Evidence: `artifacts/module-verification/module82-route-path-canonicalization.json`.
+- Boundary: this closes the trailing-slash route mismatch and duplicate-normalization risk; it does not claim fresh Hosted regression, CodeQL/SARIF, independent penetration testing, DNS-rebinding, external load/SLO validation, SIEM delivery, Authenticode signing, or production certification.
+
+### Opportunity audit after Module 82 — 2026-10-27
+
+- P0: Module 41/60 remain at 90% pending repository Code scanning/Advanced Security enablement and a fresh successful SARIF upload/status.
+- P1: publish and authenticated-smoke-test the Module 82 executable, validate least-privilege PostgreSQL deployment, SIEM delivery/retention, DNS-rebinding, penetration, load, SLO/capacity, and incident-response evidence.
+- P2: continue auditing Multi-Site policy versioning, MFA/WebAuthn/OIDC, and independent OWASP CRS corpus benchmarking.
+
+### Authoritative continuation state — 2026-10-27 (latest after Module 82)
+
+- Latest local/Hosted module progress: Module 82 = 100%; Module 81 = 100%; Module 80 = 100%; Module 79 = 100%; Module 78 = 100%; Module 77 = 100%; Module 76 = 100%; Module 75 = 100%; Module 74 = 100%; Module 73 = 100%; Module 72 = 100%.
+- Latest Hosted verification for runtime Module 78: run `40445541235`, full regression `509/509`, `TRX_REGRESSION_PASS`; CodeQL remains an explicit external gate because repository Code scanning/Advanced Security is unavailable.
+- Latest completed-modules artifact remains the Module 81 bundle until Module 82 is republished: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`, SHA-256 `5C4949432F9D838C55E35D4CE3C5EDA9242B8218A97CE8AA7DD599023E9CA90E`.
+- Remaining incomplete gates: Module 41 = 90% and Module 60 = 90% (repository Code scanning/Advanced Security and Hosted SARIF evidence); local integration gates requiring PostgreSQL are reported as unverified when the service is absent.
+- Next continuation action: commit and publish Module 82, then run the next concrete Multi-Site hardening opportunity without weakening the evidence boundary.

@@ -58,6 +58,21 @@ internal static class SitePersistenceCodec
             row.UpstreamAddresses is null || row.UpstreamWeights is null ||
             row.EgressAllowedHosts is null || row.EgressAllowedPorts is null || row.EgressAllowedSchemes is null)
             throw new InvalidDataException($"Persisted Site {row.SiteId} contains a null array");
+
+        var hostnames = row.Hostnames.Select(x => SiteConfigurationValidator.NormalizeHostname(x ?? "")).ToArray();
+        if (hostnames.Any(x => x.Length == 0) || hostnames.Distinct(StringComparer.OrdinalIgnoreCase).Count() != hostnames.Length)
+            throw new InvalidDataException($"Persisted Site {row.SiteId} contains invalid or duplicate hostnames");
+
+        var pathPrefixes = row.PathPrefixes.Select(x =>
+        {
+            var raw = (x ?? "").Trim();
+            if (raw.Length == 0 || raw.Length > 256 || !raw.StartsWith('/') || raw.Contains('?') || raw.Contains('#') || raw.Contains('\0'))
+                throw new InvalidDataException($"Persisted Site {row.SiteId} contains an invalid path prefix");
+            return SiteConfigurationValidator.NormalizePath(raw);
+        }).ToArray();
+        if (pathPrefixes.Distinct(StringComparer.Ordinal).Count() != pathPrefixes.Length)
+            throw new InvalidDataException($"Persisted Site {row.SiteId} contains duplicate path prefixes after normalization");
+
         if (row.UpstreamIds.Length == 0)
             throw new InvalidDataException($"Persisted Site {row.SiteId} must contain at least one upstream");
         if (row.UpstreamIds.Length != row.UpstreamAddresses.Length || row.UpstreamIds.Length != row.UpstreamWeights.Length)
@@ -97,8 +112,8 @@ internal static class SitePersistenceCodec
         return new GatewaySite(
             row.SiteId,
             row.Enabled,
-            row.Hostnames,
-            row.PathPrefixes,
+            hostnames,
+            pathPrefixes,
             upstreams,
             string.IsNullOrWhiteSpace(row.WafPolicy) ? "default" : row.WafPolicy,
             new SiteRateLimitPolicy(row.RateRequests, row.RateWindowSeconds, row.RateGlobalRequests),

@@ -59,7 +59,9 @@ public static class SiteProxyConfiguration
                 .Where(x => x.Length > 0)
                 .Distinct(StringComparer.OrdinalIgnoreCase))
             {
-                foreach (var prefix in site.PathPrefixes)
+                foreach (var prefix in site.PathPrefixes
+                    .Select(SiteConfigurationValidator.NormalizePath)
+                    .Distinct(StringComparer.Ordinal))
                 {
                     var routeKey = hostname + "\0" + prefix;
                     var routeId = site.Hostnames.Count == 1 && prefix == "/"

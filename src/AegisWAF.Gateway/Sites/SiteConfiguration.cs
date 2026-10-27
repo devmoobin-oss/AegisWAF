@@ -181,12 +181,15 @@ public static class SiteConfigurationValidator
                 errors.Add($"Site {id} must define at least one path prefix");
             else if (site.PathPrefixes.Count > MaxPathPrefixesPerSite)
                 errors.Add($"Site {id} may contain at most {MaxPathPrefixesPerSite} path prefixes");
+            var normalizedPaths = new HashSet<string>(StringComparer.Ordinal);
             foreach (var path in site.PathPrefixes ?? [])
             {
                 var rawPath = (path ?? "").Trim();
                 if (rawPath.Length == 0 || rawPath.Length > 256 || !rawPath.StartsWith('/') ||
                     rawPath.Contains('?') || rawPath.Contains('#') || rawPath.Contains('\0'))
                     errors.Add($"Site {id} contains an invalid path prefix");
+                else if (!normalizedPaths.Add(NormalizePath(rawPath)))
+                    errors.Add($"Site {id} contains duplicate path prefixes after normalization");
             }
 
             if (site.Upstreams is null || site.Upstreams.Count == 0)
