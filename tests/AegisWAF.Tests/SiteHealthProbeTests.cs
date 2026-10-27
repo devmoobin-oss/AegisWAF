@@ -19,7 +19,9 @@ public sealed class SiteHealthProbeTests
         var result = Assert.Single(await new SiteHealthProbe().ProbeAsync(site, default));
 
         Assert.Equal("unhealthy", result.Health);
-        Assert.Contains("egress", result.Reason, StringComparison.OrdinalIgnoreCase);
+        Assert.True(result.Reason == "request_failed" || result.Reason!.StartsWith("socket_", StringComparison.Ordinal),
+            $"reason was not a safe category: {result.Reason}");
+        Assert.DoesNotContain("127.0.0.1", result.Reason, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -89,11 +91,9 @@ public sealed class SiteHealthProbeTests
 
         Assert.Equal("unhealthy", result.Health);
         Assert.InRange(result.Reason!.Length, 1, 128);
-        var open = result.Reason.LastIndexOf('(');
-        var close = result.Reason.LastIndexOf(')');
-        var hasSocketCode = open >= 0 && close > open && Enum.TryParse<SocketError>(result.Reason[(open + 1)..close], out _);
-        Assert.True(hasSocketCode || string.Equals(result.Reason, "timeout", StringComparison.OrdinalIgnoreCase),
-            $"reason was neither a bounded socket code nor timeout: {result.Reason}");
+        Assert.StartsWith("socket_", result.Reason, StringComparison.Ordinal);
+        Assert.True(Enum.TryParse<SocketError>(result.Reason["socket_".Length..], out _),
+            $"reason was not a safe socket code: {result.Reason}");
     }
 
     [Fact]
@@ -108,6 +108,19 @@ public sealed class SiteHealthProbeTests
         cancellation.Cancel();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => new SiteHealthProbe().ProbeAsync(site, cancellation.Token));
+    }
+
+    [Fact]
+    public void Failure_reason_does_not_echo_exception_details()
+    {
+        var exception = new HttpRequestException(
+            "https://user:secret@internal-db.example/password=secret: connection failed");
+
+        var reason = SiteHealthProbe.SafeFailureReason(exception);
+
+        Assert.Equal("request_failed", reason);
+        Assert.DoesNotContain("internal-db", reason, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("secret", reason, StringComparison.OrdinalIgnoreCase);
     }
 
     private sealed class LoopbackHttpServer : IAsyncDisposable

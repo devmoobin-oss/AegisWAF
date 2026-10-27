@@ -46,7 +46,7 @@ public sealed class SiteHealthProbe
             }
             catch (HttpRequestException ex)
             {
-                results.Add(new SiteHealthProbeResult(upstream.Id, upstream.Address.ToString(), "unhealthy", SafeReason(ex), checkedAt));
+                results.Add(new SiteHealthProbeResult(upstream.Id, upstream.Address.ToString(), "unhealthy", SafeFailureReason(ex), checkedAt));
             }
         }
         return results;
@@ -58,13 +58,11 @@ public sealed class SiteHealthProbe
         return new Uri(upstream.GetLeftPart(UriPartial.Authority) + normalizedPath, UriKind.Absolute);
     }
 
-    private static string SafeReason(HttpRequestException ex)
+    internal static string SafeFailureReason(HttpRequestException ex)
     {
-        var detail = FindSocketException(ex) is { } socket
-            ? $" ({socket.SocketErrorCode})"
-            : "";
-        var text = (ex.Message.Trim() + detail).Trim();
-        return text.Length <= 128 ? text : text[..128];
+        return FindSocketException(ex) is { } socket
+            ? $"socket_{socket.SocketErrorCode}"
+            : "request_failed";
     }
 
     private static SocketException? FindSocketException(Exception exception)
