@@ -1927,9 +1927,9 @@
 ### Authoritative continuation state — 2026-10-27 (latest)
 
 - Latest local/Hosted module progress: Module 74 = 100%; Module 73 = 100%; Module 72 = 100%.
-- Latest published artifact: Module 73 artifact remains authoritative until Module 74 republish is verified; `D:\AegisWAF\dist\AegisWAF-Desktop-Module73\AegisWAF.exe`, SHA-256 `24B88877C8ADCD13E05CF62719CA57DA77EDD4D3D15C320C7462DAF04C5779C1`.
+- Latest published artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-Module74\AegisWAF.exe`, SHA-256 `2D28E5E989740DA20F8449761A09023F9DBE9E8220CDEB24011DDD0495164957`.
 - Remaining incomplete gates: Module 41 = 90% and Module 60 = 90% (repository Code scanning/Advanced Security and Hosted SARIF evidence).
-- Next continuation action: publish and verify the Module74 artifact, then enable repository Code scanning/Advanced Security if approved and rerun Hosted Security Verification to close Module 41/60.
+- Next continuation action: enable repository Code scanning/Advanced Security if approved and rerun Hosted Security Verification to close Module 41/60; preserve the Module74 artifact unless runtime code changes again.
 
 ### Module 74 final progress record — 2026-10-27
 
@@ -1948,3 +1948,13 @@
 - P0: republish EXE จาก commit ที่รวม Module 74 แล้วบันทึก hash และ manifest provenance.
 - P0: Module 41/60 ยังรอ repository Code scanning/Advanced Security และ SARIF-upload pass; ห้ามอ้างว่า CodeQL ผ่านจาก local tests.
 - P1: authenticated published-EXE Multi-Site smoke หลัง operator login, Authenticode signing, external SIEM delivery/retention, DNS-rebinding, penetration, load, SLO/capacity และ incident-response evidence ยังเป็นงานภายนอก.
+
+### Published EXE — Module 74 artifact — 2026-10-27
+
+- Scope: republished the completed runtime/UI source after Module 74; Module 41/60 remain external Code scanning/SARIF gates at 90% and are not claimed complete by this artifact.
+- Before/After for publish artifact gate: 0% -> 100%; Target: 100%.
+- Source commit: `2eb0cea9703267ff7491465a96a4e89645be94b9` (docs-only continuation after runtime commit `77e6eee91c9c131a5059d9f0a568132b525f79b6`).
+- Command: `dotnet publish src/AegisWAF.Desktop/AegisWAF.Desktop.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o dist/AegisWAF-Desktop-Module74 --no-restore --disable-build-servers -m:1`.
+- Artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-Module74\AegisWAF.exe`, `net10.0-windows`, `win-x64`, self-contained, single-file, `170,610,027` bytes.
+- SHA-256: `2D28E5E989740DA20F8449761A09023F9DBE9E8220CDEB24011DDD0495164957`.
+- Verification: PE header `MZ`; release manifest verifier passed (`files=6`, `signed=false`, `workingTreeClean=true`); release manifest writer and tamper/extra-file verifier tests passed.
