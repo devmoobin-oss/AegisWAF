@@ -35,6 +35,9 @@ public sealed class UiContractTests
         Assert.Contains("วิกฤต", js);
         Assert.Contains("เฝ้าระวัง", js);
         Assert.Contains("ปกติ", js);
+        Assert.Contains("liveHealth", js);
+        Assert.Contains("historicalAlert", js);
+        Assert.Contains("liveHealth==='healthy'", js);
         Assert.Contains("รอเปิดใช้", js);
         Assert.Contains("data-site-health", js);
         Assert.Contains("/health", js);

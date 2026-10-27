@@ -33,6 +33,14 @@ Assert-Equal $timeout.status 'timeout' 'A command beyond its budget should time 
 $manifest = Get-ModuleManifest -Path (Join-Path $PSScriptRoot 'modules.json')
 Assert-True ($manifest.modules.Count -ge 6) 'The manifest should define all six modules'
 Assert-True ((Resolve-Module -Manifest $manifest -Id 'desktop-ui').id -eq 'desktop-ui') 'Known modules should resolve'
+Assert-True (Test-Path (Join-Path $PSScriptRoot 'Invoke-InProcClassTests.ps1')) 'The deterministic in-process test wrapper should exist'
+$testGates = @($manifest.modules | ForEach-Object { @($_.gates) } | Where-Object { $_.kind -eq 'test' })
+Assert-True ($testGates.Count -gt 0) 'The manifest should define test gates'
+foreach ($gate in $testGates) {
+    if ($gate.id -ne 'verifier-tests') {
+        Assert-True ($gate.command -match 'Invoke-InProcClassTests\.ps1') "Test gate '$($gate.id)' should use the in-process wrapper"
+    }
+}
 
 $unknownThrown = $false
 try { Resolve-Module -Manifest $manifest -Id 'does-not-exist' | Out-Null } catch { $unknownThrown = $true }

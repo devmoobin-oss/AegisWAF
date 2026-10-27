@@ -312,7 +312,7 @@ sealed class SecurityRules
     private sealed record Rule(string Id, string Name, string Category, Regex Pattern) { public volatile bool Enabled = true; }
 
     // All patterns are NonBacktracking (linear time, no ReDoS) and run against the Normalizer's canonical forms.
-    private static Regex R(string pattern) => new(pattern, RegexOptions.NonBacktracking | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
+    private static Regex R(string pattern) => new(pattern, RegexOptions.Compiled | RegexOptions.NonBacktracking | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
 
     private readonly List<Rule> _rules =
     [
@@ -442,7 +442,7 @@ sealed class AnomalyScorer
 
     // NonBacktracking keeps these expressions linear; 100 ms avoids false timeout blocks on a busy host
     // while still bounding a single anomaly evaluation under load.
-    private static Regex R(string p) => new(p, RegexOptions.NonBacktracking | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
+    private static Regex R(string p) => new(p, RegexOptions.Compiled | RegexOptions.NonBacktracking | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
 
     private readonly (Regex Pattern, int Weight)[] _signals =
     [
@@ -481,7 +481,7 @@ sealed class AnomalyScorer
 /// </summary>
 sealed class ResponseInspector
 {
-    private static Regex R(string p) => new(p, RegexOptions.NonBacktracking | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(50));
+    private static Regex R(string p) => new(p, RegexOptions.Compiled | RegexOptions.NonBacktracking | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(50));
 
     private readonly (string Name, Regex Pattern)[] _leaks =
     [

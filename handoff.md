@@ -1674,6 +1674,40 @@
 - P1: authenticated published-EXE Multi-Site smoke with operator take-over only at login, approved Authenticode signing, external SIEM delivery/retention, DNS-rebinding, penetration, load, SLO/capacity, and incident-response evidence.
 - P2: MFA/WebAuthn/OIDC, per-Site WAF policy versioning, and independent OWASP CRS corpus benchmarking.
 
+### Module 65 final progress record — 2026-10-27
+
+- Before: 0%; After: 100%; Target: 100% สำหรับ published-artifact UI smoke ก่อน authentication.
+- Opportunity completed: มี design/plan สำหรับตรวจ EXE ที่ publish จริง แต่ยังไม่มีหลักฐานว่า single-file artifact เปิดบน Windows และ embedded Gateway พร้อมก่อน login.
+- Artifact tested: `D:\AegisWAF\dist\AegisWAF-Desktop\AegisWAF.exe`, source commit `f688fc538ff8560db33b8bd4545b1ba0fd3dada1`, SHA-256 `F8D02785A03C88AE735E5ABC8B29EB1F3AC2D2ED2C7579F5D33CC15C7E6CE0A9`, 170,608,491 bytes.
+- UI evidence: Windows Computer Use selected exactly one window owned by the published path; title was `AegisWAF — เข้าสู่ระบบ`; status was `ระบบป้องกันพร้อมแล้วที่ http://127.0.0.1:15080`. ไม่กรอก username/password และไม่ทำ authentication ตามขอบเขต design.
+- Test isolation: ใช้ PostgreSQL cluster ชั่วคราวบน `55432` และ temporary listener `15080`; ไม่แก้ settings ของผู้ใช้ถาวร. หลังทดสอบปิด EXE, หยุด PostgreSQL, restore `gateway.settings` เดิม byte-for-byte และยืนยัน DB ports ไม่ตอบสนองกับไม่พบ EXE process ค้าง.
+- Evidence file: `artifacts/module-verification/module65-published-exe-ui-smoke.json`.
+- Boundary: Module 65 ยืนยัน publish artifact + pre-auth readiness เท่านั้น; authenticated Multi-Site navigation และการยืนยันว่าเพิ่ม Site แล้วใช้งานจาก EXE จริงยังต้อง operator takeover หลัง login.
+- Current module state: Module 40 = 100%, Module 41 = 90%, Module 42 = 100%, Module 43 = 100%, Module 44 = 100%, Module 45 = 100%, Module 46 = 100%, Module 47 = 100%, Module 48 = 100%, Module 49 = 100%, Module 50 = 100%, Module 51 = 100%, Module 52 = 100%, Module 53 = 100%, Module 54 = 100%, Module 55 = 100%, Module 56 = 100%, Module 57 = 100%, Module 58 = 100%, Module 59 = 100%, Module 60 = 90%, Module 61 = 100%, Module 62 = 100%, Module 63 = 100%, Module 64 = 100%, Module 65 = 100%.
+
+### Opportunity audit after Module 65 — 2026-10-27
+
+- P0: Module 41/60 ยังรอ repository owner เปิด GitHub Code scanning/Advanced Security แล้ว rerun Hosted Security Verification ให้ SARIF upload สำเร็จ.
+- P1: authenticated published-EXE Multi-Site smoke หลัง operator login, approved Authenticode signing, external SIEM delivery/retention, DNS-rebinding, penetration, load, SLO/capacity และ incident-response evidence.
+- P2: MFA/WebAuthn/OIDC, per-Site WAF policy versioning และ independent OWASP CRS corpus benchmarking.
+
+### Module 64 final progress record — 2026-10-27
+
+- Before: 0%; After: 100%; Target: 100%.
+- Opportunity completed: `dotnet publish` could fail before producing an artifact because the SDK re-entered `GetTargetFrameworks` for Desktop project references and attempted to resolve workload SDK locators that are not installed on the build host. Both Desktop references are known single-target projects, so this negotiation was redundant for publish.
+- Implementation: added `SkipGetTargetFrameworkProperties=true` metadata to the `AegisWAF.Client` and `AegisWAF.Gateway` project references in `src/AegisWAF.Desktop/AegisWAF.Desktop.csproj`. This is build/publish reliability only; it does not remove or change runtime modules.
+- Verification: before the change, publish reproduced `MSB4276` and exited `1`; after the change, publish with `--no-restore --disable-build-servers -m:1` exited `0` and produced `AegisWAF.exe` in a clean test publish directory. Desktop compilation also completed with 0 warnings and 0 errors.
+- Environment boundary: the standard VSTest full regression attempt did not produce counters because the testhost failed to connect after 90 seconds; a retry with `VSTEST_CONNECTION_TIMEOUT=300` remained blocked at host startup and was stopped. This is recorded as test-environment evidence, not a passing regression claim; the previously recorded `497/497` local regression remains the latest complete regression evidence for runtime changes.
+- Current module state: Module 40 = 100%, Module 41 = 90%, Module 42 = 100%, Module 43 = 100%, Module 44 = 100%, Module 45 = 100%, Module 46 = 100%, Module 47 = 100%, Module 48 = 100%, Module 49 = 100%, Module 50 = 100%, Module 51 = 100%, Module 52 = 100%, Module 53 = 100%, Module 54 = 100%, Module 55 = 100%, Module 56 = 100%, Module 57 = 100%, Module 58 = 100%, Module 59 = 100%, Module 60 = 90%, Module 61 = 100%, Module 62 = 100%, Module 63 = 100%, Module 64 = 100%.
+
+### Published EXE verification — 2026-10-27
+
+- Scope: publish จาก source ปัจจุบัน commit `f688fc538ff8560db33b8bd4545b1ba0fd3dada1`; runtime artifact รวมความสามารถของโมดูลที่เสร็จแล้ว ส่วน Module 41/60 ที่ยังรอ GitHub Code scanning เป็นหลักฐาน CI ภายนอกไม่ได้ถูกอ้างว่าเสร็จ 100% และไม่ได้เป็น runtime feature ที่ต้องตัดออกจาก EXE.
+- Command: `dotnet publish src/AegisWAF.Desktop/AegisWAF.Desktop.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true --no-restore --disable-build-servers -m:1`.
+- Artifact: `D:\AegisWAF\dist\AegisWAF-Desktop\AegisWAF.exe`, self-contained `win-x64`, single-file, 170,608,491 bytes.
+- SHA-256: `F8D02785A03C88AE735E5ABC8B29EB1F3AC2D2ED2C7579F5D33CC15C7E6CE0A9`.
+- Verification: PE header `MZ`; release manifest verifier passed with 7 files, source commitตรงกับ publish commit, `signed=false`, และ `workingTreeClean=false` เพราะการแก้ publish reliability กับ handoff ยังไม่ได้ commit เนื่องระบบป้องกัน `.git/index.lock`. Writer/verifier tamper tests ผ่าน.
+
 ### Module 63 final progress record — 2026-10-27
 
 - Before: 0%; After: 100%; Target: 100%.
@@ -1689,3 +1723,120 @@
 - P0: Module 41/60 still require repository owner to enable GitHub Code scanning/Advanced Security, then rerun Hosted Security Verification and confirm SARIF upload.
 - P1: authenticated published-EXE Multi-Site smoke with operator take-over only at login, approved Authenticode signing, external SIEM delivery/retention, DNS-rebinding, penetration, load, SLO/capacity, and incident-response evidence.
 - P2: MFA/WebAuthn/OIDC, per-Site WAF policy versioning, and independent OWASP CRS corpus benchmarking.
+
+### Authoritative continuation state — 2026-10-27
+
+- Latest completed module: Module 70 = 100% (regex cold-start stability under hosted runner load); evidence is `artifacts/module-verification/module70-regex-cold-start-stability.json`.
+- Latest release artifact: `D:\AegisWAF\dist\AegisWAF-Desktop\AegisWAF.exe`, SHA-256 `76CBEF9788A902C41636E0EBF884A570C8CC810BEA5143AF8AED0C8AE90F209F`.
+- Remaining incomplete gates: Module 41 = 90% and Module 60 = 90%, both waiting for the external GitHub Code scanning/Advanced Security repository setting and a Hosted SARIF-upload pass.
+- Next development target: inspect and close the remaining Hosted CodeQL/SARIF gates if repository permissions allow; otherwise preserve them as explicit external blockers and continue the authenticated Multi-Site smoke after operator takeover.
+
+### Published EXE artifact refresh — 2026-10-27
+
+- Scope: republished the current source tree for the completed runtime work. The .NET executable is built from the solution as a whole; Module 41/60 remain external evidence gates at 90% and are not claimed complete by this artifact.
+- Command: `dotnet publish src/AegisWAF.Desktop/AegisWAF.Desktop.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o D:\AegisWAF\dist\AegisWAF-Desktop --no-restore --disable-build-servers -m:1`.
+- Artifact: `D:\AegisWAF\dist\AegisWAF-Desktop\AegisWAF.exe`, self-contained `win-x64`, single-file, 170,608,491 bytes.
+- SHA-256: `F8D02785A03C88AE735E5ABC8B29EB1F3AC2D2ED2C7579F5D33CC15C7E6CE0A9`.
+- Fresh verification: release manifest regenerated with `files=4`, verifier `passed=true`, PE header `MZ`, `signed=false`, source commit `f688fc538ff8560db33b8bd4545b1ba0fd3dada1`, and `git diff --check` passed.
+
+### Module 66 final progress record — 2026-10-27
+
+- Before: 0%; After: 100%; Target: 100%.
+- Opportunity/root cause: the Multi-Site browser table preferred historical `summary.alertState` over the live `site.health`, so an upstream that was healthy could remain visually `วิกฤต` because of older failed probes.
+- TDD RED: `UiContractTests` failed because the UI had no `liveHealth`/`historicalAlert` precedence contract.
+- Implementation: `src/AegisWAF.Gateway/wwwroot/assets/app.js` now keeps `pending-restart` highest priority, treats live healthy as `ปกติ` or `กู้คืนแล้ว` when historical degraded/critical evidence exists, and uses historical alert state only when the live state is not healthy. Historical data is preserved.
+- Verification: focused in-process xUnit `UiContractTests` + `SiteHealthTrendTests` passed 19/19; JavaScript `node --check` passed; extracted behavior cases passed 3/3; solution Release build passed with 0 warnings/0 errors; `git diff --check` passed.
+- Evidence: `artifacts/module-verification/module66-multisite-live-health-display.json`.
+- Boundary: this is an operator-facing display correction; it does not change upstream probes, route activation, stored health history, or WAF decisions.
+
+### Opportunity audit after Module 66 — 2026-10-27
+
+- P0: Module 41/60 remain 90% until the repository owner enables GitHub Code scanning/Advanced Security and a Hosted SARIF-upload run passes.
+- P1: authenticated published-EXE Multi-Site smoke still requires operator takeover at login; approved Authenticode signing, external SIEM delivery/retention, DNS-rebinding, penetration, load, SLO/capacity, and incident-response evidence remain external gates.
+- P2: MFA/WebAuthn/OIDC, per-Site WAF policy versioning, and independent OWASP CRS corpus benchmarking remain candidates.
+- Current completed runtime/UI modules include Module 65 = 100% and Module 66 = 100%; do not claim the external gates as complete.
+
+### Published EXE after Module 66 — 2026-10-27
+
+- Command: `dotnet publish src/AegisWAF.Desktop/AegisWAF.Desktop.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o D:\AegisWAF\dist\AegisWAF-Desktop --no-restore --disable-build-servers -m:1`.
+- Artifact: `D:\AegisWAF\dist\AegisWAF-Desktop\AegisWAF.exe`, `win-x64`, self-contained, single-file, 170,608,491 bytes.
+- SHA-256: `ECACB2E403580AAD0FD1F28E6F5F6C291602BC39E9A0F2E1C8AF09D644B8E372`.
+- Verification: manifest verifier `passed=true`, 7 files, PE header `MZ`, `signed=false`, source commit `f688fc538ff8560db33b8bd4545b1ba0fd3dada1`, and `workingTreeClean=false` because the current module/handoff edits are not committed.
+
+### Module 67 final progress record — 2026-10-27
+
+- Before: 0%; After: 100%; Target: 100%.
+- Opportunity: the `Authoritative continuation state` block lagged behind Module 66 and the latest published artifact, risking stale continuation work.
+- Implementation: updated that single authoritative block to Module 66, its evidence file, the current release SHA-256, and the next-target wording; historical records remain intact.
+- Verification: authoritative block matches Module 66 evidence and current release hash; `git diff --check` passed.
+- Evidence: `artifacts/module-verification/module67-handoff-authoritative-state.json`.
+- Boundary: this is a handoff/verification consistency improvement; it does not alter runtime behavior.
+
+### Module 68 final progress record — 2026-10-27
+
+- Before: 0%; After: 100%; Target: 100%.
+- Opportunity: the module verifier called VSTest directly, but this environment has intermittent testhost connection failures; valid local tests could be reported as unverified for infrastructure reasons.
+- TDD RED: verifier contract failed because `Invoke-InProcClassTests.ps1` was missing and test gates were not required to use it.
+- Implementation: added `tools/module-verification/Invoke-InProcClassTests.ps1`, normalized comma-separated class names, and migrated manifest test gates to the in-process xUnit runner. The existing verifier remains bounded and records non-zero outcomes.
+- Verification: verifier contract passed; multi-class wrapper run passed 43/43; `desktop-ui` module verifier passed 100% (4/4 gates); `waf-engine` reached 75% because `EngineUpgradeTests` passed 22/22 but PostgreSQL-dependent `CatalogVerificationTests` could not connect to `127.0.0.1:5432`. The database failure remains explicitly unverified/failed and is not converted into a pass.
+- Evidence: `artifacts/module-verification/module68-deterministic-inproc-module-verifier.json`.
+- Boundary: Module 68 improves verification determinism only; it does not replace PostgreSQL, Hosted CI, or external security evidence.
+
+### Opportunity audit after Module 68 — 2026-10-27
+
+- P0: Start/restore the authorized PostgreSQL test service and rerun all database-dependent gates; do not reuse the failed 127.0.0.1:5432 result as success.
+- P0: Module 41/60 still wait for GitHub Code scanning/Advanced Security and a Hosted SARIF-upload pass.
+- P1: authenticated published-EXE Multi-Site smoke still needs operator takeover at login; external Authenticode, SIEM, DNS-rebinding, penetration, load, SLO/capacity, and incident-response evidence remain open.
+- Current completed modules: Module 66 = 100%, Module 67 = 100%, Module 68 = 100% for their defined gates.
+
+### Module 69 final progress record — 2026-10-27
+
+- Before: 75%; After: 100%; Target: 100%.
+- Opportunity: Module 68 correctly left `waf-engine` at 75% because `CatalogVerificationTests` had no authorized PostgreSQL listener; the gate needed a real database-backed rerun rather than a skipped or assumed pass.
+- Implementation: started an isolated PostgreSQL 18 test cluster on `127.0.0.1:55432`, reran the deterministic in-process module verifier, then stopped the cluster and removed only `artifacts/module68-postgres`. No existing service or port 5432 was modified.
+- Verification: `waf-engine` verifier passed 4/4 gates; Gateway build 0 warnings/0 errors; `EngineUpgradeTests` 22/22; `CatalogVerificationTests` 5/5; documentation contract passed; module result `percentage=100`, `exitCode=0`.
+- Evidence: `artifacts/module-verification/module69-waf-engine-database-gate.json` and `artifacts/module-verification/waf-engine-pg55432/20261027-092754344.json`.
+- Boundary: local database-dependent verification is complete. Module 41/60 still require repository-level GitHub Code scanning/Advanced Security and Hosted SARIF evidence; production external security gates remain open.
+
+### Opportunity audit after Module 69 — 2026-10-27
+
+- P0: Module 41/60 are the only tracked module gates below 100% (90% each); they require GitHub repository Code scanning/Advanced Security enablement and a fresh Hosted SARIF-upload pass.
+- P1: authenticated published-EXE Multi-Site smoke after operator login, approved Authenticode signing, external SIEM delivery/retention, DNS-rebinding, penetration, load, SLO/capacity, and incident-response evidence remain open.
+- P2: MFA/WebAuthn/OIDC, per-Site WAF policy versioning, and independent OWASP CRS corpus benchmarking remain future opportunities.
+- Current completed modules: Module 65 = 100%, Module 66 = 100%, Module 67 = 100%, Module 68 = 100%, Module 69 = 100% for their defined gates.
+
+### Module 70 final progress record — 2026-10-27
+
+- Before: 0%; After: 100%; Target: 100%.
+- Opportunity/root cause: Hosted Security Verification run `40434729571` had 1 failure in `497` tests: benign `<!DOCTYPE html><p>hi</p>` was reported as `Inspection Timeout`. Built-in regexes compiled lazily and could spend the 100ms pattern timeout during cold start on a busy runner.
+- TDD/verification: the existing `Documented_bypasses_for_the_new_classes_pass` test is the regression contract; hosted run supplied the red evidence. After implementation, focused VSTest passed `30/30`, deterministic in-process `EngineUpgradeTests` passed `22/22`, and solution Release build passed with `0 warnings/0 errors`.
+- Implementation: added `RegexOptions.Compiled` to the built-in security, anomaly, and response-inspection regex factories. `NonBacktracking`, invariant matching, bounded timeout, and fail-closed handling remain unchanged.
+- Release: republished `D:\AegisWAF\dist\AegisWAF-Desktop\AegisWAF.exe`, self-contained `win-x64` single-file, `170,608,491` bytes, SHA-256 `76CBEF9788A902C41636E0EBF884A570C8CC810BEA5143AF8AED0C8AE90F209F`; manifest verifier passed with PE header `MZ`.
+- Evidence: `artifacts/module-verification/module70-regex-cold-start-stability.json`.
+- Boundary: fresh Hosted rerun is still required after the updated branch is pushed; Module 41/60 remain 90% until Code scanning/Advanced Security and Hosted SARIF evidence pass.
+
+### Opportunity audit after Module 70 — 2026-10-27
+
+- P0: push the current branch and obtain a fresh Hosted Security Verification run. Confirm CodeQL preflight, full regression counters, SARIF upload, and release provenance rather than reusing run `40434729571`.
+- P1: authenticated published-EXE Multi-Site smoke after operator login, approved Authenticode signing, external SIEM delivery/retention, DNS-rebinding, penetration, load, SLO/capacity, and incident-response evidence remain open.
+- P2: MFA/WebAuthn/OIDC, per-Site WAF policy versioning, and independent OWASP CRS corpus benchmarking remain future opportunities.
+- Current completed modules: Module 65 = 100%, Module 66 = 100%, Module 67 = 100%, Module 68 = 100%, Module 69 = 100%, Module 70 = 100% for their defined gates.
+
+### External Hosted gate audit after Module 70 — 2026-10-27
+
+- Current local HEAD and remote branch `codex/modular-development-handoff` are both `f688fc538ff8560db33b8bd4545b1ba0fd3dada1`; the Module 70 changes are still only in the worktree and have no Hosted run yet.
+- GitHub repository metadata confirms `devmoobin-oss/AegisWAF` is private and the connected account has `admin`, `maintain`, and `push` permission. The GitHub connector exposes read/write Git data and Actions operations but no direct repository Code scanning/Advanced Security enablement operation.
+- Latest authoritative Hosted evidence remains run `40434729571` (`run_number=8`): CodeQL failed at the fail-closed preflight because Code scanning/Advanced Security was unavailable; the .NET job had `496/497` with the cold-start timeout failure that Module 70 addresses.
+- Module 41 and Module 60 therefore remain `90%` by evidence, not by assumption. Required next proof is a new commit/Hosted run containing Module 70, repository Code scanning enabled, CodeQL SARIF upload/status success, and full regression counters.
+- No repository setting was changed by this audit.
+
+### Published EXE — completed modules scope — 2026-10-27
+
+- Scope: publish จาก source ปัจจุบันเพื่อส่งมอบ runtime ของโมดูลที่เสร็จแล้วตามหลักฐานใน `handoff.md`; ไม่ตัดโค้ด runtime ออกจาก EXE ตามสถานะ external evidence gate เพราะ .NET publish เป็นการสร้างแอปทั้งชุด ไม่ใช่การแยก executable ต่อโมดูล.
+- Completed runtime/UI scope included: Module 65 = 100%, Module 66 = 100%, Module 67 = 100%, Module 68 = 100% ตามขอบเขตของแต่ละโมดูล.
+- Explicit incomplete gates not claimed complete by this publish: Module 41 = 90% และ Module 60 = 90% ซึ่งยังรอ GitHub Code scanning/Advanced Security และ Hosted SARIF-upload pass; database-dependent WAF-engine gate ยังต้องมี PostgreSQL test service เพื่อ rerun.
+- Command: `dotnet publish src/AegisWAF.Desktop/AegisWAF.Desktop.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o dist/AegisWAF-Desktop --no-restore --disable-build-servers -m:1`.
+- Artifact: `D:\AegisWAF\dist\AegisWAF-Desktop\AegisWAF.exe`, `win-x64`, self-contained, single-file, 170,608,491 bytes.
+- SHA-256: `ECACB2E403580AAD0FD1F28E6F5F6C291602BC39E9A0F2E1C8AF09D644B8E372`.
+- Verification: release manifest verifier passed (`files=4`, `signed=false`, PE header `MZ`); writer test passed; tamper/extra-file verifier tests passed; `git diff --check` passed.
+- Source provenance: commit `f688fc538ff8560db33b8bd4545b1ba0fd3dada1`; `workingTreeClean=false` เนื่องมีการแก้ไขโมดูล/เครื่องมือ/เอกสารที่ยังไม่ได้ commit.

@@ -146,12 +146,19 @@ async function loadSitesCrud(){
     if(state==='invalid')return 'ตั้งค่า Site หรือ upstream ไม่ถูกต้อง';
     return site?.pendingRestart?'runtime ยังไม่รับค่า Site ล่าสุด':'ยังไม่มีข้อมูลสรุปสถานะ';
   };
+  const displayHealthState=(site,summary)=>{
+    if(site?.pendingRestart)return 'pending-restart';
+    const liveHealth=String(site?.health||'unknown').toLowerCase();
+    const historicalAlert=String(summary?.alertState||'').toLowerCase();
+    if(liveHealth==='healthy')return historicalAlert==='critical'||historicalAlert==='degraded'||summary?.recoveryState==='recovered'?'recovered':'healthy';
+    return historicalAlert||liveHealth||'unknown';
+  };
   const reset=()=>{editing=null;editingVersion=null;$('siteForm').reset();$('sitePath').value='/';$('sitePolicy').value='default';$('siteId').readOnly=false;$('siteSubmit').textContent='เพิ่ม Site';$('siteCancel').hidden=true;status('เพิ่ม Site ใหม่ หรือเลือก “แก้ไข” จากตาราง ระบบจะตรวจสอบและเปิดใช้งาน route ให้ทันทีเมื่อบันทึกสำเร็จ');};
   const render=items=>{
     siteMap=new Map(items.map(item=>[item.siteId,item]));
     $('siteTable').innerHTML=items.map(site=>{
       const upstreams=(site.upstreams||[]).map(up=>`${escapeHtml(up.address||`${up.scheme}://${up.id}:${up.port}/`)} (${escapeHtml(up.health)})`).join('<br>');
-      const summary=summaryMap.get(site.siteId),state=site.pendingRestart?'pending-restart':(summary?.recoveryState==='recovered'?'recovered':summary?.alertState||site.health),label=healthLabel(state),explanation=healthExplanation(state,summary,site);
+      const summary=summaryMap.get(site.siteId),state=displayHealthState(site,summary),label=healthLabel(state),explanation=healthExplanation(state,summary,site);
       return `<tr><td>${escapeHtml(site.siteId)}</td><td>${escapeHtml((site.hostnames||[]).join(', '))}</td><td>${upstreams}</td><td><span class="site-health-state site-health-${escapeHtml(String(state))}" title="${escapeHtml(explanation)}">${escapeHtml(label)}</span><small class="site-health-explanation">${escapeHtml(explanation)}</small></td><td>${escapeHtml(site.wafPolicy)}</td><td><button type="button" data-site-health="${escapeHtml(site.siteId)}">เช็ค Healthy</button> <button type="button" data-site-edit="${escapeHtml(site.siteId)}">แก้ไข</button> <button type="button" class="danger" data-site-delete="${escapeHtml(site.siteId)}">ลบ</button></td></tr>`;
     }).join('')||'<tr><td colspan="6" class="empty">ยังไม่มี Site ที่กำลังทำงาน</td></tr>';
   };
