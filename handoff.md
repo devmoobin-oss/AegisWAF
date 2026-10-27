@@ -3342,11 +3342,20 @@
 - Boundary: live PostgreSQL endpoint serialization, authenticated browser/published-EXE smoke, visual responsive verification, full VSTest testhost connectivity, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification remain unverified.
 - Source commit: `bfb2914`.
 
+### Published EXE — Module 130 completed modules bundle — 2026-10-28
+
+- Scope: published the completed-modules bundle through Module 130 only; incomplete modules and external gates were not promoted.
+- Publish configuration: `Release`, `win-x64`, self-contained, single-file, `net10.0-windows`.
+- Artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`, SHA-256 `B6CF3537F34829DCCDEFEC5C35DAC84B103E3784B886F19DB91877C62349E1C3`, `170,657,643` bytes.
+- Source commit at publish time: `06f37444eea9fbfbda8d649b7a2cbbc8a64eef5a`.
+- Verification: PE header `MZ`; release manifest verification passed (`files=6`, `signed=false`, `workingTreeClean=true`).
+- Boundary: this artifact is not Authenticode-signed and does not claim live PostgreSQL endpoint serialization, authenticated browser/published-EXE smoke, visual responsive verification, whole-console premium audit, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, or production certification.
+
 ### Current handoff pointer — 2026-10-28 (after Module 130)
 
 - This is the authoritative continuation block. Read this block before starting further work; older historical records above are retained for audit only.
 - Latest completed modules: Module 130 = 100%; Module 129 = 100%; Module 128 = 100%; Module 127 = 100%; Module 126 = 100%; Module 125 = 100%; Module 124 = 100%; Module 123 = 100%; Module 122 = 100%; Module 121 = 100%; Module 120 = 100%; Module 119 = 100%; Module 118 = 100%; Module 117 = 100%; Module 116 = 100%; Module 115 = 100%; Module 114 = 100%; Module 113 = 100%; Module 112 = 100%; Module 111 = 100%; Module 110 = 100%; Module 109 = 100%; Module 108 = 100%; Module 107 = 100%; Module 106 = 100%; Module 105 = 100%; Module 104 = 100%; Module 103 = 100%; Module 102 = 100%; Module 101 = 100%; Module 100 = 100%; Module 99 = 100%; Module 98 = 100%; Module 97 = 100%; Module 96 = 100%; Module 95 = 100%; Module 94 = 100%; Module 93 = 100%; Module 92 = 100%; Module 91 = 100%; Module 90 = 100%; Module 89 = 100%; Module 88 = 100%; Module 87 = 100%; Module 86 = 100%; Module 85 = 100%; Module 84 = 100%; Module 83 = 100%; Module 82 = 100%; Module 81 = 100%; Module 80 = 100%; Module 79 = 100%; Module 78 = 100%; Module 77 = 100%; Module 76 = 100%; Module 75 = 100%; Module 74 = 100%; Module 73 = 100%; Module 72 = 100%.
-- Latest artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`; SHA-256 `CB41642F88024BC5D26416308B71E8F2E9E368982D2BE225CEE996CBD0B3B593`; source commit `34f1a0a37152ae6f4fa98e61197bcc9dbdb74514`.
+- Latest artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`; SHA-256 `B6CF3537F34829DCCDEFEC5C35DAC84B103E3784B886F19DB91877C62349E1C3`; source commit `06f37444eea9fbfbda8d649b7a2cbbc8a64eef5a`.
 - Latest Hosted evidence remains run `40445541235`, full regression `509/509`, `TRX_REGRESSION_PASS`; Module 41 = 90% and Module 60 = 90% pending GitHub Code scanning/Advanced Security and fresh Hosted SARIF evidence.
 - Local PostgreSQL-dependent integration, duplicate-hostname execution, concurrent multi-instance mutation, authenticated browser/published-EXE smoke, full VSTest testhost connectivity, visual responsive verification, and whole-console premium UI audit gates remain unverified when their external services/credentials or baseline tooling are unavailable.
-- Next action: publish and verify the completed Module 130 bundle, then audit and implement the next concrete Multi-Site hardening opportunity while preserving the 0% → 100% progress record, evidence file, artifact pointer, and stated verification boundary.
+- Next action: audit and implement the next concrete Multi-Site hardening opportunity while preserving the 0% → 100% progress record, evidence file, artifact pointer, and stated verification boundary.
