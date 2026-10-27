@@ -203,4 +203,4 @@ async function loadSitesCrud(){
   },{signal:eventController.signal});
   try{await load();}catch(error){status('โหลดรายการ Site ไม่สำเร็จ: '+error.message,'error');}
 }
-const loadSectionWithSiteCrud=loadSection;loadSection=async function(){if(active==='sites'){await loadSitesCrud();return;}await loadSectionWithSiteCrud();};
+const loadSectionWithSiteCrud=loadSection;loadSection=async function(){if(active==='sites'){await loadSitesCrud();return;}siteViewAbortController?.abort();siteViewAbortController=null;siteViewGeneration++;await loadSectionWithSiteCrud();};
