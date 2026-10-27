@@ -40,7 +40,8 @@ public sealed record SiteCreateDto(string Id, string[] Hostnames, string[] PathP
 public sealed record SiteHealthUpstreamDto(string Id, string Address, string Health, string? Reason = null);
 public sealed record SiteHealthCheckDto(string SiteId, string Health, bool PendingRestart, DateTimeOffset CheckedAt, SiteHealthUpstreamDto[] Upstreams,
     bool Fresh = false, string Source = "yarp-runtime-state", DateTimeOffset? LastProbeAt = null,
-    long Version = 1, long? ActiveVersion = null, string ActivationStatus = "active", string Etag = "\"1\"");
+    long Version = 1, long? ActiveVersion = null, string ActivationStatus = "active", string Etag = "\"1\"",
+    bool? HistoryPersisted = null, string? HistoryRetention = null);
 public sealed record SiteHealthObservationDto(string UpstreamId, string Health, string? Reason, DateTimeOffset CheckedAt);
 public sealed record SiteHealthHistoryDto(string SiteId, string Retention, int MaxObservationsPerSite, SiteHealthObservationDto[] Observations);
 public sealed record SiteHealthTrendDto(string SiteId, int WindowSize, int Total, int Healthy, int Unhealthy, int Unknown,

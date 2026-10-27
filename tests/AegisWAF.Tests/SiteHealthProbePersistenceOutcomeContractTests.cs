@@ -32,6 +32,18 @@ public sealed class SiteHealthProbePersistenceOutcomeContractTests
         Assert.Contains("ยังบันทึกประวัติ Health ไม่ได้", sites, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Desktop_health_probe_warns_when_the_result_was_not_persisted()
+    {
+        var root = FindRepoRoot();
+        var models = File.ReadAllText(Path.Combine(root, "src", "AegisWAF.Client", "Models.cs"), Encoding.UTF8);
+        var desktop = File.ReadAllText(Path.Combine(root, "src", "AegisWAF.Desktop", "Views", "SitesView.xaml.cs"), Encoding.UTF8);
+
+        Assert.Contains("bool? HistoryPersisted = null", models, StringComparison.Ordinal);
+        Assert.Contains("result.HistoryPersisted", desktop, StringComparison.Ordinal);
+        Assert.Contains("ยังบันทึกประวัติ Health ไม่ได้", desktop, StringComparison.Ordinal);
+    }
+
     private static string FindRepoRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

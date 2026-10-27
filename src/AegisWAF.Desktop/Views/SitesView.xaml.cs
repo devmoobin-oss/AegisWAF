@@ -305,11 +305,12 @@ public partial class SitesView : UserControl, IPage
             var result = await _api.CheckSiteHealthAsync(row.Site.SiteId);
             await RefreshListAsync(false);
             var suffix = result.PendingRestart ? " — route ยังไม่ active โปรดตรวจสอบสถานะ Gateway" : "";
+            var persistenceSuffix = result.HistoryPersisted == false ? " — ตรวจสอบแล้วแต่ยังบันทึกประวัติ Health ไม่ได้" : "";
             var reasons = string.Join(", ", result.Upstreams
                 .Where(x => !string.IsNullOrWhiteSpace(x.Reason))
                 .Select(x => $"{x.Id}: {x.Reason}"));
             var reasonSuffix = reasons.Length == 0 ? "" : $" — เหตุผล: {reasons}";
-            Show($"ตรวจสอบ {result.SiteId}: {result.Health}{reasonSuffix}{suffix}", result.Health == "healthy");
+            Show($"ตรวจสอบ {result.SiteId}: {result.Health}{reasonSuffix}{persistenceSuffix}{suffix}", result.Health == "healthy" && result.HistoryPersisted != false);
         }
         catch (ApiException ex) { Show(Ui.Describe(ex), false); }
         finally { button.IsEnabled = true; }
