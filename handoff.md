@@ -1980,3 +1980,27 @@
 - Latest published artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-Module74\AegisWAF.exe`, SHA-256 `2D28E5E989740DA20F8449761A09023F9DBE9E8220CDEB24011DDD0495164957`.
 - Remaining incomplete gates: Module 41 = 90% and Module 60 = 90% (repository Code scanning/Advanced Security and Hosted SARIF evidence).
 - Next continuation action: enable repository Code scanning/Advanced Security if approved and rerun Hosted Security Verification; preserve the Module74 artifact unless runtime code changes.
+
+### Module 76 final progress record — 2026-10-27
+
+- Before: 0%; After: 100%; Target: 100%.
+- Opportunity: `docs/SECURITY_ASSESSMENT.md` presented a historical local result of 328 tests as the latest dependency/tooling evidence, while the newer Hosted Security Verification evidence was not recorded there.
+- TDD RED: the new documentation contract compiled, but the local VSTest host timed out before connecting; this was recorded as infrastructure-unverified rather than as an assertion failure.
+- Implementation: added a Latest Hosted Security Verification section with run `40443868707`, commit `9ce2c7564dc80343326323a53d6bb287476c62eb`, exact TRX counters, green supporting gates, and the explicit CodeQL/SARIF boundary; relabeled the 328-test result as historical. Added `SecurityAssessmentDocumentationTests` to prevent the evidence from becoming stale again.
+- Verification: Hosted `.NET tests and dependency audit` passed **505/505**, `TRX_COUNTERS total=505 executed=505 passed=505 failed=0 skipped=0`, and `TRX_REGRESSION_PASS`; dependency audit, SBOM, Secret scan, and Direct-origin guardrail passed. Release build passed 0 warnings/0 errors and `git diff --check` passed.
+- Artifact boundary: documentation/tests only; no runtime publish was required. The validated Module74 EXE remains the current distributable.
+- Evidence: `artifacts/module-verification/module76-security-assessment-evidence-freshness.json`.
+- Boundary: this aligns evidence freshness and reporting; it does not claim independent penetration testing, local SAST availability, CodeQL success, or production certification.
+
+### Opportunity audit after Module 76 — 2026-10-27
+
+- P0: Module 41/60 remain at 90% pending repository Code scanning/Advanced Security enablement and a fresh successful SARIF upload/status.
+- P1: provision least-privilege PostgreSQL role in the deployment environment, external SIEM delivery/retention, authenticated published-EXE Multi-Site smoke, Authenticode signing, DNS-rebinding, penetration, load, SLO/capacity, and incident-response evidence remain external/deployment gates.
+- P2: after external gates are resolved, continue auditing Multi-Site policy versioning, MFA/WebAuthn/OIDC, and independent OWASP CRS corpus benchmarking.
+
+### Authoritative continuation state — 2026-10-27 (latest after Module 76)
+
+- Latest local/Hosted module progress: Module 76 = 100%; Module 75 = 100%; Module 74 = 100%; Module 73 = 100%; Module 72 = 100%.
+- Latest published artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-Module74\AegisWAF.exe`, SHA-256 `2D28E5E989740DA20F8449761A09023F9DBE9E8220CDEB24011DDD0495164957`.
+- Remaining incomplete gates: Module 41 = 90% and Module 60 = 90% (repository Code scanning/Advanced Security and Hosted SARIF evidence).
+- Next continuation action: enable repository Code scanning/Advanced Security if approved and rerun Hosted Security Verification; preserve the Module74 artifact because Module76 changed documentation/tests only.

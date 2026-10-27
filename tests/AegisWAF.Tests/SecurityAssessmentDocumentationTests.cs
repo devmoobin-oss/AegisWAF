@@ -9,8 +9,8 @@ public sealed class SecurityAssessmentDocumentationTests
         var document = File.ReadAllText(Path.Combine(root, "docs", "SECURITY_ASSESSMENT.md"));
 
         Assert.Contains("Latest Hosted Security Verification evidence", document, StringComparison.Ordinal);
-        Assert.Contains("40442770291", document, StringComparison.Ordinal);
-        Assert.Contains("TRX_COUNTERS total=504 executed=504 passed=504 failed=0 skipped=0", document, StringComparison.Ordinal);
+        Assert.Contains("40443868707", document, StringComparison.Ordinal);
+        Assert.Contains("TRX_COUNTERS total=505 executed=505 passed=505 failed=0 skipped=0", document, StringComparison.Ordinal);
         Assert.Contains("Code scanning/Advanced Security", document, StringComparison.Ordinal);
         Assert.Contains("SARIF", document, StringComparison.Ordinal);
         Assert.Contains("not a CodeQL pass", document, StringComparison.OrdinalIgnoreCase);
