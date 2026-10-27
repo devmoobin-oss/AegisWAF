@@ -216,6 +216,17 @@ public static class GatewayApp
                 ["traceId"] = ctx.TraceIdentifier
             });
 
+    private static IResult SiteMutationBusy(HttpContext ctx) =>
+        Results.Problem(
+            statusCode: StatusCodes.Status503ServiceUnavailable,
+            title: "Site mutation busy",
+            detail: "Another Site change is still in progress. Retry the operation after it completes.",
+            extensions: new Dictionary<string, object?>
+            {
+                ["code"] = "site_mutation_busy",
+                ["traceId"] = ctx.TraceIdentifier
+            });
+
     private static IResult SiteRuntimeActivationFailed(HttpContext ctx, string operation) =>
         Results.Problem(
             statusCode: StatusCodes.Status503ServiceUnavailable,
@@ -770,6 +781,8 @@ public static class GatewayApp
         }
         catch (SiteHostnameConflictException)
         { return SiteHostnameConflict(ctx); }
+        catch (SiteMutationLockTimeoutException)
+        { return SiteMutationBusy(ctx); }
         catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
         { return SiteDatabaseUnavailable(ctx, "saved", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
     }).Require(Roles.SecurityAdmin);
@@ -828,6 +841,8 @@ public static class GatewayApp
         }
         catch (SiteHostnameConflictException)
         { return SiteHostnameConflict(ctx); }
+        catch (SiteMutationLockTimeoutException)
+        { return SiteMutationBusy(ctx); }
         catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
         { return SiteDatabaseUnavailable(ctx, "updated", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
     }).Require(Roles.SecurityAdmin);
@@ -854,6 +869,8 @@ public static class GatewayApp
             catch (SiteRuntimeActivationException)
             { return SiteRuntimeActivationFailed(ctx, "deleted"); }
         }
+        catch (SiteMutationLockTimeoutException)
+        { return SiteMutationBusy(ctx); }
         catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
         { return SiteDatabaseUnavailable(ctx, "deleted", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
     }).Require(Roles.SecurityAdmin);

@@ -34,13 +34,23 @@ public sealed class SiteDatabaseStore(IConfiguration configuration)
     public async Task<IAsyncDisposable> AcquireSiteMutationLockAsync(CancellationToken ct)
     {
         var db = await OpenAsync(ct);
+        using var budget = SiteMutationLockPolicy.CreateBudget(ct);
         try
         {
-            await using var command = new NpgsqlCommand(
-                "SELECT pg_advisory_lock(hashtextextended(@lock_key, 0))", db);
-            command.Parameters.AddWithValue("lock_key", SiteMutationLockKey);
-            await command.ExecuteScalarAsync(ct);
-            return new SiteMutationLockLease(db);
+            while (true)
+            {
+                await using var command = new NpgsqlCommand(
+                    "SELECT pg_try_advisory_lock(hashtextextended(@lock_key, 0))", db);
+                command.Parameters.AddWithValue("lock_key", SiteMutationLockKey);
+                if (Convert.ToBoolean(await command.ExecuteScalarAsync(budget.Token)))
+                    return new SiteMutationLockLease(db);
+                await Task.Delay(SiteMutationLockPolicy.PollInterval, budget.Token);
+            }
+        }
+        catch (OperationCanceledException) when (SiteMutationLockPolicy.IsBudgetCancellation(ct, budget.Token))
+        {
+            await db.DisposeAsync();
+            throw new SiteMutationLockTimeoutException();
         }
         catch
         {
