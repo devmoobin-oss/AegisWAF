@@ -2601,11 +2601,32 @@
 - Local PostgreSQL-dependent integration, duplicate-hostname execution, concurrent multi-instance mutation, and authenticated published-EXE smoke gates remain unverified when their external services/credentials are unavailable.
 - Next action: audit and implement the next concrete Multi-Site hardening opportunity; preserve the 0% → 100% progress record, evidence file, artifact pointer, and stated verification boundary.
 
-### Current handoff pointer — 2026-10-27 (after Module 96)
+### Module 97 final progress record — 2026-10-27
+
+- Before: 0%; After: 100%; Target: 100% for the defined accessible browser Multi-Site Site-delete confirmation gates.
+- Opportunity/root cause: the browser Multi-Site delete action used native `window.confirm()`, which provided inconsistent localization and weak focus/keyboard behavior for an important destructive action.
+- TDD RED: `BrowserMultiSiteDeleteDialogContractTests` initially failed because `confirmSiteDelete` and the app-owned alert dialog contract did not exist.
+- Implementation: added an app-owned `role=alertdialog` with `aria-modal`, labelled description, explicit Cancel/Delete actions, Escape dismissal, Tab focus trapping, outside-click cancellation, focus restoration, and HTML escaping for the Site ID; the DELETE request starts only after explicit confirmation.
+- Verification: focused contract passed **1/1**; UI and relevant non-PostgreSQL Multi-Site regression passed **73/73** across 15 classes; native confirmation was absent from the Site workflow; Node syntax check passed; Release solution build passed **0 warnings / 0 errors**; `git diff --check` passed; Impeccable detector exited 0 with 4 pre-existing advisory browser-console color findings; release manifest passed with `files=6`, `signed=false`, `workingTreeClean=true`.
+- Premium audit boundary: strict audit reported 34 baseline findings with 2 unresolved, including pre-existing browser-console/select and legacy markup findings; whole browser-console strict-audit compliance is not claimed; report: `artifacts/module-verification/module97-premium-audit.json`.
+- Evidence: `artifacts/module-verification/module97-browser-multisite-delete-dialog.json`.
+- Source commit: `9045d70bb2e08e7bfa4d706ea7f5c70973f88301`.
+- Boundary: authenticated browser smoke, PostgreSQL runtime execution, duplicate-hostname execution, concurrent multi-instance mutation, whole-console premium audit, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification remain unverified.
+
+### Published EXE — Module 97 completed modules bundle — 2026-10-27
+
+- Scope: published the completed-modules bundle through Module 97 only; incomplete modules and external gates were not promoted.
+- Publish configuration: `Release`, `win-x64`, self-contained, single-file, `net10.0-windows`.
+- Artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`, SHA-256 `D2136B3F5C0499C1BA1C6009B23B93D122AFFC27E8A8FE0053B7ADEE90B11FAF`, `170,633,067` bytes.
+- Source commit at publish time: `9045d70bb2e08e7bfa4d706ea7f5c70973f88301`.
+- Verification: PE header `MZ`; release manifest verification passed with `files=6`, `signed=false`, `workingTreeClean=true`.
+- Boundary: this artifact is not Authenticode-signed and does not claim authenticated browser smoke, PostgreSQL integration, concurrent multi-instance mutation, whole-console premium audit, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, or production certification.
+
+### Current handoff pointer — 2026-10-27 (after Module 97)
 
 - This is the authoritative continuation block. Read this block before starting further work; older historical records above are retained for audit only.
-- Latest completed modules: Module 96 = 100%; Module 95 = 100%; Module 94 = 100%; Module 93 = 100%; Module 92 = 100%; Module 91 = 100%; Module 90 = 100%; Module 89 = 100%; Module 88 = 100%; Module 87 = 100%; Module 86 = 100%; Module 85 = 100%; Module 84 = 100%; Module 83 = 100%; Module 82 = 100%; Module 81 = 100%; Module 80 = 100%; Module 79 = 100%; Module 78 = 100%; Module 77 = 100%; Module 76 = 100%; Module 75 = 100%; Module 74 = 100%; Module 73 = 100%; Module 72 = 100%.
-- Latest artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`; SHA-256 `E3239FF2A103BE72C53424B2948ABEFE6032C59506AFDD6114F84996995CE2F4`; source commit `48ae45d7fb3d248a14777d348387a9809f2b023c`.
+- Latest completed modules: Module 97 = 100%; Module 96 = 100%; Module 95 = 100%; Module 94 = 100%; Module 93 = 100%; Module 92 = 100%; Module 91 = 100%; Module 90 = 100%; Module 89 = 100%; Module 88 = 100%; Module 87 = 100%; Module 86 = 100%; Module 85 = 100%; Module 84 = 100%; Module 83 = 100%; Module 82 = 100%; Module 81 = 100%; Module 80 = 100%; Module 79 = 100%; Module 78 = 100%; Module 77 = 100%; Module 76 = 100%; Module 75 = 100%; Module 74 = 100%; Module 73 = 100%; Module 72 = 100%.
+- Latest artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`; SHA-256 `D2136B3F5C0499C1BA1C6009B23B93D122AFFC27E8A8FE0053B7ADEE90B11FAF`; source commit `9045d70bb2e08e7bfa4d706ea7f5c70973f88301`.
 - Latest Hosted evidence remains run `40445541235`, full regression `509/509`, `TRX_REGRESSION_PASS`; Module 41 = 90% and Module 60 = 90% pending GitHub Code scanning/Advanced Security and fresh Hosted SARIF evidence.
 - Local PostgreSQL-dependent integration, duplicate-hostname execution, concurrent multi-instance mutation, authenticated browser/published-EXE smoke, and whole-console premium UI audit gates remain unverified when their external services/credentials or baseline cleanup are unavailable.
 - Next action: audit and implement the next concrete Multi-Site hardening opportunity; preserve the 0% → 100% progress record, evidence file, artifact pointer, and stated verification boundary.
