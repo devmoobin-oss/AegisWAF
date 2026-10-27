@@ -62,10 +62,21 @@ public sealed class SiteRuntimeChangeListener(
     private async Task ListenUntilDisconnectedAsync(string connectionString, CancellationToken ct)
     {
         await using var connection = new NpgsqlConnection(connectionString);
-        await connection.OpenAsync(ct);
+        using (var connectionBudget = SiteRuntimeListenerConnectionBudget.Create(ct))
+        {
+            try
+            {
+                await connection.OpenAsync(connectionBudget.Token);
+                await using var listen = new NpgsqlCommand($"LISTEN {SiteRuntimeChangeNotification.Channel};", connection);
+                await listen.ExecuteNonQueryAsync(connectionBudget.Token);
+            }
+            catch (OperationCanceledException) when (SiteRuntimeListenerConnectionBudget.IsBudgetCancellation(ct, connectionBudget.Token))
+            {
+                throw new TimeoutException("Site runtime listener connection setup exceeded its bounded window.");
+            }
+        }
+
         status.MarkConnected();
-        await using (var listen = new NpgsqlCommand($"LISTEN {SiteRuntimeChangeNotification.Channel};", connection))
-            await listen.ExecuteNonQueryAsync(ct);
 
         var wakeups = Channel.CreateBounded<bool>(new BoundedChannelOptions(32)
         {
