@@ -1,0 +1,29 @@
+{
+  "module": "Module 131",
+  "title": "Make committed Site mutations explicit when runtime activation fails",
+  "recordedAt": "2026-10-28",
+  "progress": {
+    "beforePercent": 0,
+    "afterPercent": 100,
+    "targetPercent": 100
+  },
+  "sourceCommit": "8345335",
+  "implementation": [
+    "Added mutationCommitted=true and activationStatus=pending-restart to runtime activation timeout/failure Problem Details after PostgreSQL persistence has completed.",
+    "Added structured browser error parsing and a committed-but-not-active UI state so operators are not told that the Site was never saved.",
+    "Reloaded the Multi-Site list after a committed activation failure so the persisted Site and pending runtime state become visible without a duplicate retry."
+  ],
+  "verification": {
+    "tddRed": "The new contracts initially failed because the Problem Details extensions and structured browser outcome handling did not exist.",
+    "focused": "2/2 passed",
+    "regressionWithoutPostgres": "123/123 passed across 56 classes",
+    "releaseBuild": "0 warnings / 0 errors",
+    "nodeSyntax": "passed",
+    "impeccableDetector": "0 anti-patterns; four pre-existing advisory design-system color findings remain in app.js",
+    "gitDiffCheck": "passed"
+  },
+  "boundary": [
+    "Live PostgreSQL mutation followed by runtime activation failure, authenticated browser/published-EXE smoke, and visual responsive verification remain externally unverified.",
+    "Full VSTest testhost connectivity, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification remain outside this local run."
+  ]
+}
