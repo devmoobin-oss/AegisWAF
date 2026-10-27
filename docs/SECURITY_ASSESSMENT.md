@@ -18,9 +18,15 @@ On 2026-10-19, the harness was run against a local raw-TCP synthetic upstream at
 
 A second 15-second run against the Gateway with the configured upstream intentionally unavailable completed with 92 requests, 76 WAF blocks (403), 16 upstream failures (502), 0 client errors, and machine-readable JSON/CSV output under `tools/security-assessment/artifacts/latest-release/`. This confirms fail-safe deny behavior under concurrent synthetic traffic; it is not a healthy-upstream performance baseline.
 
-### Latest dependency/tooling evidence
+### Latest Hosted Security Verification evidence
 
-On 2026-10-19, the Release assessment runner completed `dotnet test --configuration Release` with **328 passed, 0 failed, 0 skipped**. `dotnet list AegisWAF.slnx package --vulnerable --include-transitive` completed against `https://api.nuget.org/v3/index.json`; AegisWAF.Client, Gateway, Desktop, and Tests reported no vulnerable packages from that source. The real-socket Multi-Site/distributed-control filter reported **15 passed**. `gitleaks`, `semgrep`, `syft`, and `trivy` are not installed in the local environment, so secret scanning, SAST, and SBOM generation remain unverified rather than being reported as clean.
+On 2026-10-27, Hosted Security Verification run `40442770291` evaluated commit `77e6eee91c9c131a5059d9f0a568132b525f79b6`. The full .NET regression evidence was **504/504 passed, 0 failed, 0 skipped**, with `TRX_COUNTERS total=504 executed=504 passed=504 failed=0 skipped=0` and `TRX_REGRESSION_PASS`. Dependency vulnerability audit, SBOM generation, secret scan, and the direct-origin exposure guardrail also passed.
+
+The Hosted CodeQL stage did not pass: its preflight failed closed because repository Code scanning/Advanced Security was unavailable, so CodeQL initialize/build/analyze and SARIF upload were skipped. This is not a CodeQL pass; Module 41 and Module 60 remain at 90% until the repository setting is enabled and a fresh SARIF result is verified.
+
+### Historical local dependency/tooling evidence
+
+On 2026-10-19, the local Release assessment runner completed `dotnet test --configuration Release` with **328 passed, 0 failed, 0 skipped**. This is retained as historical local evidence, not the latest regression total. `dotnet list AegisWAF.slnx package --vulnerable --include-transitive` completed against `https://api.nuget.org/v3/index.json`; AegisWAF.Client, Gateway, Desktop, and Tests reported no vulnerable packages from that source. The real-socket Multi-Site/distributed-control filter reported **15 passed**. `gitleaks`, `semgrep`, `syft`, and `trivy` were not installed in that local environment, so local secret scanning, SAST, and SBOM generation remain unverified rather than being reported as clean.
 
 ## OWASP ZAP / WSTG scope
 
