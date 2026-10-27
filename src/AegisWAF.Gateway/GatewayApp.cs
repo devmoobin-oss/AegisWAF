@@ -238,6 +238,17 @@ public static class GatewayApp
                 ["traceId"] = ctx.TraceIdentifier
             });
 
+    private static IResult SiteRuntimeActivationTimedOut(HttpContext ctx, string operation) =>
+        Results.Problem(
+            statusCode: StatusCodes.Status503ServiceUnavailable,
+            title: "Site runtime activation timed out",
+            detail: $"The Site was {operation} in PostgreSQL, but refreshing the active runtime route exceeded the time limit. Check listener diagnostics and retry.",
+            extensions: new Dictionary<string, object?>
+            {
+                ["code"] = "site_runtime_activation_timeout",
+                ["traceId"] = ctx.TraceIdentifier
+            });
+
     private static IResult SiteHostnameConflict(HttpContext ctx) =>
         Results.Problem(
             statusCode: StatusCodes.Status409Conflict,
@@ -824,11 +835,14 @@ public static class GatewayApp
             writeBudget = SiteMutationWriteBudget.Create(ct);
             var inserted = await store.InsertAsync(candidate, ctx.Actor(), ctx.ClientIp(), writeBudget.Token);
             if (!inserted) return Results.Conflict(new { error = $"Site ID '{site.Id}' already exists" });
+            using var activationBudget = SiteRuntimeActivationBudget.Create(ct);
             try
             {
-                await runtime.ActivateFromStoreAsync(store, ct);
+                await runtime.ActivateFromStoreAsync(store, activationBudget.Token);
                 return Results.Ok(new { siteId = site.Id, active = true, requiresRestart = false, message = "Site saved to PostgreSQL and route activated immediately." });
             }
+            catch (OperationCanceledException) when (SiteRuntimeActivationBudget.IsBudgetCancellation(ct, activationBudget.Token))
+            { return SiteRuntimeActivationTimedOut(ctx, "saved"); }
             catch (SiteRuntimeActivationException)
             { return SiteRuntimeActivationFailed(ctx, "saved"); }
         }
@@ -886,11 +900,14 @@ public static class GatewayApp
             {
                 var version = updated.CurrentVersion!.Value;
                 ctx.Response.Headers.ETag = SiteConcurrency.ToEtag(version);
+                using var activationBudget = SiteRuntimeActivationBudget.Create(ct);
                 try
                 {
-                    await runtime.ActivateFromStoreAsync(store, ct);
+                    await runtime.ActivateFromStoreAsync(store, activationBudget.Token);
                     return Results.Ok(new { siteId = site.Id, version, etag = SiteConcurrency.ToEtag(version), active = true, requiresRestart = false, message = "Site updated in PostgreSQL and route activated immediately." });
                 }
+                catch (OperationCanceledException) when (SiteRuntimeActivationBudget.IsBudgetCancellation(ct, activationBudget.Token))
+                { return SiteRuntimeActivationTimedOut(ctx, "updated"); }
                 catch (SiteRuntimeActivationException)
                 { return SiteRuntimeActivationFailed(ctx, "updated"); }
             }
@@ -930,11 +947,14 @@ public static class GatewayApp
                 return Results.Conflict(new { error = "Site changed since it was loaded; refresh before deleting", code = "site_version_conflict", currentVersion = version, etag = SiteConcurrency.ToEtag(version) });
             }
             if (result.Status == SiteDeleteStatus.NotFound) return Results.NotFound(new { error = $"Site '{id}' was not found" });
+            using var activationBudget = SiteRuntimeActivationBudget.Create(ct);
             try
             {
-                await runtime.ActivateFromStoreAsync(store, ct);
+                await runtime.ActivateFromStoreAsync(store, activationBudget.Token);
                 return Results.Ok(new { siteId = id, active = true, requiresRestart = false, message = "Site deleted from PostgreSQL and route deactivated immediately." });
             }
+            catch (OperationCanceledException) when (SiteRuntimeActivationBudget.IsBudgetCancellation(ct, activationBudget.Token))
+            { return SiteRuntimeActivationTimedOut(ctx, "deleted"); }
             catch (SiteRuntimeActivationException)
             { return SiteRuntimeActivationFailed(ctx, "deleted"); }
         }

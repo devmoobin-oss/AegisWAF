@@ -18,6 +18,7 @@ public sealed class BrowserMultiSiteErrorCopyContractTests
         Assert.Contains("site_mutation_busy", mapper, StringComparison.Ordinal);
         Assert.Contains("site_mutation_read_timeout", mapper, StringComparison.Ordinal);
         Assert.Contains("site_mutation_write_timeout", mapper, StringComparison.Ordinal);
+        Assert.Contains("site_runtime_activation_timeout", mapper, StringComparison.Ordinal);
         Assert.Contains("site_health_write_timeout", mapper, StringComparison.Ordinal);
         Assert.Contains("site_health_summary_timeout", mapper, StringComparison.Ordinal);
         Assert.Contains("site_runtime_activation_failed", mapper, StringComparison.Ordinal);
