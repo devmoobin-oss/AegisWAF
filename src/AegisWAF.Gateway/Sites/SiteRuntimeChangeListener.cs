@@ -87,14 +87,7 @@ public sealed class SiteRuntimeChangeListener(
                 await connection.WaitAsync(ct);
                 while (wakeups.Reader.TryRead(out _))
                 {
-                    try { await ReloadSnapshotAsync(ct); }
-                    catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
-                    catch (Exception ex)
-                    {
-                        // Keep the last known-good snapshot; the next mutation wakes another retry.
-                        status.MarkReloadFailure(ex);
-                        logger.LogWarning("Site runtime snapshot reload was rejected ({ErrorType})", ex.GetType().Name);
-                    }
+                    await ReloadSnapshotWithRetryAsync(ct);
                 }
             }
         }
@@ -111,4 +104,18 @@ public sealed class SiteRuntimeChangeListener(
         status.MarkReloaded();
         logger.LogInformation("Site runtime snapshot activated from PostgreSQL");
     }
+
+    private Task ReloadSnapshotWithRetryAsync(CancellationToken ct) =>
+        SiteRuntimeReloadRetry.RunAsync(
+            ReloadSnapshotAsync,
+            (exception, willRetry) =>
+            {
+                status.MarkReloadFailure(exception);
+                logger.LogWarning(
+                    "Site runtime snapshot reload failed ({ErrorType}); {NextAction}",
+                    exception.GetType().Name,
+                    willRetry ? "retrying" : "waiting for the next Site change");
+            },
+            static (delay, cancellationToken) => Task.Delay(delay, cancellationToken),
+            ct);
 }
