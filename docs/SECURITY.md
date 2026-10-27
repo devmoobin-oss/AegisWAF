@@ -23,7 +23,7 @@ See also [PROTECTION.md](PROTECTION.md) for exactly which attack classes the gat
 | 12 | Security-event storage needs bounded retention/partitioning and durable external delivery; batching, local retention and delivery counters are implemented | Medium | **Open** – external SIEM/partitioning |
 | 13 | No TLS termination/management; session cookie is `Secure` only when the request itself is HTTPS | High | **Improved** – trusted forwarded HTTPS is recognized for admin enforcement and cookie flags; certificate lifecycle is still infrastructure-owned |
 | 14 | Dev DB account is the `postgres` superuser | Medium | **Open** – create a least-privilege role for production |
-| 15 | Audit log is append-only by convention, not tamper-evident | Low | **Open** |
+| 15 | Audit log is append-only by convention, not tamper-evident | Low | **Improved** – SHA-256 `prev_hash`/`entry_hash` chain, `/api/audit/integrity`, and a deduplicated critical integrity-failure alert are implemented; external SIEM delivery/retention remains open |
 
 ## Password policy and legacy hashes
 New password creation and changes enforce **at least 12 characters**, upper/lower/digit/symbol classes, username exclusion, and a 128-character maximum. Legacy hashes created under the older policy may still be weak and should be rotated. Consequences to be aware of:

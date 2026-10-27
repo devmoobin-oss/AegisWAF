@@ -166,7 +166,7 @@ Never configure `0.0.0.0/0` as a trusted proxy. Only infrastructure proxies belo
 
 `DisabledRules` is deliberately deny-only at Site scope. Keep the global rule state at its strongest safe baseline and use Site policies only for documented exceptions; a policy is not a replacement for per-Site rule storage or live reload.
 
-The Desktop Site Manager can add a validated Site to `appsettings.local.json` using an atomic write. The active runtime configuration remains immutable until Gateway restart; the UI makes this state explicit and never changes YARP routes without a validated restart.
+The Desktop Site Manager validates and persists each Site mutation atomically. The PostgreSQL Site-runtime listener validates the committed snapshot and activates a valid committed route without Gateway restart; if activation fails, the last-known-good route remains active and the UI reports the pending/error state. This local live-activation guarantee does not replace independent multi-instance deployment validation.
 
 ## Remaining Production gates
 

@@ -1673,3 +1673,19 @@
 - P0: Push Module 62 plus the readiness-race fix, then inspect a fresh Hosted run; Code scanning/Advanced Security remains an external repository setting.
 - P1: authenticated published-EXE Multi-Site smoke with operator take-over only at login, approved Authenticode signing, external SIEM delivery/retention, DNS-rebinding, penetration, load, SLO/capacity, and incident-response evidence.
 - P2: MFA/WebAuthn/OIDC, per-Site WAF policy versioning, and independent OWASP CRS corpus benchmarking.
+
+### Module 63 final progress record — 2026-10-27
+
+- Before: 0%; After: 100%; Target: 100%.
+- Opportunity completed: เอกสาร readiness ยังระบุว่า Site runtime immutable จนต้อง restart ทั้งที่ runtime/API/desktop contract รองรับ live activation แล้ว และ `docs/SECURITY.md` ยังระบุ audit integrity เป็น Open ทั้งที่มี hash chain, integrity API และ critical alert.
+- TDD: เพิ่ม assertions ใน `SiteManagerContractTests`; red ก่อนแก้เอกสารเพราะไม่พบข้อความ live activation และยังพบ claim เดิม; green หลังแก้เอกสาร.
+- Implementation: `docs/PRODUCTION_READINESS.md` อธิบาย atomic persistence + validation + activation โดยไม่ restart และ last-known-good behavior; `docs/SECURITY.md` อัปเดต finding 15 เป็น Improved พร้อมแยก external SIEM เป็นงานค้าง; เพิ่ม design/plan สำหรับการป้องกันข้อความ stale.
+- Verification: focused documentation contract `1/1`; full local regression `497/497`, failed=0, skipped=0; TRX verifier `TRX_REGRESSION_PASS`; `git diff --check` ผ่าน.
+- Boundary: Module 63 แก้ความถูกต้องของเอกสารและ contract ภายในเท่านั้น ไม่ได้ลดข้อจำกัด external multi-instance, SIEM, penetration, load, DNS-rebinding หรือ CodeQL.
+- Current module state: Module 40 = 100%, Module 42 = 100%, Module 43 = 100%, Module 44 = 100%, Module 45 = 100%, Module 46 = 100%, Module 47 = 100%, Module 48 = 100%, Module 49 = 100%, Module 50 = 100%, Module 51 = 100%, Module 52 = 100%, Module 53 = 100%, Module 54 = 100%, Module 55 = 100%, Module 56 = 100%, Module 57 = 100%, Module 58 = 100%, Module 59 = 100%, Module 60 = 90%, Module 61 = 100%, Module 62 = 100%, Module 63 = 100%, Module 41 = 90% pending repository Code scanning enablement and fresh Hosted CodeQL evidence.
+
+### Opportunity audit after Module 63 — 2026-10-27
+
+- P0: Module 41/60 still require repository owner to enable GitHub Code scanning/Advanced Security, then rerun Hosted Security Verification and confirm SARIF upload.
+- P1: authenticated published-EXE Multi-Site smoke with operator take-over only at login, approved Authenticode signing, external SIEM delivery/retention, DNS-rebinding, penetration, load, SLO/capacity, and incident-response evidence.
+- P2: MFA/WebAuthn/OIDC, per-Site WAF policy versioning, and independent OWASP CRS corpus benchmarking.

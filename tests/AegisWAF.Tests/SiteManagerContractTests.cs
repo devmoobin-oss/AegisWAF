@@ -38,6 +38,8 @@ public sealed class SiteManagerContractTests
             Assert.Contains(thaiFieldExplanation, xaml, StringComparison.Ordinal);
         var gateway = File.ReadAllText(Path.Combine(root, "src", "AegisWAF.Gateway", "GatewayApp.cs"), Encoding.UTF8);
         var codeBehind = File.ReadAllText(Path.Combine(root, "src", "AegisWAF.Desktop", "Views", "SitesView.xaml.cs"), Encoding.UTF8);
+        var readiness = File.ReadAllText(Path.Combine(root, "docs", "PRODUCTION_READINESS.md"), Encoding.UTF8);
+        var security = File.ReadAllText(Path.Combine(root, "docs", "SECURITY.md"), Encoding.UTF8);
         Assert.Contains("source = \"yarp-runtime-state\"", gateway, StringComparison.Ordinal);
         Assert.Contains("source = \"active-probe\"", gateway, StringComparison.Ordinal);
         Assert.Contains("requiresRestart = false", gateway, StringComparison.Ordinal);
@@ -45,6 +47,10 @@ public sealed class SiteManagerContractTests
         Assert.DoesNotContain("Restart Gateway", xaml + gateway, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("route ใช้งานทันที", codeBehind, StringComparison.Ordinal);
         Assert.DoesNotContain("require Gateway restart", codeBehind, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("activates a valid committed route without Gateway restart", readiness, StringComparison.Ordinal);
+        Assert.DoesNotContain("active runtime configuration remains immutable until Gateway restart", readiness, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("SHA-256 `prev_hash`/`entry_hash` chain", security, StringComparison.Ordinal);
+        Assert.DoesNotContain("| 15 | Audit log is append-only by convention, not tamper-evident | Low | **Open**", security, StringComparison.Ordinal);
         Assert.Contains("lastProbeAt", gateway, StringComparison.Ordinal);
         Assert.Contains("Multi-Site Gateway", File.ReadAllText(Path.Combine(root, "src", "AegisWAF.Desktop", "Views", "SettingsView.xaml")), StringComparison.Ordinal);
         Assert.DoesNotContain("x:Name=\"Upstream\"", File.ReadAllText(Path.Combine(root, "src", "AegisWAF.Desktop", "Views", "SettingsView.xaml")), StringComparison.Ordinal);
