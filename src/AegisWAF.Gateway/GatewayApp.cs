@@ -643,16 +643,24 @@ public static class GatewayApp
     {
         var summaryGeneratedAt = DateTimeOffset.UtcNow;
         var summaryTimer = Stopwatch.StartNew();
-        const int summaryQueryBudgetMs = 2_000;
+        const int summaryQueryBudgetMs = SiteHealthSummaryBudget.DefaultMilliseconds;
         var boundedWindow = Math.Clamp(window ?? 20, 1, SiteHealthTrendCalculator.MaxWindow);
         var boundedLimit = Math.Clamp(limit ?? 100, 1, 100);
+        using var summaryBudget = SiteHealthSummaryBudget.Create(ct, summaryQueryBudgetMs);
+        var summaryCt = summaryBudget.Token;
         IReadOnlyList<GatewaySite> storedSites;
-        try { storedSites = (await store.ListAsync(ct)).Take(boundedLimit).ToArray(); }
+        try { storedSites = (await store.ListAsync(summaryCt)).Take(boundedLimit).ToArray(); }
         catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
         {
             var failure = summaryTelemetry.RecordFailure();
             ctx.Response.Headers["X-Aegis-Health-Summary-Failures"] = failure.ConsecutiveFailures.ToString();
             return SiteDatabaseUnavailable(ctx, "health-summary-listed", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable");
+        }
+        catch (OperationCanceledException) when (SiteHealthSummaryBudget.IsBudgetCancellation(ct, summaryCt))
+        {
+            var failure = summaryTelemetry.RecordFailure();
+            ctx.Response.Headers["X-Aegis-Health-Summary-Failures"] = failure.ConsecutiveFailures.ToString();
+            return SiteDatabaseUnavailable(ctx, "health-summary-timeout", "site_health_summary_timeout");
         }
         var siteIds = storedSites.Select(x => x.Id).ToArray();
         IReadOnlyDictionary<string, IReadOnlyList<SiteHealthObservation>> histories;
@@ -660,15 +668,21 @@ public static class GatewayApp
         int expiredAcknowledgementsRemoved;
         try
         {
-            expiredAcknowledgementsRemoved = await store.CleanupExpiredHealthAlertAcknowledgementsAsync(DateTimeOffset.UtcNow, ct);
-            histories = await store.ListHealthHistoryBySiteAsync(siteIds, boundedWindow, ct);
-            acknowledgements = await store.ListHealthAlertAcknowledgementsAsync(siteIds, ct);
+            expiredAcknowledgementsRemoved = await store.CleanupExpiredHealthAlertAcknowledgementsAsync(DateTimeOffset.UtcNow, summaryCt);
+            histories = await store.ListHealthHistoryBySiteAsync(siteIds, boundedWindow, summaryCt);
+            acknowledgements = await store.ListHealthAlertAcknowledgementsAsync(siteIds, summaryCt);
         }
         catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
         {
             var failure = summaryTelemetry.RecordFailure();
             ctx.Response.Headers["X-Aegis-Health-Summary-Failures"] = failure.ConsecutiveFailures.ToString();
             return SiteDatabaseUnavailable(ctx, "health-summary-listed", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable");
+        }
+        catch (OperationCanceledException) when (SiteHealthSummaryBudget.IsBudgetCancellation(ct, summaryCt))
+        {
+            var failure = summaryTelemetry.RecordFailure();
+            ctx.Response.Headers["X-Aegis-Health-Summary-Failures"] = failure.ConsecutiveFailures.ToString();
+            return SiteDatabaseUnavailable(ctx, "health-summary-timeout", "site_health_summary_timeout");
         }
         var inputs = storedSites.Select(site =>
             (site.Id, histories.TryGetValue(site.Id, out var observations) ? observations : (IReadOnlyList<SiteHealthObservation>)[]));
