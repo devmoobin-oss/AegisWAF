@@ -1,0 +1,38 @@
+{
+  "module": 122,
+  "title": "Bounded Site mutation validation reads",
+  "progress": {
+    "before": 0,
+    "after": 100,
+    "target": 100
+  },
+  "opportunity": "Create and update Site mutations acquired the distributed mutation lock but still used the request token directly for the PostgreSQL snapshot read used by validation.",
+  "rootCause": "A slow validation snapshot could hold a mutation request after lock acquisition without a bounded read response, and the browser had no localized recovery copy for that distinct timeout.",
+  "implementation": [
+    "Added a two-second linked SiteMutationReadBudget with explicit client-cancellation distinction.",
+    "Applied the budget to POST /api/sites and PUT /api/sites/{id} snapshot reads while keeping writes, activation and lock acquisition on the request token.",
+    "Returned site_mutation_read_timeout and added bounded Thai recovery copy to the Multi-Site browser error mapper."
+  ],
+  "tdd": {
+    "red": "SiteMutationValidationReadBudgetTests failed before implementation because both mutation endpoint regions lacked the budget contract.",
+    "focused": "4/4"
+  },
+  "verification": {
+    "relevantRegression": "90/90 across 44 classes",
+    "nodeSyntax": "passed",
+    "releaseBuild": "0 warnings / 0 errors",
+    "gitDiffCheck": "passed",
+    "impeccableDetector": "0 anti-patterns; four pre-existing advisory design-system-color findings in app.js (#ff4d5e, #22374f, #ff6378); no new finding"
+  },
+  "boundaries": [
+    "Live PostgreSQL slow-read execution, authenticated browser/published-EXE smoke, visual responsive verification, full VSTest testhost connectivity, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification remain unverified."
+  ],
+  "release": {
+    "path": "D:\\AegisWAF\\dist\\AegisWAF-Desktop-CompletedModules\\AegisWAF.exe",
+    "configuration": "Release win-x64 self-contained single-file net10.0-windows",
+    "bytes": 170651499,
+    "sha256": "A416FF298DC97A737B77ADE95F2B94D0C3D940FD0728679E54EC66D8B57DE35C",
+    "peHeader": "MZ",
+    "manifest": "files=6; signed=false; workingTreeClean=true; sourceCommit=a48afa1b957e50147354b3a5fb3e3f4d3b98faf6"
+  }
+}
