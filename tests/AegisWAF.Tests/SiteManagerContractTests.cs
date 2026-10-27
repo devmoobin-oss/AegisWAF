@@ -44,6 +44,8 @@ public sealed class SiteManagerContractTests
         Assert.Contains("source = \"active-probe\"", gateway, StringComparison.Ordinal);
         Assert.Contains("requiresRestart = false", gateway, StringComparison.Ordinal);
         Assert.Contains("active = true", gateway, StringComparison.Ordinal);
+        Assert.Contains("ActivateFromStoreAsync(store, ct)", gateway, StringComparison.Ordinal);
+        Assert.DoesNotContain("runtime.Activate(new SiteConfigurationSnapshot", gateway, StringComparison.Ordinal);
         Assert.DoesNotContain("Restart Gateway", xaml + gateway, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("route ใช้งานทันที", codeBehind, StringComparison.Ordinal);
         Assert.DoesNotContain("require Gateway restart", codeBehind, StringComparison.OrdinalIgnoreCase);

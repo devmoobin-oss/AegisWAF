@@ -107,12 +107,8 @@ public sealed class SiteRuntimeChangeListener(
 
     private async Task ReloadSnapshotAsync(CancellationToken ct)
     {
-        var sites = await store.ListAsync(ct);
-        var snapshot = new SiteConfigurationSnapshot(sites, false);
-        var errors = SiteConfigurationValidator.ValidateSnapshot(snapshot, configuration);
-        if (errors.Count > 0) throw new InvalidDataException("Persisted Site snapshot failed validation");
-        runtime.Activate(snapshot);
+        await runtime.ActivateFromStoreAsync(store, ct);
         status.MarkReloaded();
-        logger.LogInformation("Site runtime snapshot activated from PostgreSQL ({SiteCount} Sites)", sites.Count);
+        logger.LogInformation("Site runtime snapshot activated from PostgreSQL");
     }
 }

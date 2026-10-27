@@ -57,21 +57,47 @@ public sealed class SiteRuntimeCoordinator(
     SiteRuntimeConfigurationProvider provider,
     IConfiguration configuration)
 {
-    private readonly object _gate = new();
+    private readonly SemaphoreSlim _gate = new(1, 1);
 
     public void Activate(SiteConfigurationSnapshot snapshot)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
+        _gate.Wait();
+        try { ActivateCore(snapshot); }
+        finally { _gate.Release(); }
+    }
+
+    /// <summary>
+    /// Loads the authoritative database snapshot while holding the same gate used
+    /// for activation. This prevents a slower stale load from replacing a newer
+    /// snapshot after a concurrent Site mutation.
+    /// </summary>
+    public Task ActivateFromStoreAsync(SiteDatabaseStore store, CancellationToken ct) =>
+        ActivateFromSnapshotLoaderAsync(store.ListAsync, ct);
+
+    internal async Task ActivateFromSnapshotLoaderAsync(
+        Func<CancellationToken, Task<IReadOnlyList<GatewaySite>>> loader,
+        CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(loader);
+        await _gate.WaitAsync(ct);
+        try
+        {
+            var sites = await loader(ct);
+            ActivateCore(new SiteConfigurationSnapshot(sites, false));
+        }
+        finally { _gate.Release(); }
+    }
+
+    private void ActivateCore(SiteConfigurationSnapshot snapshot)
+    {
         var errors = SiteConfigurationValidator.ValidateSnapshot(snapshot, configuration);
         if (errors.Count > 0)
             throw new SiteRuntimeActivationException(string.Join("; ", errors));
 
         var routeValues = SiteProxyConfiguration.Build(snapshot, configuration);
-        lock (_gate)
-        {
-            provider.Replace(routeValues);
-            registry.Replace(snapshot);
-        }
+        provider.Replace(routeValues);
+        registry.Replace(snapshot);
     }
 }
 

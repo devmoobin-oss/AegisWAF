@@ -714,7 +714,7 @@ public static class GatewayApp
             if (!inserted) return Results.Conflict(new { error = $"Site ID '{site.Id}' already exists" });
             try
             {
-                runtime.Activate(new SiteConfigurationSnapshot(proposedSites, false));
+                await runtime.ActivateFromStoreAsync(store, ct);
                 return Results.Ok(new { siteId = site.Id, active = true, requiresRestart = false, message = "Site saved to PostgreSQL and route activated immediately." });
             }
             catch (SiteRuntimeActivationException ex)
@@ -759,8 +759,7 @@ public static class GatewayApp
                 ctx.Response.Headers.ETag = SiteConcurrency.ToEtag(version);
                 try
                 {
-                    var activatedSites = proposedSites.Select(x => x.Id.Equals(candidate.Id, StringComparison.OrdinalIgnoreCase) ? candidate with { Version = version } : x).ToArray();
-                    runtime.Activate(new SiteConfigurationSnapshot(activatedSites, false));
+                    await runtime.ActivateFromStoreAsync(store, ct);
                     return Results.Ok(new { siteId = site.Id, version, etag = SiteConcurrency.ToEtag(version), active = true, requiresRestart = false, message = "Site updated in PostgreSQL and route activated immediately." });
                 }
                 catch (SiteRuntimeActivationException ex)
@@ -779,7 +778,7 @@ public static class GatewayApp
         catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
         { return SiteDatabaseUnavailable(ctx, "updated", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
     }).Require(Roles.SecurityAdmin);
-    app.MapDelete("/api/sites/{id}", async (string id, SiteRegistry registry, SiteDatabaseStore store, SiteRuntimeCoordinator runtime, HttpContext ctx, CancellationToken ct) =>
+    app.MapDelete("/api/sites/{id}", async (string id, SiteDatabaseStore store, SiteRuntimeCoordinator runtime, HttpContext ctx, CancellationToken ct) =>
     {
         if (!SiteConcurrency.TryParseEtag(ctx.Request.Headers.IfMatch.ToString(), out var expectedVersion))
             return Results.Conflict(new { error = "If-Match with the current Site ETag is required before delete", code = "site_version_required" });
@@ -795,8 +794,7 @@ public static class GatewayApp
             if (result.Status == SiteDeleteStatus.NotFound) return Results.NotFound(new { error = $"Site '{id}' was not found" });
             try
             {
-                var normalizedId = id.Trim().ToLowerInvariant();
-                runtime.Activate(new SiteConfigurationSnapshot(registry.Current.Sites.Where(x => !x.Id.Equals(normalizedId, StringComparison.OrdinalIgnoreCase)).ToArray(), false));
+                await runtime.ActivateFromStoreAsync(store, ct);
                 return Results.Ok(new { siteId = id, active = true, requiresRestart = false, message = "Site deleted from PostgreSQL and route deactivated immediately." });
             }
             catch (SiteRuntimeActivationException ex)
