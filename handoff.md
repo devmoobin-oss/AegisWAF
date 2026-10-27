@@ -2188,6 +2188,35 @@
 - Remaining incomplete gates: Module 41 = 90% and Module 60 = 90% (repository Code scanning/Advanced Security and Hosted SARIF evidence); local integration gates requiring PostgreSQL are reported as unverified when the service is absent.
 - Next opportunity audit: continue Multi-Site runtime/API security hardening, prioritizing authenticated published-EXE smoke evidence, least-privilege PostgreSQL deployment, SIEM delivery/retention, DNS-rebinding, penetration, load/SLO/capacity, incident-response evidence, policy versioning, MFA/WebAuthn/OIDC, and independent OWASP CRS benchmarking.
 
+### Module 87 final progress record — 2026-10-27
+
+- Before: 0%; After: 100%; Target: 100% for the defined direct health-trend freshness gates.
+- Opportunity/root cause: the direct GET health-trend endpoint omitted `isStale` and calculated `alertSuppressed` from historical severity without the shared stale predicate, so API consumers could receive a different freshness interpretation from the summary/Desktop.
+- TDD RED: `SiteHealthTrendEndpointContractTests` initially failed because the isolated direct trend endpoint did not contain stale-state computation or the `isStale` response field.
+- Implementation: the direct trend endpoint now computes `trendIsStale`, uses the time-aware actionable predicate for acknowledgement lookup/suppression, and returns `isStale` to API consumers.
+- Verification: focused in-process health/alert/UI contracts passed **27/27**, failed `0`, skipped `0`; Release solution build passed **0 warnings / 0 errors**; `git diff --check` passed.
+- Evidence: `artifacts/module-verification/module87-trend-stale-contract.json`.
+- Source commit: `97e46aea01d60306897d4c9d5f4ae36c5c4b3ee3`.
+- Boundary: this proves local source, direct endpoint source contract, focused health/alert contracts, and Release compilation. It does not claim fresh Hosted regression, CodeQL/SARIF, PostgreSQL integration, external penetration testing, load/SLO, SIEM, Authenticode signing, or production certification.
+
+### Published EXE — Module 87 completed modules bundle — 2026-10-27
+
+- Scope: republished only the completed runtime/UI modules after Module 87 direct trend freshness hardening.
+- Publish gate progress: Before 0%; After 100%; Target 100%.
+- Source commit: `97e46aea01d60306897d4c9d5f4ae36c5c4b3ee3`; the working tree was clean when the publish was created.
+- Artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`, `net10.0-windows`, self-contained `win-x64`, single-file, `170,625,387` bytes.
+- SHA-256: `07BF6E275A126894F08A99594FA282A5D78477C8CCAB6B68590D96757925F59D`.
+- Verification: PE header `MZ`; release manifest verification passed (`files=6`, `signed=false`, `workingTreeClean=true`). Manifest: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\release-manifest.json`.
+- Boundary: this is the operator-facing completed-modules artifact. It is not Authenticode-signed and does not claim CodeQL/SARIF, external penetration, DNS-rebinding, load/SLO, SIEM, or production-certification evidence.
+
+### Authoritative continuation state — 2026-10-27 (latest after Module 87)
+
+- Latest local/Hosted module progress: Module 87 = 100%; Module 86 = 100%; Module 85 = 100%; Module 84 = 100%; Module 83 = 100%; Module 82 = 100%; Module 81 = 100%; Module 80 = 100%; Module 79 = 100%; Module 78 = 100%; Module 77 = 100%; Module 76 = 100%; Module 75 = 100%; Module 74 = 100%; Module 73 = 100%; Module 72 = 100%.
+- Latest completed-modules artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`, SHA-256 `07BF6E275A126894F08A99594FA282A5D78477C8CCAB6B68590D96757925F59D`.
+- Latest Hosted verification for runtime Module 78 remains run `40445541235`, full regression `509/509`, `TRX_REGRESSION_PASS`; CodeQL remains an explicit external gate because repository Code scanning/Advanced Security is unavailable.
+- Remaining incomplete gates: Module 41 = 90% and Module 60 = 90% (repository Code scanning/Advanced Security and Hosted SARIF evidence); local integration gates requiring PostgreSQL are reported as unverified when the service is absent.
+- Next opportunity audit: continue Multi-Site runtime/API security hardening, prioritizing authenticated published-EXE smoke evidence, least-privilege PostgreSQL deployment, SIEM delivery/retention, DNS-rebinding, penetration, load/SLO/capacity, incident-response evidence, policy versioning, MFA/WebAuthn/OIDC, and independent OWASP CRS benchmarking.
+
 ### Module 86 final progress record — 2026-10-27
 
 - Before: 0%; After: 100%; Target: 100% for the defined stale-alert acknowledgement gates.
