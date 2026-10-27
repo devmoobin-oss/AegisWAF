@@ -1830,6 +1830,22 @@
 - Module 41 and Module 60 therefore remain `90%` by evidence, not by assumption. Required next proof is a new commit/Hosted run containing Module 70, repository Code scanning enabled, CodeQL SARIF upload/status success, and full regression counters.
 - No repository setting was changed by this audit.
 
+### Module 71 final progress record — 2026-10-27
+
+- Before: 0%; After: 100%; Target: 100%.
+- Opportunity: prove the Module 70 cold-start regex fix on the real GitHub-hosted runner instead of relying only on local Windows verification.
+- Commit pushed: `7ac802c8ab18e8843683a4c6df865bed55e3e612`; Hosted Security Verification run `40439376436` / run number `9`.
+- Verification: Hosted `.NET tests and dependency audit` passed `497/497`; `TRX_COUNTERS total=497 executed=497 passed=497 failed=0 skipped=0` and `TRX_REGRESSION_PASS`. Dependency vulnerability audit, Secret scan, SBOM, and Direct-origin guardrail also passed.
+- CodeQL boundary: CodeQL preflight failed closed because repository Code scanning/Advanced Security is still disabled; CodeQL init/build/analyze were skipped by design. This is not counted as a CodeQL pass.
+- Evidence: `artifacts/module-verification/module71-hosted-regression-confirmation.json` and Hosted run `40439376436`.
+- Module 41/60 state: both remain 90%; required next proof is enablement of repository Code scanning/Advanced Security followed by a fresh Hosted run with successful SARIF upload/status.
+
+### Opportunity audit after Module 71 — 2026-10-27
+
+- P0: enable repository Code scanning/Advanced Security, then rerun Hosted Security Verification and verify the CodeQL SARIF result; this is the only tracked internal Hosted gate still below 100%.
+- P1: authenticated published-EXE Multi-Site smoke after operator login, approved Authenticode signing, external SIEM delivery/retention, DNS-rebinding, penetration, load, SLO/capacity, and incident-response evidence remain open.
+- P2: MFA/WebAuthn/OIDC, per-Site WAF policy versioning, and independent OWASP CRS corpus benchmarking remain future opportunities.
+
 ### Published EXE — completed modules scope — 2026-10-27
 
 - Scope: publish จาก source ปัจจุบันเพื่อส่งมอบ runtime ของโมดูลที่เสร็จแล้วตามหลักฐานใน `handoff.md`; ไม่ตัดโค้ด runtime ออกจาก EXE ตามสถานะ external evidence gate เพราะ .NET publish เป็นการสร้างแอปทั้งชุด ไม่ใช่การแยก executable ต่อโมดูล.
