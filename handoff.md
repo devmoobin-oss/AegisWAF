@@ -1960,7 +1960,7 @@
 
 ### Opportunity audit after Module 74 — 2026-10-27
 
-- P0: republish EXE จาก commit ที่รวม Module 74 แล้วบันทึก hash และ manifest provenance.
+- P0: republish EXE เสร็จแล้วใน `AegisWAF-Desktop-Module74`; ดู hash และ manifest ใน artifact record ด้านล่าง.
 - P0: Module 41/60 ยังรอ repository Code scanning/Advanced Security และ SARIF-upload pass; ห้ามอ้างว่า CodeQL ผ่านจาก local tests.
 - P1: authenticated published-EXE Multi-Site smoke หลัง operator login, Authenticode signing, external SIEM delivery/retention, DNS-rebinding, penetration, load, SLO/capacity และ incident-response evidence ยังเป็นงานภายนอก.
 
@@ -1973,3 +1973,10 @@
 - Artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-Module74\AegisWAF.exe`, `net10.0-windows`, `win-x64`, self-contained, single-file, `170,610,027` bytes.
 - SHA-256: `2D28E5E989740DA20F8449761A09023F9DBE9E8220CDEB24011DDD0495164957`.
 - Verification: PE header `MZ`; release manifest verifier passed (`files=6`, `signed=false`, `workingTreeClean=true`); release manifest writer and tamper/extra-file verifier tests passed.
+
+### Authoritative continuation state — 2026-10-27 (latest after Module 75)
+
+- Latest local/Hosted module progress: Module 75 = 100%; Module 74 = 100%; Module 73 = 100%; Module 72 = 100%.
+- Latest published artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-Module74\AegisWAF.exe`, SHA-256 `2D28E5E989740DA20F8449761A09023F9DBE9E8220CDEB24011DDD0495164957`.
+- Remaining incomplete gates: Module 41 = 90% and Module 60 = 90% (repository Code scanning/Advanced Security and Hosted SARIF evidence).
+- Next continuation action: enable repository Code scanning/Advanced Security if approved and rerun Hosted Security Verification; preserve the Module74 artifact unless runtime code changes.
