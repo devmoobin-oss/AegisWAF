@@ -2188,6 +2188,35 @@
 - Remaining incomplete gates: Module 41 = 90% and Module 60 = 90% (repository Code scanning/Advanced Security and Hosted SARIF evidence); local integration gates requiring PostgreSQL are reported as unverified when the service is absent.
 - Next opportunity audit: continue Multi-Site runtime/API security hardening, prioritizing authenticated published-EXE smoke evidence, least-privilege PostgreSQL deployment, SIEM delivery/retention, DNS-rebinding, penetration, load/SLO/capacity, incident-response evidence, policy versioning, MFA/WebAuthn/OIDC, and independent OWASP CRS benchmarking.
 
+### Module 86 final progress record — 2026-10-27
+
+- Before: 0%; After: 100%; Target: 100% for the defined stale-alert acknowledgement gates.
+- Opportunity/root cause: the acknowledgement API accepted a historical `critical`/`degraded` trend without checking whether its latest observation had passed the 15-minute stale threshold; a direct API caller could therefore acknowledge an alert that the Desktop correctly marked as old/unconfirmed.
+- TDD RED: `SiteHealthAlertTests.Stale_actionable_trends_are_not_acknowledgeable` initially failed to compile because the time-aware `IsActionable(trend, now)` overload did not exist (`CS1501`).
+- Implementation: added shared `IsStale` and time-aware `IsActionable` predicates, reused them in comparison/suppression logic, and made `POST /api/sites/{id}/health/alerts/acknowledge` reject stale trends with `health_alert_not_actionable` and `isStale=true`.
+- Verification: focused in-process health/alert/UI contracts passed **26/26**, failed `0`, skipped `0`; API source contract passed **4/4**; Release solution build passed **0 warnings / 0 errors**; `git diff --check` passed.
+- Evidence: `artifacts/module-verification/module86-stale-alert-acknowledgement.json`.
+- Source commit: `249649415befd488c415f5472b3600246e4915c6`.
+- Boundary: this proves local source, focused health/alert contracts, endpoint source wiring, and Release compilation. It does not claim fresh Hosted regression, CodeQL/SARIF, PostgreSQL integration, external penetration testing, load/SLO, SIEM, Authenticode signing, or production certification.
+
+### Published EXE — Module 86 completed modules bundle — 2026-10-27
+
+- Scope: republished only the completed runtime/UI modules after Module 86 stale-alert acknowledgement hardening.
+- Publish gate progress: Before 0%; After 100%; Target 100%.
+- Source commit: `249649415befd488c415f5472b3600246e4915c6`; the working tree was clean when the publish was created.
+- Artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`, `net10.0-windows`, self-contained `win-x64`, single-file, `170,621,803` bytes.
+- SHA-256: `5396F5C562614497418B5B12F0B71F9188FBEB9576818031CFFDD37131E56AB6`.
+- Verification: PE header `MZ`; release manifest verification passed (`files=6`, `signed=false`, `workingTreeClean=true`). Manifest: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\release-manifest.json`.
+- Boundary: this is the operator-facing completed-modules artifact. It is not Authenticode-signed and does not claim CodeQL/SARIF, external penetration, DNS-rebinding, load/SLO, SIEM, or production-certification evidence.
+
+### Authoritative continuation state — 2026-10-27 (latest after Module 86)
+
+- Latest local/Hosted module progress: Module 86 = 100%; Module 85 = 100%; Module 84 = 100%; Module 83 = 100%; Module 82 = 100%; Module 81 = 100%; Module 80 = 100%; Module 79 = 100%; Module 78 = 100%; Module 77 = 100%; Module 76 = 100%; Module 75 = 100%; Module 74 = 100%; Module 73 = 100%; Module 72 = 100%.
+- Latest completed-modules artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`, SHA-256 `5396F5C562614497418B5B12F0B71F9188FBEB9576818031CFFDD37131E56AB6`.
+- Latest Hosted verification for runtime Module 78 remains run `40445541235`, full regression `509/509`, `TRX_REGRESSION_PASS`; CodeQL remains an explicit external gate because repository Code scanning/Advanced Security is unavailable.
+- Remaining incomplete gates: Module 41 = 90% and Module 60 = 90% (repository Code scanning/Advanced Security and Hosted SARIF evidence); local integration gates requiring PostgreSQL are reported as unverified when the service is absent.
+- Next opportunity audit: continue Multi-Site runtime/API security hardening, prioritizing authenticated published-EXE smoke evidence, least-privilege PostgreSQL deployment, SIEM delivery/retention, DNS-rebinding, penetration, load/SLO/capacity, incident-response evidence, policy versioning, MFA/WebAuthn/OIDC, and independent OWASP CRS benchmarking.
+
 ### Authoritative continuation state — 2026-10-27 (latest after Module 81 publish)
 
 - Latest local/Hosted module progress: Module 81 = 100%; Module 80 = 100%; Module 79 = 100%; Module 78 = 100%; Module 77 = 100%; Module 76 = 100%; Module 75 = 100%; Module 74 = 100%; Module 73 = 100%; Module 72 = 100%.
