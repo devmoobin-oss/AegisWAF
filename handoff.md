@@ -2441,11 +2441,31 @@
 - Verification: PE header `MZ`; release manifest verification passed with `files=6`, `signed=false`, `workingTreeClean=true`.
 - Boundary: this artifact does not claim Authenticode signing, CodeQL/SARIF, PostgreSQL integration, external penetration testing, load/SLO, SIEM, or production certification.
 
+### Module 90 final progress record — 2026-10-27
+
+- Before: 0%; After: 100%; Target: 100% for the defined transient Multi-Site runtime reload reliability gates.
+- Opportunity/root cause: a transient PostgreSQL snapshot-load failure after the `LISTEN` connection was established left the last known-good runtime snapshot active and waited for a future Site mutation, so a Site could remain stale indefinitely.
+- TDD RED: `SiteRuntimeReloadRetryTests` initially failed to compile because the retry policy did not exist.
+- Implementation: added bounded exponential backoff (1s, 2s, up to 30s) for transient database/timeout/I/O/socket failures; validation failures are not retried and continue to preserve the last known-good snapshot until a new notification.
+- Verification: focused listener tests passed **8/8**; non-PostgreSQL Multi-Site regression passed **84/84**; Release solution build passed **0 warnings / 0 errors**; `git diff --check` passed before commit; publish manifest passed with `files=6`, `signed=false`, `workingTreeClean=true`.
+- Evidence: `artifacts/module-verification/module90-runtime-reload-retry.json`.
+- Source commit: `eca6010b71b618f5014ff49bd7b409f32013058e`.
+- Boundary: PostgreSQL-dependent integration and authenticated published-EXE smoke remain unverified because PostgreSQL is unavailable at `127.0.0.1:5432`; no external security or production-certification claim is made.
+
+### Published EXE — Module 90 completed modules bundle — 2026-10-27
+
+- Scope: published the completed modules through Module 90 only; incomplete modules and external gates were not promoted.
+- Publish configuration: `Release`, `win-x64`, self-contained, single-file, `net10.0-windows`.
+- Artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`, SHA-256 `5F632D2B9D8C7EDA063FBB4CE1ABA610FBF34F87D5BB539E149A19D8C4CFC466`, `170,627,947` bytes.
+- Source commit at publish time: `eca6010b71b618f5014ff49bd7b409f32013058e`.
+- Verification: PE header `MZ`; release manifest verification passed (`files=6`, `signed=false`, `workingTreeClean=true`).
+- Boundary: this artifact is not Authenticode-signed and does not claim PostgreSQL integration, authenticated published-EXE smoke, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, or production certification.
+
 ### Current handoff pointer — 2026-10-27
 
 - This is the authoritative continuation block. Read this block before starting further work; older historical records above are retained for audit only.
-- Latest completed modules: Module 88 = 100%; Module 87 = 100%; Module 86 = 100%; Module 85 = 100%; Module 84 = 100%; Module 83 = 100%; Module 82 = 100%; Module 81 = 100%; Module 80 = 100%; Module 79 = 100%; Module 78 = 100%; Module 77 = 100%; Module 76 = 100%; Module 75 = 100%; Module 74 = 100%; Module 73 = 100%; Module 72 = 100%.
-- Latest artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`; SHA-256 `6F8D37CAD0D8BE14AFC879B0EC4EAB23DB71920AE4B1D8734454D9EB5AE4E2CB`; source commit `967167fab7f6a3b29dba6bb3b40f52ce8c2ac69b`.
+- Latest completed modules: Module 90 = 100%; Module 89 = 100%; Module 88 = 100%; Module 87 = 100%; Module 86 = 100%; Module 85 = 100%; Module 84 = 100%; Module 83 = 100%; Module 82 = 100%; Module 81 = 100%; Module 80 = 100%; Module 79 = 100%; Module 78 = 100%; Module 77 = 100%; Module 76 = 100%; Module 75 = 100%; Module 74 = 100%; Module 73 = 100%; Module 72 = 100%.
+- Latest artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`; SHA-256 `5F632D2B9D8C7EDA063FBB4CE1ABA610FBF34F87D5BB539E149A19D8C4CFC466`; source commit `eca6010b71b618f5014ff49bd7b409f32013058e`.
 - Latest Hosted evidence remains run `40445541235`, full regression `509/509`, `TRX_REGRESSION_PASS`; Module 41 = 90% and Module 60 = 90% pending GitHub Code scanning/Advanced Security and fresh Hosted SARIF evidence.
 - Local PostgreSQL-dependent integration and authenticated published-EXE smoke gates remain unverified when their external services/credentials are unavailable.
 - Next action: audit and implement the next concrete Multi-Site hardening opportunity; preserve the 0% → 100% progress record, evidence file, artifact pointer, and stated verification boundary.

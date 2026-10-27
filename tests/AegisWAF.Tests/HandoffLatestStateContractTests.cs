@@ -14,10 +14,11 @@ public sealed class HandoffLatestStateContractTests
 
         Assert.True(markerIndex >= 0, "handoff.md must end with a current pointer.");
         var pointer = handoff[markerIndex..];
+        Assert.Contains("Module 90 = 100%", pointer);
         Assert.Contains("Module 88 = 100%", pointer);
         Assert.Contains("Module 87 = 100%", pointer);
         Assert.Contains("Module 41 = 90% and Module 60 = 90%", pointer);
-        Assert.Contains("6F8D37CAD0D8BE14AFC879B0EC4EAB23DB71920AE4B1D8734454D9EB5AE4E2CB", pointer);
+        Assert.Contains("5F632D2B9D8C7EDA063FBB4CE1ABA610FBF34F87D5BB539E149A19D8C4CFC466", pointer);
         Assert.Contains("D:\\AegisWAF\\dist\\AegisWAF-Desktop-CompletedModules\\AegisWAF.exe", pointer);
         Assert.Equal(markerIndex, handoff.LastIndexOf(marker, StringComparison.Ordinal));
     }
