@@ -14,12 +14,19 @@ public sealed class BrowserMultiSiteDeleteDialogContractTests
         Assert.True(start >= 0 && end > start, "Could not isolate the browser Multi-Site workflow.");
         var sites = source[start..end];
 
-        Assert.Contains("function confirmSiteDelete", sites, StringComparison.Ordinal);
-        Assert.Contains("setAttribute('role','alertdialog')", sites, StringComparison.Ordinal);
-        Assert.Contains("setAttribute('aria-modal','true')", sites, StringComparison.Ordinal);
-        Assert.Contains("aria-labelledby", sites, StringComparison.Ordinal);
-        Assert.Contains("Escape", sites, StringComparison.Ordinal);
-        Assert.Contains("focus()", sites, StringComparison.Ordinal);
+        var helperEnd = source.IndexOf("const ROLE_LEVEL", StringComparison.Ordinal);
+        Assert.True(helperEnd > 0, "Could not isolate the shared browser dialog helper.");
+        var helpers = source[..helperEnd];
+
+        Assert.Contains("function showAppDialog", helpers, StringComparison.Ordinal);
+        Assert.Contains("setAttribute('role','alertdialog')", helpers, StringComparison.Ordinal);
+        Assert.Contains("setAttribute('aria-modal','true')", helpers, StringComparison.Ordinal);
+        Assert.Contains("aria-labelledby", helpers, StringComparison.Ordinal);
+        Assert.Contains("Escape", helpers, StringComparison.Ordinal);
+        Assert.Contains("focus()", helpers, StringComparison.Ordinal);
+        Assert.Contains("showAppDialog", sites, StringComparison.Ordinal);
+        Assert.Contains("data-site-delete", sites, StringComparison.Ordinal);
+        Assert.DoesNotContain("function confirmSiteDelete", sites, StringComparison.Ordinal);
         Assert.DoesNotContain("confirm(`ลบ Site", sites, StringComparison.Ordinal);
     }
 
