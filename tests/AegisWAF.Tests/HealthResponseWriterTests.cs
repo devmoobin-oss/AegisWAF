@@ -19,7 +19,7 @@ public sealed class HealthResponseWriterTests
             {
                 ["site-runtime-listener"] = new(
                     HealthStatus.Degraded,
-                    "Site runtime listener is reconnecting",
+                    "Site runtime listener is degraded",
                     TimeSpan.FromMilliseconds(2),
                     new InvalidOperationException("Host=secret-db;Password=do-not-leak"),
                     null),
@@ -39,7 +39,7 @@ public sealed class HealthResponseWriterTests
         var root = document.RootElement;
         Assert.Equal("Degraded", root.GetProperty("status").GetString());
         Assert.Equal("Degraded", root.GetProperty("entries").GetProperty("site-runtime-listener").GetProperty("status").GetString());
-        Assert.Equal("Site runtime listener is reconnecting", root.GetProperty("entries").GetProperty("site-runtime-listener").GetProperty("description").GetString());
+        Assert.Equal("Site runtime listener is degraded", root.GetProperty("entries").GetProperty("site-runtime-listener").GetProperty("description").GetString());
         Assert.DoesNotContain("secret-db", json, StringComparison.Ordinal);
         Assert.DoesNotContain("do-not-leak", json, StringComparison.Ordinal);
         Assert.Equal("application/json; charset=utf-8", context.Response.ContentType);

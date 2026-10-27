@@ -54,7 +54,8 @@ internal sealed class SiteRuntimeListenerHealthCheck(
         var snapshot = status.Current;
         var result = snapshot.State switch
         {
-            "connected" when snapshot.IsConnected => HealthCheckResult.Healthy(),
+            "connected" when snapshot.IsConnected && !snapshot.HasReloadFailure => HealthCheckResult.Healthy(),
+            "connected" when snapshot.IsConnected => HealthCheckResult.Degraded("Site runtime snapshot reload is pending"),
             "stopped" => HealthCheckResult.Unhealthy("Site runtime listener is stopped"),
             _ => HealthCheckResult.Degraded("Site runtime listener is reconnecting")
         };
@@ -114,7 +115,7 @@ internal static class HealthResponseWriter
             "site-runtime-listener" => status switch
             {
                 HealthStatus.Healthy => "Site runtime listener is connected",
-                HealthStatus.Degraded => "Site runtime listener is reconnecting",
+                HealthStatus.Degraded => "Site runtime listener is degraded",
                 _ => "Site runtime listener is stopped"
             },
             "postgres" => status == HealthStatus.Healthy

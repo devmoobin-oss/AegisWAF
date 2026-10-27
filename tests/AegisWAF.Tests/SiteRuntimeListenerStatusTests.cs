@@ -14,6 +14,7 @@ public sealed class SiteRuntimeListenerStatusTests
         status.MarkConnecting();
         status.MarkConnected();
         status.MarkReloadFailure(new InvalidDataException("private persisted site details"));
+        Assert.True(status.Current.HasReloadFailure);
         status.MarkReloaded();
 
         var snapshot = status.Current;
@@ -26,6 +27,7 @@ public sealed class SiteRuntimeListenerStatusTests
         Assert.NotNull(snapshot.LastDisconnectedAt);
         Assert.NotNull(snapshot.LastReloadAt);
         Assert.Equal(nameof(InvalidDataException), snapshot.LastErrorType);
+        Assert.False(snapshot.HasReloadFailure);
         Assert.DoesNotContain("secret", snapshot.LastErrorType!, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("private", snapshot.LastErrorType!, StringComparison.OrdinalIgnoreCase);
     }

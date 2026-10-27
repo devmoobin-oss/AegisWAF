@@ -41,4 +41,46 @@ public sealed class SiteRuntimeListenerHealthCheckTests
 
         Assert.Equal(HealthStatus.Healthy, result.Status);
     }
+
+    [Fact]
+    public async Task Connected_listener_with_a_failed_snapshot_reload_is_degraded()
+    {
+        var status = new SiteRuntimeListenerStatus();
+        status.MarkConnecting();
+        status.MarkConnected();
+        status.MarkReloadFailure(new InvalidDataException("invalid persisted snapshot"));
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Waf:Sites:UseDatabase"] = "true",
+            ["ConnectionStrings:Postgres"] = "Host=internal-db;Password=secret"
+        }).Build();
+
+        var result = await new SiteRuntimeListenerHealthCheck(status, configuration)
+            .CheckHealthAsync(new HealthCheckContext());
+
+        Assert.Equal(HealthStatus.Degraded, result.Status);
+        Assert.Contains("snapshot reload", result.Description, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("internal-db", result.Description, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("secret", result.Description, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Successful_snapshot_reload_restores_healthy_listener_readiness()
+    {
+        var status = new SiteRuntimeListenerStatus();
+        status.MarkConnecting();
+        status.MarkConnected();
+        status.MarkReloadFailure(new InvalidDataException("invalid persisted snapshot"));
+        status.MarkReloaded();
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Waf:Sites:UseDatabase"] = "true",
+            ["ConnectionStrings:Postgres"] = "Host=internal-db;Password=secret"
+        }).Build();
+
+        var result = await new SiteRuntimeListenerHealthCheck(status, configuration)
+            .CheckHealthAsync(new HealthCheckContext());
+
+        Assert.Equal(HealthStatus.Healthy, result.Status);
+    }
 }

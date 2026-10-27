@@ -9,7 +9,8 @@ public sealed record SiteRuntimeListenerStatusSnapshot(
     DateTimeOffset? LastConnectedAt,
     DateTimeOffset? LastDisconnectedAt,
     DateTimeOffset? LastReloadAt,
-    string? LastErrorType);
+    string? LastErrorType,
+    bool HasReloadFailure);
 
 /// <summary>
 /// Keeps operator-facing listener state separate from request routing state. Only exception
@@ -26,6 +27,7 @@ public sealed class SiteRuntimeListenerStatus
     private DateTimeOffset? _lastDisconnectedAt;
     private DateTimeOffset? _lastReloadAt;
     private string? _lastErrorType;
+    private bool _hasReloadFailure;
 
     public SiteRuntimeListenerStatusSnapshot Current
     {
@@ -41,7 +43,8 @@ public sealed class SiteRuntimeListenerStatus
                     _lastConnectedAt,
                     _lastDisconnectedAt,
                     _lastReloadAt,
-                    _lastErrorType);
+                    _lastErrorType,
+                    _hasReloadFailure);
             }
         }
     }
@@ -87,6 +90,7 @@ public sealed class SiteRuntimeListenerStatus
         {
             _state = _isConnected ? "connected" : "reconnecting";
             _lastErrorType = BoundedTypeName(exception);
+            _hasReloadFailure = true;
         }
     }
 
@@ -95,6 +99,7 @@ public sealed class SiteRuntimeListenerStatus
         lock (_gate)
         {
             _lastReloadAt = DateTimeOffset.UtcNow;
+            _hasReloadFailure = false;
         }
     }
 
@@ -105,6 +110,7 @@ public sealed class SiteRuntimeListenerStatus
             _state = "disabled";
             _isConnected = false;
             _lastErrorType = null;
+            _hasReloadFailure = false;
         }
     }
 

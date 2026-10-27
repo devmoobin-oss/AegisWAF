@@ -18,6 +18,7 @@ public sealed class SiteRuntimeListenerStatusContractTests
         Assert.Contains("SiteRuntimeReloadRetry.RunAsync", listener, StringComparison.Ordinal);
         Assert.Contains("status.MarkReloadFailure(exception)", listener, StringComparison.Ordinal);
         Assert.Contains("BoundedTypeName", status, StringComparison.Ordinal);
+        Assert.Contains("HasReloadFailure", status, StringComparison.Ordinal);
         Assert.DoesNotContain("ex.Message", listener + status, StringComparison.Ordinal);
         Assert.DoesNotContain("connectionString", status, StringComparison.OrdinalIgnoreCase);
     }
