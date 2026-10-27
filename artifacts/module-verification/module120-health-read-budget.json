@@ -27,5 +27,13 @@
   },
   "boundaries": [
     "Live PostgreSQL slow-read execution, authenticated browser/published-EXE smoke, visual responsive verification, full VSTest testhost connectivity, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification remain unverified."
-  ]
+  ],
+  "release": {
+    "path": "D:\\AegisWAF\\dist\\AegisWAF-Desktop-CompletedModules\\AegisWAF.exe",
+    "configuration": "Release win-x64 self-contained single-file net10.0-windows",
+    "bytes": 170649963,
+    "sha256": "0861896B288DDCDDFD6F3C0CA4B36875F3B9205930688845CDDB2B1BC6C010B6",
+    "peHeader": "MZ",
+    "manifest": "files=6; signed=false; workingTreeClean=true; sourceCommit=97a901ea11adc62e1dda789a48d2fc98675a38d7"
+  }
 }

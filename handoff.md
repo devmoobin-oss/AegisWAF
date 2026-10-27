@@ -3103,6 +3103,15 @@
 - Verification: focused contracts passed **3/3**; deterministic browser/Multi-Site/security regression passed **86/86** across 41 classes; `node --check` passed; Release solution build passed **0 warnings / 0 errors**; `git diff --check` passed; Impeccable detector passed with four pre-existing advisory color findings; report: `artifacts/module-verification/module120-health-read-budget.json`.
 - Boundary: live PostgreSQL slow-read execution, authenticated browser/published-EXE smoke, visual responsive verification, full VSTest testhost connectivity, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification remain unverified.
 
+### Published EXE — Module 120 completed modules bundle — 2026-10-28
+
+- Scope: published the completed-modules bundle through Module 120 only; incomplete modules and external gates were not promoted.
+- Publish configuration: `Release`, `win-x64`, self-contained, single-file, `net10.0-windows`.
+- Artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`, SHA-256 `0861896B288DDCDDFD6F3C0CA4B36875F3B9205930688845CDDB2B1BC6C010B6`, `170,649,963` bytes.
+- Source commit at publish time: `97a901ea11adc62e1dda789a48d2fc98675a38d7`.
+- Verification: PE header `MZ`; release manifest verification passed (`files=6`, `signed=false`, `workingTreeClean=true`).
+- Boundary: this artifact is not Authenticode-signed and does not claim live PostgreSQL slow-read execution, authenticated browser/published-EXE smoke, visual responsive verification, whole-console premium audit, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, or production certification.
+
 ### Published EXE — Module 119 completed modules bundle — 2026-10-28
 
 - Scope: published the completed-modules bundle through Module 119 only; incomplete modules and external gates were not promoted.
@@ -3139,11 +3148,11 @@
 - Verification: PE header `MZ`; release manifest verification passed (`files=6`, `signed=false`, `workingTreeClean=true`).
 - Boundary: this artifact is not Authenticode-signed and does not claim live PostgreSQL lock-contention execution, authenticated browser smoke, visual responsive verification, concurrent multi-instance mutation under real PostgreSQL, whole-console premium audit, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, or production certification.
 
-### Current handoff pointer — 2026-10-28 (after Module 119)
+### Current handoff pointer — 2026-10-28 (after Module 120)
 
 - This is the authoritative continuation block. Read this block before starting further work; older historical records above are retained for audit only.
 - Latest completed modules: Module 120 = 100%; Module 119 = 100%; Module 118 = 100%; Module 117 = 100%; Module 116 = 100%; Module 115 = 100%; Module 114 = 100%; Module 113 = 100%; Module 112 = 100%; Module 111 = 100%; Module 110 = 100%; Module 109 = 100%; Module 108 = 100%; Module 107 = 100%; Module 106 = 100%; Module 105 = 100%; Module 104 = 100%; Module 103 = 100%; Module 102 = 100%; Module 101 = 100%; Module 100 = 100%; Module 99 = 100%; Module 98 = 100%; Module 97 = 100%; Module 96 = 100%; Module 95 = 100%; Module 94 = 100%; Module 93 = 100%; Module 92 = 100%; Module 91 = 100%; Module 90 = 100%; Module 89 = 100%; Module 88 = 100%; Module 87 = 100%; Module 86 = 100%; Module 85 = 100%; Module 84 = 100%; Module 83 = 100%; Module 82 = 100%; Module 81 = 100%; Module 80 = 100%; Module 79 = 100%; Module 78 = 100%; Module 77 = 100%; Module 76 = 100%; Module 75 = 100%; Module 74 = 100%; Module 73 = 100%; Module 72 = 100%.
-- Latest artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`; SHA-256 `AC28856E02F55F49D82796194632B26D04AA49BAA5E57F0957E22397DF8332F2`; source commit `024ab3dcd3746c8e0fb2e66f685f069f9b0bdf44`.
+- Latest artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`; SHA-256 `0861896B288DDCDDFD6F3C0CA4B36875F3B9205930688845CDDB2B1BC6C010B6`; source commit `97a901ea11adc62e1dda789a48d2fc98675a38d7`.
 - Latest Hosted evidence remains run `40445541235`, full regression `509/509`, `TRX_REGRESSION_PASS`; Module 41 = 90% and Module 60 = 90% pending GitHub Code scanning/Advanced Security and fresh Hosted SARIF evidence.
 - Local PostgreSQL-dependent integration, duplicate-hostname execution, concurrent multi-instance mutation, authenticated browser/published-EXE smoke, full VSTest testhost connectivity, visual responsive verification, and whole-console premium UI audit gates remain unverified when their external services/credentials or baseline tooling are unavailable.
 - Next action: audit and implement the next concrete Multi-Site hardening opportunity; preserve the 0% → 100% progress record, evidence file, artifact pointer, and stated verification boundary.
