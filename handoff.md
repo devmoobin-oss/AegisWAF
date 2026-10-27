@@ -1726,8 +1726,8 @@
 
 ### Authoritative continuation state — 2026-10-27
 
-- Latest completed module: Module 70 = 100% (regex cold-start stability under hosted runner load); evidence is `artifacts/module-verification/module70-regex-cold-start-stability.json`.
-- Latest release artifact: `D:\AegisWAF\dist\AegisWAF-Desktop\AegisWAF.exe`, SHA-256 `76CBEF9788A902C41636E0EBF884A570C8CC810BEA5143AF8AED0C8AE90F209F`.
+- Latest completed module: Module 71 = 100% (Hosted regression confirmation); evidence is `artifacts/module-verification/module71-hosted-regression-confirmation.json`.
+- Latest release artifact for completed modules: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`, SHA-256 `21B0583D0296FC08A21E47C0256D0815B24E7450387F3C95CFC32B0F92697DC6`.
 - Remaining incomplete gates: Module 41 = 90% and Module 60 = 90%, both waiting for the external GitHub Code scanning/Advanced Security repository setting and a Hosted SARIF-upload pass.
 - Next development target: inspect and close the remaining Hosted CodeQL/SARIF gates if repository permissions allow; otherwise preserve them as explicit external blockers and continue the authenticated Multi-Site smoke after operator takeover.
 
@@ -1856,3 +1856,13 @@
 - SHA-256: `ECACB2E403580AAD0FD1F28E6F5F6C291602BC39E9A0F2E1C8AF09D644B8E372`.
 - Verification: release manifest verifier passed (`files=4`, `signed=false`, PE header `MZ`); writer test passed; tamper/extra-file verifier tests passed; `git diff --check` passed.
 - Source provenance: commit `f688fc538ff8560db33b8bd4545b1ba0fd3dada1`; `workingTreeClean=false` เนื่องมีการแก้ไขโมดูล/เครื่องมือ/เอกสารที่ยังไม่ได้ commit.
+
+### Published EXE — completed modules artifact refresh — 2026-10-27
+
+- Scope: publish จาก source commit `72dda7adff25e46a848a2708aff73bc20c1050fe` โดยรวม runtime ของโมดูลที่มีหลักฐานเสร็จแล้วตาม handoff; ไม่อ้างว่า Module 41/60 ผ่าน เพราะยังอยู่ที่ 90% และรอ Code scanning/Advanced Security กับ Hosted SARIF evidence.
+- Before/After for the publish artifact gate: 0% -> 100%; Target: 100%.
+- Command: `dotnet publish src/AegisWAF.Desktop/AegisWAF.Desktop.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o dist/AegisWAF-Desktop-CompletedModules --no-restore --disable-build-servers -m:1`.
+- Artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`, self-contained `win-x64`, single-file, `170,608,491` bytes.
+- SHA-256: `21B0583D0296FC08A21E47C0256D0815B24E7450387F3C95CFC32B0F92697DC6`.
+- Verification: PE header `MZ`; release manifest verifier passed with `files=6`, `signed=false`, `workingTreeClean=true`; release manifest writer test and tamper/extra-file verifier tests passed.
+- Note: the original `dist/AegisWAF-Desktop/AegisWAF.exe` was locked by the operating system, so the artifact was published to a separate non-destructive output directory rather than overwriting or deleting the existing bundle.
