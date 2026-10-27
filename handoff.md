@@ -2210,6 +2210,15 @@
 - Remaining incomplete gates: Module 41 = 90% and Module 60 = 90% (repository Code scanning/Advanced Security and Hosted SARIF evidence); local integration gates requiring PostgreSQL are reported as unverified when the service is absent.
 - Next continuation action: run the next concrete Multi-Site hardening opportunity and do not weaken the evidence boundary.
 
+### Published EXE — completed modules republish — 2026-10-27
+
+- Scope: republished only the completed runtime/UI modules from source commit `50517f5751a2fa8fd9e40b26d4c8ccb65306ada9`; no incomplete module was included.
+- Publish gate progress: Before 0%; After 100%; Target 100%.
+- Artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`, `net10.0-windows`, self-contained `win-x64`, single-file, `170,613,099` bytes.
+- SHA-256: `9E2074C70D2A9ED771619368B5BA40DE2D4BA2671FF20C124768B67EC6AE6720`.
+- Verification: PE header `MZ`; release manifest verification passed (`files=6`, `signed=false`, `workingTreeClean=true`). Manifest: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\release-manifest.json`.
+- Boundary: this is the operator-facing completed-modules artifact. It is not Authenticode-signed and does not claim CodeQL/SARIF, external penetration, DNS-rebinding, load/SLO, SIEM, or production-certification evidence.
+
 ### Module 84 final progress record — 2026-10-27
 
 - Before: 0%; After: 100%; Target: 100% for the defined stale-health display gates.
