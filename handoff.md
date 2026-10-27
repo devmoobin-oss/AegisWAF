@@ -1726,7 +1726,7 @@
 
 ### Authoritative continuation state — 2026-10-27
 
-- Latest completed module: Module 71 = 100% (Hosted regression confirmation); evidence is `artifacts/module-verification/module71-hosted-regression-confirmation.json`.
+- Latest completed module: Module 72 = 100% (toast accent restraint / side-tab UI refinement); evidence is `artifacts/module-verification/module72-toast-accent-refinement.json`.
 - Latest release artifact for completed modules: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`, SHA-256 `21B0583D0296FC08A21E47C0256D0815B24E7450387F3C95CFC32B0F92697DC6`.
 - Remaining incomplete gates: Module 41 = 90% and Module 60 = 90%, both waiting for the external GitHub Code scanning/Advanced Security repository setting and a Hosted SARIF-upload pass.
 - Next development target: inspect and close the remaining Hosted CodeQL/SARIF gates if repository permissions allow; otherwise preserve them as explicit external blockers and continue the authenticated Multi-Site smoke after operator takeover.
@@ -1875,3 +1875,19 @@
 - Additional green jobs: dependency vulnerability audit, SBOM, Secret scan, and Direct origin exposure guardrail.
 - CodeQL evidence: preflight `Verify Code scanning is enabled` failed closed again because repository Code scanning/Advanced Security is unavailable; CodeQL initialize/build/analyze were skipped. No CodeQL pass is claimed.
 - Next required external action: enable repository Code scanning/Advanced Security (subject to GitHub plan/owner approval), then rerun Hosted Security Verification and verify SARIF upload/status.
+
+### Module 72 final progress record — 2026-10-27
+
+- Before: 0%; After: 100%; Target: 100% for the defined UI refinement gates.
+- Opportunity: the toast notification used a prominent 4px full-height colored side accent, matching the side-tab anti-pattern identified by the UI quality detector.
+- Implementation: reduced the toast marker to a 2px inset accent with reduced opacity, preserving blue/green/red status semantics while lowering visual noise.
+- Verification: Impeccable detector exit 0, `sideTabFindings=0`, `blockingFindings=0`; Multi-Site UI contract passed 7/7; policy-field contract passed 10/10; Release build passed 0 warnings/0 errors; `git diff --check` passed.
+- Full local VSTest status: unverified because the testhost connection timed out after 90 seconds; this is recorded as infrastructure unverified, not as a pass.
+- Evidence: `artifacts/module-verification/module72-toast-accent-refinement.json`.
+- Boundary: Module 72 is a narrow browser-dashboard visual refinement. Module 41 and Module 60 remain 90% pending repository Code scanning/Advanced Security and Hosted SARIF evidence.
+
+### Opportunity audit after Module 72 — 2026-10-27
+
+- P0: enable repository Code scanning/Advanced Security and rerun Hosted Security Verification to close Module 41/60; no local code change can substitute for the required SARIF evidence.
+- P1: republish the completed-modules EXE from the Module 72 commit so the distributable contains the refined stylesheet; preserve the existing bundle if it is locked.
+- P1: authenticated published-EXE Multi-Site smoke, approved Authenticode signing, external SIEM delivery/retention, DNS-rebinding, penetration, load, SLO/capacity, and incident-response evidence remain open.
