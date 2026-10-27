@@ -111,8 +111,11 @@ const legacyLoadSection=loadSection;loadSection=async function(){if(active!=='ow
 ensureOwaspNav();document.querySelectorAll('[data-page]').forEach(x=>x.addEventListener('click',()=>page(x.dataset.page)));document.querySelectorAll('[data-go]').forEach(x=>x.addEventListener('click',()=>page(x.dataset.go)));$('refresh').addEventListener('click',refresh);boot();
 const sectionWithOwaspRuleBadges=loadSection;loadSection=async function(){await sectionWithOwaspRuleBadges();if(active!=='rules')return;try{const r=await authFetch('/api/rules',{cache:'no-store'});if(!r.ok)return;const rules=await r.json();$('sectionContent').querySelectorAll('tbody tr').forEach(row=>{const item=rules.find(x=>x.id===row.cells[0]?.textContent.trim());if(item&&row.cells[1])row.cells[1].insertAdjacentHTML('beforeend',` <span class="rule-owasp-badges">${renderOwaspBadges(item.owaspCodes)}</span>`);});}catch(e){console.warn('OWASP rule badges unavailable',e);}};
 // Multi-Site CRUD extension is appended below.
-let siteViewGeneration=0;
+let siteViewGeneration=0,siteViewAbortController=null;
 async function loadSitesCrud(){
+  siteViewAbortController?.abort();
+  const eventController=new AbortController();
+  siteViewAbortController=eventController;
   const viewGeneration=++siteViewGeneration;
   const isCurrent=()=>active==='sites'&&siteViewGeneration===viewGeneration;
   const el=$('sectionContent');
@@ -196,7 +199,7 @@ async function loadSitesCrud(){
     if(health){const id=health.dataset.siteHealth;health.disabled=true;status(`กำลังตรวจสอบ Healthy ของ ${id}...`);(async()=>{try{const response=await authFetch(`/api/sites/${encodeURIComponent(id)}/health`,{method:'POST'});if(!response.ok)throw Error(await readApiError(response));const result=await response.json();const state=result.pendingRestart?'pending-restart':result.health;status(`${id}: ${healthLabel(state)}${result.pendingRestart?' — runtime ยังรอเปิดใช้':' — ตรวจสอบล่าสุดแล้ว'}`,result.health==='healthy'?'success':'error');await load();}catch(error){status(`ตรวจสอบ Healthy ไม่สำเร็จ: ${error.message}`,'error');}finally{health.disabled=false;}})();return;}
     if(edit){const site=siteMap.get(edit.dataset.siteEdit);if(!site)return;editing=site.siteId;editingVersion=site.version||1;$('siteId').value=site.siteId;$('siteId').readOnly=true;$('siteHosts').value=(site.hostnames||[]).join(', ');$('sitePath').value=(site.pathPrefixes||['/']).join(', ');$('siteUpstreams').value=(site.upstreams||[]).map(up=>`${up.id}=${up.address}@${up.weight||100}`).join('\n');$('siteEgress').value=(site.upstreams||[]).map(up=>{try{return new URL(up.address).hostname;}catch{return '';}}).filter(Boolean).filter((x,i,a)=>a.indexOf(x)===i).join(', ');$('sitePolicy').value=site.wafPolicy||'default';$('siteHealthPath').value=site.healthPath||'/';$('siteHealthInterval').value=site.healthIntervalSeconds||10;$('siteHealthTimeout').value=site.healthTimeoutSeconds||3;$('siteHealthPassive').value=site.healthPassiveReactivationSeconds||30;$('siteRateRequests').value=site.rateRequests||300;$('siteRateWindow').value=site.rateWindowSeconds||60;$('siteRateGlobal').value=site.rateGlobalRequests||10000;$('siteSubmit').textContent='บันทึกการแก้ไข';$('siteCancel').hidden=false;status(`กำลังแก้ไข ${site.siteId} (version ${editingVersion})`);}
     if(remove){const id=remove.dataset.siteDelete,site=siteMap.get(id);if(!site)return;(async()=>{const confirmed=await showAppDialog({title:'ยืนยันการลบ Site',description:`ลบ Site ${id} และปิดใช้งาน route ทันที การกระทำนี้ย้อนกลับไม่ได้`,confirmLabel:'ลบ Site',onConfirm:async()=>{remove.disabled=true;try{const response=await authFetch(`/api/sites/${encodeURIComponent(id)}`,{method:'DELETE',headers:{'If-Match':site.etag||`"${site.version||1}"`}});if(!response.ok)throw Error(await readApiError(response));return true;}finally{remove.disabled=false;}}});if(!confirmed)return;reset();status('ลบ Site สำเร็จแล้ว และปิดใช้งาน route ทันที','success');try{await load();}catch(error){status('ลบ Site สำเร็จแล้ว แต่โหลดรายการใหม่ไม่สำเร็จ: '+error.message,'error');}})();}
-  });
+  },{signal:eventController.signal});
   try{await load();}catch(error){status('โหลดรายการ Site ไม่สำเร็จ: '+error.message,'error');}
 }
 const loadSectionWithSiteCrud=loadSection;loadSection=async function(){if(active==='sites'){await loadSitesCrud();return;}await loadSectionWithSiteCrud();};
