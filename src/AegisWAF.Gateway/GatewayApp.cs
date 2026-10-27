@@ -235,6 +235,8 @@ public static class GatewayApp
             extensions: new Dictionary<string, object?>
             {
                 ["code"] = "site_runtime_activation_failed",
+                ["mutationCommitted"] = true,
+                ["activationStatus"] = "pending-restart",
                 ["traceId"] = ctx.TraceIdentifier
             });
 
@@ -246,6 +248,8 @@ public static class GatewayApp
             extensions: new Dictionary<string, object?>
             {
                 ["code"] = "site_runtime_activation_timeout",
+                ["mutationCommitted"] = true,
+                ["activationStatus"] = "pending-restart",
                 ["traceId"] = ctx.TraceIdentifier
             });
 
