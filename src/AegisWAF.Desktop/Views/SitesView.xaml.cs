@@ -167,7 +167,7 @@ public partial class SitesView : UserControl, IPage
     private static SiteHealthTrendDto ToTrend(SiteHealthComparisonDto item, int windowSize) => new(
         item.SiteId, windowSize, item.Total, item.Healthy, item.Unhealthy, item.Unknown, item.HealthyPercent,
         item.ConsecutiveUnhealthy, item.AlertState, item.LastCheckedAt, item.AcknowledgedUntil,
-        item.AcknowledgedBy, item.AlertSuppressed, item.RecoveryState, item.IsStale);
+        item.AcknowledgedBy, item.AlertSuppressed, item.RecoveryState, item.IsStale, item.EffectiveAlertState);
     private async void OnRefresh(object sender, RoutedEventArgs e) => await RefreshAsync();
 
     private async void OnRetrySummary(object sender, RoutedEventArgs e) => await RefreshListAsync(false, RefreshCancellationReason.Retry);
@@ -395,7 +395,7 @@ public partial class SitesView : UserControl, IPage
         public string UpstreamsText => string.Join(", ", site.Upstreams.Select(x => $"{x.Id} {x.Scheme}:{x.Port} ({x.Health})"));
         public string Health => site.Health;
         public string TrendText => trend is null ? "—" : $"{trend.HealthyPercent:0.#}% / {trend.Total}";
-        private string DisplayState => SiteHealthDisplayState.Resolve(site.Health, trend?.AlertState, trend?.RecoveryState, site.PendingRestart, trend?.IsStale == true);
+        private string DisplayState => SiteHealthDisplayState.Resolve(site.Health, trend?.AlertState, trend?.RecoveryState, site.PendingRestart, trend?.IsStale == true, trend?.EffectiveAlertState);
         public bool CanAcknowledge => trend is { AlertSuppressed: false } && DisplayState is "critical" or "degraded";
         public string AlertText => DisplayState switch
         {

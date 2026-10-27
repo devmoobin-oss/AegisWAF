@@ -162,7 +162,7 @@ async function loadSitesCrud(){
   const displayHealthState=(site,summary)=>{
     if(site?.pendingRestart)return 'pending-restart';
     const liveHealth=String(site?.health||'unknown').toLowerCase();
-    const historicalAlert=String(summary?.alertState||'').toLowerCase();
+    const historicalAlert=String(summary?.effectiveAlertState||summary?.alertState||'').toLowerCase();
     if(liveHealth==='unknown'&&summary?.isStale)return 'stale';
     if(liveHealth==='healthy')return historicalAlert==='critical'||historicalAlert==='degraded'||summary?.recoveryState==='recovered'?'recovered':'healthy';
     if(liveHealth==='unhealthy')return historicalAlert==='critical'||historicalAlert==='degraded'?historicalAlert:'unhealthy';

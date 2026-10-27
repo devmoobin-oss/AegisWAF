@@ -653,6 +653,7 @@ public static class GatewayApp
             consecutiveUnhealthy = trend.ConsecutiveUnhealthy,
             alertState = trend.AlertState,
             recoveryState = trend.RecoveryState,
+            effectiveAlertState = HealthAlertLifecycle.EffectiveAlertState(trend, trendIsStale),
             lastCheckedAt = trend.LastCheckedAt,
             isStale = trendIsStale,
             acknowledgedUntil = acknowledgement?.AcknowledgedUntil,
@@ -685,7 +686,7 @@ public static class GatewayApp
         var trendNow = DateTimeOffset.UtcNow;
         var trendIsStale = HealthAlertLifecycle.IsStale(trend, trendNow);
         if (!HealthAlertLifecycle.IsActionable(trend, trendNow))
-            return Results.Conflict(new { error = "health_alert_not_actionable", alertState = trend.AlertState, recoveryState = trend.RecoveryState, isStale = trendIsStale });
+            return Results.Conflict(new { error = "health_alert_not_actionable", alertState = trend.AlertState, recoveryState = trend.RecoveryState, effectiveAlertState = HealthAlertLifecycle.EffectiveAlertState(trend, trendIsStale), isStale = trendIsStale });
         IAsyncDisposable? mutationLease = null;
         CancellationTokenSource? writeBudget = null;
         try
@@ -705,6 +706,7 @@ public static class GatewayApp
                 consecutiveUnhealthy = trend.ConsecutiveUnhealthy,
                 alertState = trend.AlertState,
                 recoveryState = trend.RecoveryState,
+                effectiveAlertState = HealthAlertLifecycle.EffectiveAlertState(trend, trendIsStale),
                 lastCheckedAt = trend.LastCheckedAt,
                 acknowledgedUntil = acknowledgement.AcknowledgedUntil,
                 acknowledgedBy = acknowledgement.AcknowledgedBy,
@@ -795,6 +797,7 @@ public static class GatewayApp
                 consecutiveUnhealthy = item.Trend.ConsecutiveUnhealthy,
                 alertState = item.Trend.AlertState,
                 recoveryState = item.Trend.RecoveryState,
+                effectiveAlertState = HealthAlertLifecycle.EffectiveAlertState(item),
                 isStale = item.IsStale,
                 lastCheckedAt = item.Trend.LastCheckedAt,
                 acknowledgedUntil = acknowledgement?.AcknowledgedUntil,

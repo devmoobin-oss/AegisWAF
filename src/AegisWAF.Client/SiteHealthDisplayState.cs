@@ -6,12 +6,12 @@ namespace AegisWAF.Client;
 /// </summary>
 public static class SiteHealthDisplayState
 {
-    public static string Resolve(string? liveHealth, string? historicalAlert, string? recoveryState, bool pendingRestart, bool stale = false)
+    public static string Resolve(string? liveHealth, string? historicalAlert, string? recoveryState, bool pendingRestart, bool stale = false, string? effectiveAlertState = null)
     {
         if (pendingRestart) return "pending-restart";
 
         var live = Normalize(liveHealth);
-        var historical = Normalize(historicalAlert);
+        var historical = Normalize(string.IsNullOrWhiteSpace(effectiveAlertState) ? historicalAlert : effectiveAlertState);
         var recovered = string.Equals(recoveryState, "recovered", StringComparison.OrdinalIgnoreCase);
 
         // A historical alert with no fresh runtime data is not evidence of a current outage.

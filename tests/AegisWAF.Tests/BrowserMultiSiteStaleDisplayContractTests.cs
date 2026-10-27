@@ -15,6 +15,7 @@ public sealed class BrowserMultiSiteStaleDisplayContractTests
         var sites = source[start..end];
 
         Assert.Contains("summary?.isStale", sites, StringComparison.Ordinal);
+        Assert.Contains("summary?.effectiveAlertState||summary?.alertState", sites, StringComparison.Ordinal);
         Assert.Contains("'stale'", sites, StringComparison.Ordinal);
         Assert.Contains("ข้อมูลสรุปเก่า", sites, StringComparison.Ordinal);
     }

@@ -46,11 +46,11 @@ public sealed record SiteHealthHistoryDto(string SiteId, string Retention, int M
 public sealed record SiteHealthTrendDto(string SiteId, int WindowSize, int Total, int Healthy, int Unhealthy, int Unknown,
     double HealthyPercent, int ConsecutiveUnhealthy, string AlertState, DateTimeOffset? LastCheckedAt,
     DateTimeOffset? AcknowledgedUntil = null, string? AcknowledgedBy = null, bool AlertSuppressed = false,
-    string RecoveryState = "none", bool IsStale = false);
+    string RecoveryState = "none", bool IsStale = false, string? EffectiveAlertState = null);
 public sealed record SiteHealthComparisonDto(string SiteId, int Total, int Healthy, int Unhealthy, int Unknown,
     double HealthyPercent, int ConsecutiveUnhealthy, string AlertState, bool IsStale,
     DateTimeOffset? LastCheckedAt, DateTimeOffset? AcknowledgedUntil, string? AcknowledgedBy, bool AlertSuppressed,
-    string RecoveryState = "none");
+    string RecoveryState = "none", string? EffectiveAlertState = null);
 public sealed record SiteHealthSummaryDto(int WindowSize, int TotalSites, int CriticalSites, int DegradedSites,
     int HealthySites, int NoDataSites, int StaleSites, SiteHealthComparisonDto[] Sites,
     int ExpiredAcknowledgementsRemoved = 0, DateTimeOffset? GeneratedAt = null, int QueryDurationMs = 0,

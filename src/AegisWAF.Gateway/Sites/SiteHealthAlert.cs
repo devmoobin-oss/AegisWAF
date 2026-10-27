@@ -45,6 +45,17 @@ public static class HealthAlertLifecycle
     public static bool IsActionable(SiteHealthComparisonItem item) =>
         !item.IsStale && IsActionable(item.Trend);
 
+    public static string EffectiveAlertState(SiteHealthComparisonItem item) =>
+        EffectiveAlertState(item.Trend, item.IsStale);
+
+    public static string EffectiveAlertState(SiteHealthTrend trend, bool isStale)
+    {
+        ArgumentNullException.ThrowIfNull(trend);
+        if (isStale) return "stale";
+        if (string.Equals(trend.RecoveryState, "recovered", StringComparison.OrdinalIgnoreCase)) return "recovered";
+        return string.IsNullOrWhiteSpace(trend.AlertState) ? "unknown" : trend.AlertState.Trim().ToLowerInvariant();
+    }
+
     public static bool IsSuppressed(string currentState, string acknowledgedState, DateTimeOffset? acknowledgedUntil, DateTimeOffset now) =>
         IsActionable(currentState) &&
         string.Equals(currentState, acknowledgedState, StringComparison.OrdinalIgnoreCase) &&
