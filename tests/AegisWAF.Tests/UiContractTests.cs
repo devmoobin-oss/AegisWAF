@@ -143,6 +143,12 @@ public sealed class UiContractTests
         Assert.Contains("recovered", code);
         Assert.Contains("กลับมาปกติ", code);
         Assert.Contains("RecoveredSites", code);
+        Assert.Contains("SiteHealthDisplayState.Resolve", code);
+        Assert.Contains("DisplayState", code);
+        Assert.Contains("กลับมาปกติ · มีประวัติเก่า", code);
+        Assert.Contains("pending-restart", code);
+        Assert.Contains("health trend:", code);
+        Assert.Contains("สถานะ runtime ดูในแถว Site", code);
         Assert.Contains("OnUnloaded", xaml + code);
         Assert.Contains("OperationCanceledException", code);
         Assert.Contains("GetSitesAsync(ct)", code);

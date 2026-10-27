@@ -106,7 +106,7 @@ public partial class SitesView : UserControl, IPage
         var ageLabel = age is { } value ? $" · age {(int)value.TotalSeconds}s" : "";
         SummaryText.Text = summary is null
             ? "Health trend summary unavailable — รายการ Site ยังคงใช้งานได้"
-            : $"ภาพรวม {summary.TotalSites} Site · วิกฤติ {summary.CriticalSites} · เฝ้าระวัง {summary.DegradedSites} · กลับมาปกติ {summary.RecoveredSites} · ปกติ {summary.HealthySites} · ไม่มีข้อมูล {summary.NoDataSites} · stale {summary.StaleSites} · query {summary.QueryDurationMs} ms ({(summary.WithinBudget ? "พร้อม" : "ช้า")}){ageLabel}";
+            : $"ภาพรวม {summary.TotalSites} Site · health trend: วิกฤติ {summary.CriticalSites} · เฝ้าระวัง {summary.DegradedSites} · กลับมาปกติ {summary.RecoveredSites} · ปกติ {summary.HealthySites} · ไม่มีข้อมูล {summary.NoDataSites} · stale {summary.StaleSites} · สถานะ runtime ดูในแถว Site · query {summary.QueryDurationMs} ms ({(summary.WithinBudget ? "พร้อม" : "ช้า")}){ageLabel}";
         if (summary is not null && _summaryRecovery.IsFreshnessStale(now))
             SummaryText.Text = $"ข้อมูล summary เกินอายุ {_summaryRecovery.LastSuccessfulSummaryAge(now)!.Value.TotalMinutes:0.#} นาที · {SummaryText.Text}";
         if (!fresh && summary is not null)
@@ -392,25 +392,26 @@ public partial class SitesView : UserControl, IPage
         public string UpstreamsText => string.Join(", ", site.Upstreams.Select(x => $"{x.Id} {x.Scheme}:{x.Port} ({x.Health})"));
         public string Health => site.Health;
         public string TrendText => trend is null ? "—" : $"{trend.HealthyPercent:0.#}% / {trend.Total}";
-        public bool CanAcknowledge => trend is { AlertState: "critical" or "degraded", AlertSuppressed: false, RecoveryState: not "recovered" };
-        public string AlertText => trend?.RecoveryState == "recovered"
-            ? "กลับมาปกติ · มีประวัติเก่า"
-            : trend?.AlertState switch
+        private string DisplayState => SiteHealthDisplayState.Resolve(site.Health, trend?.AlertState, trend?.RecoveryState, site.PendingRestart);
+        public bool CanAcknowledge => trend is { AlertSuppressed: false } && DisplayState is "critical" or "degraded";
+        public string AlertText => DisplayState switch
         {
-            "critical" when trend.AlertSuppressed => "วิกฤติ · รับทราบแล้ว",
-            "degraded" when trend.AlertSuppressed => "เฝ้าระวัง · รับทราบแล้ว",
+            "recovered" => "กลับมาปกติ · มีประวัติเก่า",
+            "critical" when trend?.AlertSuppressed == true => "วิกฤติ · รับทราบแล้ว",
+            "degraded" when trend?.AlertSuppressed == true => "เฝ้าระวัง · รับทราบแล้ว",
             "critical" => "วิกฤติ",
             "degraded" => "เฝ้าระวัง",
             "healthy" => "ปกติ",
+            "unhealthy" => "ไม่พร้อม",
+            "pending-restart" => "รอเปิดใช้",
             _ => "ไม่มีข้อมูล"
         };
-        public Brush AlertBrush => trend?.RecoveryState == "recovered"
-            ? Ui.Brush("Green")
-            : trend?.AlertState switch
+        public Brush AlertBrush => DisplayState switch
         {
             "critical" => Ui.Brush("Red"),
             "degraded" => Ui.Brush("Orange"),
-            "healthy" => Ui.Brush("Green"),
+            "healthy" or "recovered" => Ui.Brush("Green"),
+            "unhealthy" => Ui.Brush("Red"),
             _ => Ui.Brush("Muted")
         };
         public string WafPolicy => site.WafPolicy;

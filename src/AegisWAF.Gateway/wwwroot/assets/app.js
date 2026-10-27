@@ -151,7 +151,10 @@ async function loadSitesCrud(){
     const liveHealth=String(site?.health||'unknown').toLowerCase();
     const historicalAlert=String(summary?.alertState||'').toLowerCase();
     if(liveHealth==='healthy')return historicalAlert==='critical'||historicalAlert==='degraded'||summary?.recoveryState==='recovered'?'recovered':'healthy';
-    return historicalAlert||liveHealth||'unknown';
+    if(liveHealth==='unhealthy')return historicalAlert==='critical'||historicalAlert==='degraded'?historicalAlert:'unhealthy';
+    if(liveHealth==='invalid')return 'invalid';
+    if(liveHealth==='unknown')return ['critical','degraded','healthy','no-data'].includes(historicalAlert)?historicalAlert:'unknown';
+    return 'unknown';
   };
   const reset=()=>{editing=null;editingVersion=null;$('siteForm').reset();$('sitePath').value='/';$('sitePolicy').value='default';$('siteId').readOnly=false;$('siteSubmit').textContent='เพิ่ม Site';$('siteCancel').hidden=true;status('เพิ่ม Site ใหม่ หรือเลือก “แก้ไข” จากตาราง ระบบจะตรวจสอบและเปิดใช้งาน route ให้ทันทีเมื่อบันทึกสำเร็จ');};
   const render=items=>{
