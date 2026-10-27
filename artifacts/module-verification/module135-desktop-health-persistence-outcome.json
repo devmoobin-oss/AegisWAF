@@ -1,0 +1,27 @@
+{
+  "module": "Module 135",
+  "title": "Surface Desktop health-history persistence outcome",
+  "recordedAt": "2026-10-28",
+  "progress": {
+    "beforePercent": 0,
+    "afterPercent": 100,
+    "targetPercent": 100
+  },
+  "sourceCommit": "c7de0d9",
+  "implementation": [
+    "Extended SiteHealthCheckDto with nullable history persistence metadata while preserving compatibility for pending-runtime responses.",
+    "Updated the Desktop Multi-Site health action to warn in Thai and use an error outcome when the probe completed but PostgreSQL history was not persisted.",
+    "Added a contract proving Browser and Desktop expose the same persistence boundary."
+  ],
+  "verification": {
+    "tddRed": "The new Desktop contract initially failed because SiteHealthCheckDto had no HistoryPersisted property.",
+    "focused": "10/10 passed",
+    "relevantRegression": "21/21 passed across handoff, health display/effective-state, persistence outcome, and UI contract classes",
+    "releaseBuild": "0 warnings / 0 errors",
+    "gitDiffCheck": "passed"
+  },
+  "boundary": [
+    "Live PostgreSQL history-write failure and authenticated browser/published-EXE smoke remain externally unverified.",
+    "Visual responsive verification, full VSTest testhost connectivity, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification remain outside this local run."
+  ]
+}
