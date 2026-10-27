@@ -1,0 +1,30 @@
+{
+  "module": "Module 128",
+  "title": "Bound aggregate Multi-Site manual health probes",
+  "recordedAt": "2026-10-28",
+  "progress": {
+    "beforePercent": 0,
+    "afterPercent": 100,
+    "targetPercent": 100
+  },
+  "sourceCommit": "0a91e6d4fc5232566dbba3eb720acb25c62549e4",
+  "implementation": [
+    "Added a ten-second linked aggregate budget for manual health probe batches across all upstreams of a Site.",
+    "Added a safe site_health_probe_timeout RFC 7807 response and bounded Thai browser recovery copy.",
+    "Preserved caller cancellation and per-upstream timeout/error categorization."
+  ],
+  "verification": {
+    "tddRed": "Initial test build failed because SiteHealthProbeBudget did not exist.",
+    "focused": "4/4 passed",
+    "regressionWithoutPostgres": "114/114 passed across 54 classes",
+    "nodeSyntax": "passed",
+    "impeccableDetector": "0 anti-patterns; four pre-existing advisory color findings only",
+    "releaseBuild": "0 warnings / 0 errors",
+    "gitDiffCheck": "passed",
+    "probeSocketBoundary": "Existing loopback health smoke tests were not counted: the environment returned socket_AccessDenied while starting the test listener."
+  },
+  "boundary": [
+    "Live aggregate timeout execution against multiple real upstreams remains externally unverified.",
+    "PostgreSQL integration, authenticated browser/published-EXE smoke, visual responsive verification, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification remain outside this local run."
+  ]
+}
