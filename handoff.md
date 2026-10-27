@@ -2131,14 +2131,14 @@
 - TDD RED: `SiteRuntimeActivationConcurrencyTests` initially failed to compile because the expected `ActivateFromSnapshotLoaderAsync` contract did not exist.
 - Implementation: `SiteRuntimeCoordinator` now serializes snapshot load plus activation with a semaphore. `ActivateFromStoreAsync` loads the authoritative PostgreSQL snapshot under that gate. Site add, update, delete, and the PostgreSQL notification listener now use this path; a static contract prevents direct stale-snapshot activation in the mutation endpoints.
 - Verification: focused runtime/contract tests passed **8/8**; Release solution build passed **0 warnings / 0 errors**; `git diff --check` passed.
-- Artifact boundary: runtime concurrency hardening only; no new EXE publish was created because the completed-modules artifact remains valid for this source change only after a new publish. Hosted full regression and PostgreSQL-backed integration require the Hosted/deployment environment.
+- Artifact boundary: runtime concurrency hardening only; the completed-modules artifact was republished in the following publish record from the Module 81 runtime commit. Hosted full regression and PostgreSQL-backed integration require the Hosted/deployment environment.
 - Evidence: `artifacts/module-verification/module81-serialized-site-runtime-activation.json`.
 - Boundary: this closes the local stale-snapshot activation race; it does not claim a fresh Hosted regression, independent penetration testing, DNS-rebinding, external load/SLO validation, SIEM delivery, Authenticode signing, or production certification.
 
 ### Opportunity audit after Module 81 — 2026-10-27
 
 - P0: Module 41/60 remain at 90% pending repository Code scanning/Advanced Security enablement and a fresh successful SARIF upload/status.
-- P1: publish a new completed-modules EXE from the Module 81 runtime commit, run authenticated published-EXE Multi-Site smoke, validate least-privilege PostgreSQL deployment, SIEM delivery/retention, DNS-rebinding, penetration, load, SLO/capacity, and incident-response evidence.
+- P1: run authenticated published-EXE Multi-Site smoke, validate least-privilege PostgreSQL deployment, SIEM delivery/retention, DNS-rebinding, penetration, load, SLO/capacity, and incident-response evidence.
 - P2: continue auditing Multi-Site policy versioning, MFA/WebAuthn/OIDC, and independent OWASP CRS corpus benchmarking.
 
 ### Authoritative continuation state — 2026-10-27 (latest after Module 81)
@@ -2148,3 +2148,21 @@
 - Latest published artifact remains the completed-modules bundle from the previous runtime commit until Module 81 is republished: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`, SHA-256 `E991FDEDC8B69DC60B1D05CDF3EAE69B4DDB3A5FA8FFECE7E3D52A985C6BE7CE`.
 - Remaining incomplete gates: Module 41 = 90% and Module 60 = 90% (repository Code scanning/Advanced Security and Hosted SARIF evidence); local integration gates requiring PostgreSQL are reported as unverified when the service is absent.
 - Next continuation action: run Hosted PostgreSQL-backed regression and republish the completed-modules EXE from the Module 81 runtime commit when the external environment is available; do not represent the previous executable as containing Module 81.
+
+### Published EXE — Module 81 completed modules bundle — 2026-10-27
+
+- Scope: republished the completed runtime modules after Module 81. Module 80 was documentation/tests only; Module 81 is the latest runtime change included in this bundle.
+- Publish gate progress: Before 0%; After 100%; Target 100%.
+- Source commit: `49b32a00b315994271aef2ad71e652b367c3aa45`; the working tree was clean when the publish was created.
+- Artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`, `net10.0-windows`, self-contained `win-x64`, single-file, `170,611,563` bytes.
+- SHA-256: `5C4949432F9D838C55E35D4CE3C5EDA9242B8218A97CE8AA7DD599023E9CA90E`.
+- Verification: PE header `MZ`; release manifest verification passed (`files=6`, `signed=false`, `workingTreeClean=true`). Manifest: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\release-manifest.json`.
+- Boundary: this is the operator-facing completed-modules artifact. It is not Authenticode-signed and does not claim CodeQL/SARIF, external penetration, DNS-rebinding, load/SLO, SIEM, or production-certification evidence.
+
+### Authoritative continuation state — 2026-10-27 (latest after Module 81 publish)
+
+- Latest local/Hosted module progress: Module 81 = 100%; Module 80 = 100%; Module 79 = 100%; Module 78 = 100%; Module 77 = 100%; Module 76 = 100%; Module 75 = 100%; Module 74 = 100%; Module 73 = 100%; Module 72 = 100%.
+- Latest Hosted verification for runtime Module 78: run `40445541235`, full regression `509/509`, `TRX_REGRESSION_PASS`; CodeQL remains an explicit external gate because repository Code scanning/Advanced Security is unavailable.
+- Latest completed-modules artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`, SHA-256 `5C4949432F9D838C55E35D4CE3C5EDA9242B8218A97CE8AA7DD599023E9CA90E`.
+- Remaining incomplete gates: Module 41 = 90% and Module 60 = 90% (repository Code scanning/Advanced Security and Hosted SARIF evidence); local integration gates requiring PostgreSQL are reported as unverified when the service is absent.
+- Next continuation action: run the next Hosted PostgreSQL-backed regression from this Module 81 runtime commit when the external environment is available; preserve the verified artifact until runtime code changes again.
