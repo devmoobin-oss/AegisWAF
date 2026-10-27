@@ -36,6 +36,15 @@ public static class HealthAlertLifecycle
         IsActionable(trend.AlertState) &&
         !string.Equals(trend.RecoveryState, "recovered", StringComparison.OrdinalIgnoreCase);
 
+    public static bool IsStale(SiteHealthTrend trend, DateTimeOffset now) =>
+        trend.LastCheckedAt is null || now - trend.LastCheckedAt.Value > StaleAfter;
+
+    public static bool IsActionable(SiteHealthTrend trend, DateTimeOffset now) =>
+        IsActionable(trend) && !IsStale(trend, now);
+
+    public static bool IsActionable(SiteHealthComparisonItem item) =>
+        !item.IsStale && IsActionable(item.Trend);
+
     public static bool IsSuppressed(string currentState, string acknowledgedState, DateTimeOffset? acknowledgedUntil, DateTimeOffset now) =>
         IsActionable(currentState) &&
         string.Equals(currentState, acknowledgedState, StringComparison.OrdinalIgnoreCase) &&
@@ -60,7 +69,7 @@ public static class SiteHealthComparisonCalculator
                     ? count
                     : 0;
                 var trend = SiteHealthTrendCalculator.Calculate(x.Observations, window, expected);
-                var stale = trend.LastCheckedAt is null || now - trend.LastCheckedAt.Value > HealthAlertLifecycle.StaleAfter;
+                var stale = HealthAlertLifecycle.IsStale(trend, now);
                 return new SiteHealthComparisonItem(x.SiteId, trend, stale);
             })
             .OrderBy(x => AlertRank(x.Trend.AlertState))

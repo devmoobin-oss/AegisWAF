@@ -587,8 +587,10 @@ public static class GatewayApp
         catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
         { return SiteDatabaseUnavailable(ctx, "health-alert-acknowledged", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
         var trend = SiteHealthTrendCalculator.Calculate(observations, SiteHealthTrendCalculator.MaxWindow, site.Upstreams.Count);
-        if (!HealthAlertLifecycle.IsActionable(trend))
-            return Results.Conflict(new { error = "health_alert_not_actionable", alertState = trend.AlertState, recoveryState = trend.RecoveryState });
+        var trendNow = DateTimeOffset.UtcNow;
+        var trendIsStale = HealthAlertLifecycle.IsStale(trend, trendNow);
+        if (!HealthAlertLifecycle.IsActionable(trend, trendNow))
+            return Results.Conflict(new { error = "health_alert_not_actionable", alertState = trend.AlertState, recoveryState = trend.RecoveryState, isStale = trendIsStale });
         try
         {
             var acknowledgement = await store.AcknowledgeHealthAlertAsync(site.Id, trend.AlertState, input.CooldownSeconds, ctx.Actor() ?? "unknown", ctx.ClientIp(), ct);
@@ -659,7 +661,7 @@ public static class GatewayApp
             var acknowledgement = acknowledgements.TryGetValue(item.SiteId, out var states)
                 ? states.FirstOrDefault(x => string.Equals(x.AlertState, item.Trend.AlertState, StringComparison.OrdinalIgnoreCase))
                 : null;
-            var suppressed = HealthAlertLifecycle.IsActionable(item.Trend) && acknowledgement is not null && HealthAlertLifecycle.IsSuppressed(item.Trend.AlertState, acknowledgement.AlertState, acknowledgement.AcknowledgedUntil, now);
+            var suppressed = HealthAlertLifecycle.IsActionable(item) && acknowledgement is not null && HealthAlertLifecycle.IsSuppressed(item.Trend.AlertState, acknowledgement.AlertState, acknowledgement.AcknowledgedUntil, now);
             return new
             {
                 siteId = item.SiteId,

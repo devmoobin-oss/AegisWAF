@@ -26,6 +26,19 @@ public sealed class SiteHealthAlertTests
     }
 
     [Fact]
+    public void Stale_actionable_trends_are_not_acknowledgeable()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var stale = new SiteHealthTrend(
+            20, 3, 0, 3, 0, 0, 3, "critical",
+            now - HealthAlertLifecycle.StaleAfter - TimeSpan.FromSeconds(1));
+        var fresh = stale with { LastCheckedAt = now };
+
+        Assert.False(HealthAlertLifecycle.IsActionable(stale, now));
+        Assert.True(HealthAlertLifecycle.IsActionable(fresh, now));
+    }
+
+    [Fact]
     public void Suppression_requires_matching_state_and_future_expiry()
     {
         var now = DateTimeOffset.UtcNow;
