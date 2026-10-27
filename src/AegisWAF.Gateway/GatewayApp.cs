@@ -710,7 +710,11 @@ public static class GatewayApp
         if (!SiteConfigurationEditor.TryNormalize(input, out var site, out var inputError))
             return Results.BadRequest(new { error = inputError });
         var candidate = SiteDatabaseStore.ToGatewaySite(site);
-        var proposedSites = registry.Current.Sites.Append(candidate).ToArray();
+        IReadOnlyList<GatewaySite> storedSitesForValidation;
+        try { storedSitesForValidation = await store.ListAsync(ct); }
+        catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
+        { return SiteDatabaseUnavailable(ctx, "validated", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
+        var proposedSites = storedSitesForValidation.Append(candidate).ToArray();
         var validationErrors = SiteConfigurationValidator.ValidateSnapshot(
             new SiteConfigurationSnapshot(proposedSites, false), configuration);
         if (validationErrors.Count > 0)
@@ -737,7 +741,11 @@ public static class GatewayApp
         if (!SiteConfigurationEditor.TryNormalize(input with { Id = id }, out var site, out var inputError))
             return Results.BadRequest(new { error = inputError });
         var candidate = SiteDatabaseStore.ToGatewaySite(site);
-        var proposedSites = registry.Current.Sites
+        IReadOnlyList<GatewaySite> storedSitesForValidation;
+        try { storedSitesForValidation = await store.ListAsync(ct); }
+        catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
+        { return SiteDatabaseUnavailable(ctx, "validated", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
+        var proposedSites = storedSitesForValidation
             .Where(existing => !existing.Id.Equals(candidate.Id, StringComparison.OrdinalIgnoreCase))
             .Append(candidate)
             .ToArray();
