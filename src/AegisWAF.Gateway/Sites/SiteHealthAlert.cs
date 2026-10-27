@@ -72,18 +72,22 @@ public static class SiteHealthComparisonCalculator
                 var stale = HealthAlertLifecycle.IsStale(trend, now);
                 return new SiteHealthComparisonItem(x.SiteId, trend, stale);
             })
-            .OrderBy(x => AlertRank(x.Trend.AlertState))
+            .OrderBy(x => AlertRank(x.Trend))
             .ThenByDescending(x => x.IsStale)
             .ThenBy(x => x.SiteId, StringComparer.OrdinalIgnoreCase)
             .Take(boundedLimit)
             .ToArray();
     }
 
-    private static int AlertRank(string state) => state switch
+    private static int AlertRank(SiteHealthTrend trend)
     {
-        "critical" => 0,
-        "degraded" => 1,
-        "no-data" => 3,
-        _ => 2
-    };
+        if (string.Equals(trend.RecoveryState, "recovered", StringComparison.OrdinalIgnoreCase)) return 2;
+        return trend.AlertState switch
+        {
+            "critical" => 0,
+            "degraded" => 1,
+            "no-data" => 3,
+            _ => 2
+        };
+    }
 }

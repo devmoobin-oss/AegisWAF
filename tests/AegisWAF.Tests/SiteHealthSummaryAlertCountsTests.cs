@@ -27,6 +27,17 @@ public sealed class SiteHealthSummaryAlertCountsTests
         Assert.Equal(1, counts.RecoveredSites);
     }
 
+    [Fact]
+    public void Recovered_critical_history_is_not_counted_as_a_current_critical_site()
+    {
+        var recoveredCritical = Item("recovered-critical", "critical", "recovered", isStale: false);
+
+        var counts = SiteHealthSummaryAlertCounts.Calculate([recoveredCritical]);
+
+        Assert.Equal(0, counts.CriticalSites);
+        Assert.Equal(1, counts.RecoveredSites);
+    }
+
     private static SiteHealthComparisonItem Item(string siteId, string alertState, string recoveryState, bool isStale) =>
         new(siteId, new SiteHealthTrend(
             WindowSize: 20,

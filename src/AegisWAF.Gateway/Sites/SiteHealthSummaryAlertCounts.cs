@@ -17,7 +17,7 @@ public static class SiteHealthSummaryAlertCounts
         ArgumentNullException.ThrowIfNull(items);
         var materialized = items.ToArray();
         return new(
-            CriticalSites: materialized.Count(x => !x.IsStale && Is(x.Trend.AlertState, "critical")),
+            CriticalSites: materialized.Count(x => !x.IsStale && Is(x.Trend.AlertState, "critical") && !Is(x.Trend.RecoveryState, "recovered")),
             DegradedSites: materialized.Count(x => !x.IsStale && Is(x.Trend.AlertState, "degraded") && !Is(x.Trend.RecoveryState, "recovered")),
             HealthySites: materialized.Count(x => Is(x.Trend.AlertState, "healthy")),
             NoDataSites: materialized.Count(x => Is(x.Trend.AlertState, "no-data")),
