@@ -1,0 +1,27 @@
+{
+  "module": "Module 136",
+  "title": "Multi-Site health summary truncation transparency",
+  "beforePercent": 0,
+  "afterPercent": 100,
+  "targetPercent": 100,
+  "opportunity": "The bounded health summary endpoint reported the returned row count as totalSites, so installations with more than 100 sites received an incomplete summary without an explicit boundary.",
+  "implementation": [
+    "Preserved the complete stored-site count and returned-site count in the summary API.",
+    "Added a truncated flag when the bounded result does not include every stored site.",
+    "Added client DTO fields for returnedSites and truncated.",
+    "Displayed an operator-facing Thai warning in Browser and Desktop surfaces when the summary is bounded."
+  ],
+  "verification": {
+    "focusedContracts": "11/11 passed",
+    "releaseSolutionBuild": "0 warnings / 0 errors",
+    "nodeSyntaxCheck": "passed",
+    "impeccableDetector": "0 anti-patterns; four pre-existing advisory design-system color findings",
+    "gitDiffCheck": "passed"
+  },
+  "boundary": [
+    "Live PostgreSQL serialization with more than 100 sites",
+    "Authenticated browser/published-EXE smoke",
+    "Visual responsive verification",
+    "CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification"
+  ]
+}

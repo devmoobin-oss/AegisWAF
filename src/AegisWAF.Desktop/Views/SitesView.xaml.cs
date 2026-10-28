@@ -107,9 +107,12 @@ public partial class SitesView : UserControl, IPage
         var staleAlertLabel = summary is null || summary.StaleSites == 0
             ? "ข้อมูลเก่า 0"
             : $"ข้อมูลเก่า {summary.StaleSites} (เดิมวิกฤติ {summary.StaleCriticalSites} · เดิมเฝ้าระวัง {summary.StaleDegradedSites})";
+        var scopeLabel = summary is not null && summary.Truncated
+            ? $" · แสดง {summary.ReturnedSites} จาก {summary.TotalSites} Site"
+            : "";
         SummaryText.Text = summary is null
             ? "Health trend summary unavailable — รายการ Site ยังคงใช้งานได้"
-            : $"ภาพรวม {summary.TotalSites} Site · health trend: วิกฤติปัจจุบัน {summary.CriticalSites} · เฝ้าระวังปัจจุบัน {summary.DegradedSites} · กลับมาปกติ {summary.RecoveredSites} · ปกติ {summary.HealthySites} · ไม่มีข้อมูล {summary.NoDataSites} · {staleAlertLabel} · สถานะ runtime ดูในแถว Site · query {summary.QueryDurationMs} ms ({(summary.WithinBudget ? "พร้อม" : "ช้า")}){ageLabel}";
+            : $"ภาพรวม {summary.TotalSites} Site · health trend: วิกฤติปัจจุบัน {summary.CriticalSites} · เฝ้าระวังปัจจุบัน {summary.DegradedSites} · กลับมาปกติ {summary.RecoveredSites} · ปกติ {summary.HealthySites} · ไม่มีข้อมูล {summary.NoDataSites} · {staleAlertLabel}{scopeLabel} · สถานะ runtime ดูในแถว Site · query {summary.QueryDurationMs} ms ({(summary.WithinBudget ? "พร้อม" : "ช้า")}){ageLabel}";
         if (summary is not null && _summaryRecovery.IsFreshnessStale(now))
             SummaryText.Text = $"ข้อมูล summary เกินอายุ {_summaryRecovery.LastSuccessfulSummaryAge(now)!.Value.TotalMinutes:0.#} นาที · {SummaryText.Text}";
         if (!fresh && summary is not null)
