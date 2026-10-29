@@ -45,6 +45,9 @@ public partial class SitesView : UserControl, IPage
         {
             var sites = await _api.GetSitesAsync(ct);
             if (ct.IsCancellationRequested || !_refreshLifecycle.IsCurrentGeneration(generation)) return;
+            var initialRows = sites.Select(site => new SiteRow(site, null)).ToArray();
+            Grid.ItemsSource = initialRows;
+            SummaryText.Text = "รายการ Site โหลดแล้ว · กำลังโหลดภาพรวม health trend...";
             var freshSummary = await TryGetSummaryAsync(ct);
             if (ct.IsCancellationRequested || !_refreshLifecycle.IsCurrentGeneration(generation)) return;
             var summary = freshSummary ?? _summaryRecovery.LastSuccessfulSummary;
