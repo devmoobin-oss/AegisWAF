@@ -1,0 +1,28 @@
+{
+  "module": "Module 142",
+  "title": "Progressive Multi-Site list loading",
+  "beforePercent": 0,
+  "afterPercent": 100,
+  "targetPercent": 100,
+  "opportunity": "The Multi-Site page waited for the Health summary request before rendering the base Site list, so a slow or unavailable summary made usable Site data appear blank.",
+  "implementation": [
+    "Render the authoritative /api/sites result immediately after it succeeds.",
+    "Load /api/sites/health/summary afterward and re-render only when the view generation is still current, preserving stale-request cancellation and explicit loading/unavailable summary states.",
+    "Added a regression contract proving base list rendering precedes the summary request."
+  ],
+  "verification": {
+    "tddRed": "1/1 expected failure before implementation",
+    "focusedContracts": "10/10 passed",
+    "nodeSyntax": "node --check passed",
+    "releaseSolutionBuild": "0 warnings / 0 errors",
+    "gitDiffCheck": "passed",
+    "impeccableDetector": "4 advisory pre-existing color findings; no new detector finding from this change",
+    "premiumStaticAudit": "34 pre-existing strict findings remain across canonical UI ownership, dynamic button detection, form declarations, and scrollbar standards; not claimed as resolved by this module"
+  },
+  "boundary": [
+    "Authenticated browser timing measurement with a deliberately slow summary endpoint",
+    "Full loading/error/empty/keyboard/narrow-viewport browser matrix",
+    "Premium static audit findings unrelated to progressive loading",
+    "CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification"
+  ]
+}
