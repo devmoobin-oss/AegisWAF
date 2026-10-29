@@ -175,6 +175,24 @@ public sealed class SiteConfigurationTests
     }
 
     [Fact]
+    public void Rejects_invalid_or_duplicate_path_prefixes_before_binding_runtime_routes()
+    {
+        var config = Config(new Dictionary<string, string?>
+        {
+            ["Sites:shop:Hostnames:0"] = "app.example.com",
+            ["Sites:shop:PathPrefixes:0"] = "/api?token=secret",
+            ["Sites:shop:PathPrefixes:1"] = "/api/",
+            ["Sites:shop:PathPrefixes:2"] = "/api",
+            ["Sites:shop:Upstreams:0:Address"] = "https://origin.example.com/"
+        });
+
+        var errors = SiteConfigurationValidator.Validate(config);
+
+        Assert.Contains(errors, error => error.Contains("invalid path prefix", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(errors, error => error.Contains("duplicate path prefixes", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void Production_requires_each_upstream_to_be_covered_by_site_egress_policy()
     {
         var config = Config(new Dictionary<string, string?>

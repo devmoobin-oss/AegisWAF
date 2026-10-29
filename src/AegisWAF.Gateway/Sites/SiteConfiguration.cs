@@ -86,9 +86,19 @@ public static class SiteConfigurationValidator
                     errors.Add($"Site {id} upstream {upstream.Key} must not target a private, loopback, metadata, multicast, or special-use IP literal");
             }
 
-            var pathSections = site.GetSection("PathPrefixes").GetChildren().ToArray();
-            if (pathSections.Length > MaxPathPrefixesPerSite)
+            var pathPrefixes = site.GetSection("PathPrefixes").Get<string[]>() ?? ["/"];
+            if (pathPrefixes.Length > MaxPathPrefixesPerSite)
                 errors.Add($"Site {id} may contain at most {MaxPathPrefixesPerSite} path prefixes");
+            var normalizedPaths = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var path in pathPrefixes)
+            {
+                var rawPath = (path ?? "").Trim();
+                if (rawPath.Length == 0 || rawPath.Length > 256 || !rawPath.StartsWith('/') ||
+                    rawPath.Contains('?') || rawPath.Contains('#') || rawPath.Contains('\0'))
+                    errors.Add($"Site {id} contains an invalid path prefix");
+                else if (!normalizedPaths.Add(NormalizePath(rawPath)))
+                    errors.Add($"Site {id} contains duplicate path prefixes after normalization");
+            }
 
             if (enforcing)
             {
