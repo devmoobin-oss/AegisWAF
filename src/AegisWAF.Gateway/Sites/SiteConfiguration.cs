@@ -16,6 +16,9 @@ public static class SiteConfigurationValidator
     private const int MaxHostnamesPerSite = 32;
     private const int MaxPathPrefixesPerSite = 64;
     private const int MaxUpstreamsPerSite = 32;
+    private const int MaxEgressHostsPerSite = 64;
+    private const int MaxEgressPortsPerSite = 32;
+    private const int MaxEgressSchemesPerSite = 4;
 
     public static IReadOnlyList<string> Validate(IConfiguration configuration)
     {
@@ -110,11 +113,18 @@ public static class SiteConfigurationValidator
             generatedRoutes += (long)normalizedHosts.Length * normalizedPaths.Count;
             generatedDestinations += upstreamSections.Length;
 
+            var allowedHosts = site.GetSection("Egress:AllowedHosts").Get<string[]>() ?? [];
+            var allowedPorts = site.GetSection("Egress:AllowedPorts").Get<int[]>() ?? [];
+            var allowedSchemes = site.GetSection("Egress:AllowedSchemes").Get<string[]>() ?? [];
+            if (allowedHosts.Length > MaxEgressHostsPerSite)
+                errors.Add($"Site {id} may contain at most {MaxEgressHostsPerSite} egress hosts");
+            if (allowedPorts.Length > MaxEgressPortsPerSite)
+                errors.Add($"Site {id} may contain at most {MaxEgressPortsPerSite} egress ports");
+            if (allowedSchemes.Length > MaxEgressSchemesPerSite)
+                errors.Add($"Site {id} may contain at most {MaxEgressSchemesPerSite} egress schemes");
+
             if (enforcing)
             {
-                var allowedHosts = site.GetSection("Egress:AllowedHosts").Get<string[]>() ?? [];
-                var allowedPorts = site.GetSection("Egress:AllowedPorts").Get<int[]>() ?? [];
-                var allowedSchemes = site.GetSection("Egress:AllowedSchemes").Get<string[]>() ?? [];
                 if (allowedHosts.Length == 0 || allowedPorts.Length == 0 || allowedSchemes.Length == 0 ||
                     allowedSchemes.Any(x => !string.Equals(x, "https", StringComparison.OrdinalIgnoreCase)))
                     errors.Add($"Site {id} must define an explicit HTTPS egress allowlist");
@@ -280,6 +290,12 @@ public static class SiteConfigurationValidator
                 var allowedHosts = egress.AllowedHosts ?? [];
                 var allowedPorts = egress.AllowedPorts ?? [];
                 var allowedSchemes = egress.AllowedSchemes ?? [];
+                if (allowedHosts.Count > MaxEgressHostsPerSite)
+                    errors.Add($"Site {id} may contain at most {MaxEgressHostsPerSite} egress hosts");
+                if (allowedPorts.Count > MaxEgressPortsPerSite)
+                    errors.Add($"Site {id} may contain at most {MaxEgressPortsPerSite} egress ports");
+                if (allowedSchemes.Count > MaxEgressSchemesPerSite)
+                    errors.Add($"Site {id} may contain at most {MaxEgressSchemesPerSite} egress schemes");
                 if (allowedHosts.Count == 0)
                     errors.Add($"Site {id} must define explicit egress hosts");
                 if (allowedPorts.Count == 0 || allowedPorts.Any(x => x is < 1 or > 65535))

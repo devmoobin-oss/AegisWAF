@@ -113,6 +113,41 @@ public sealed class SiteConfigurationCardinalityTests
         Assert.Contains(errors, error => error.Contains("generate at most 1 destinations", StringComparison.OrdinalIgnoreCase));
     }
 
+    [Fact]
+    public void Rejects_oversized_egress_allowlists_in_configuration_and_snapshot_paths()
+    {
+        var values = new Dictionary<string, string?>
+        {
+            ["Sites:shop:Hostnames:0"] = "shop.example.com",
+            ["Sites:shop:Upstreams:0:Address"] = "https://origin.example.com/"
+        };
+        for (var index = 0; index <= 64; index++)
+            values[$"Sites:shop:Egress:AllowedHosts:{index}"] = $"origin-{index}.example.com";
+        for (var index = 0; index <= 32; index++)
+            values[$"Sites:shop:Egress:AllowedPorts:{index}"] = (443 + index).ToString();
+        for (var index = 0; index <= 4; index++)
+            values[$"Sites:shop:Egress:AllowedSchemes:{index}"] = index == 0 ? "https" : $"scheme-{index}";
+
+        var configuration = Config(values);
+        var configurationErrors = SiteConfigurationValidator.Validate(configuration);
+        var snapshot = new SiteConfigurationSnapshot([
+            new GatewaySite("shop", true, ["shop.example.com"], ["/"],
+                [new SiteUpstream("primary", new Uri("https://origin.example.com/"))], "default",
+                new SiteRateLimitPolicy(), new SiteEgressPolicy(
+                    Enumerable.Range(0, 65).Select(index => $"origin-{index}.example.com").ToArray(),
+                    Enumerable.Range(0, 33).Select(index => 443 + index).ToArray(),
+                    ["https", "http", "ftp", "ws", "wss"])),
+        ], false);
+        var snapshotErrors = SiteConfigurationValidator.ValidateSnapshot(snapshot, configuration);
+
+        Assert.Contains(configurationErrors, error => error.Contains("egress hosts", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(configurationErrors, error => error.Contains("egress ports", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(configurationErrors, error => error.Contains("egress schemes", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(snapshotErrors, error => error.Contains("egress hosts", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(snapshotErrors, error => error.Contains("egress ports", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(snapshotErrors, error => error.Contains("egress schemes", StringComparison.OrdinalIgnoreCase));
+    }
+
     private static IConfiguration Config(Dictionary<string, string?> values) =>
         new ConfigurationBuilder().AddInMemoryCollection(values).Build();
 
