@@ -5,10 +5,18 @@
   "afterPercent": 100,
   "targetPercent": 100,
   "red": "SiteHealthSummaryProcessMemoryFallbackContractTests failed 2/2 before the Summary fallback implementation.",
-  "focusedTests": "pending-final-commit",
-  "releaseBuild": "pending-final-commit",
+  "focusedTests": "31/31 passed",
+  "releaseBuild": "Release passed: 0 warnings, 0 errors",
   "fullVstest": "not rerun: prior full testhost boundary remains aborted after 90 seconds",
   "liveDatabaseOutage": "not available in this environment",
-  "artifact": "pending-publish",
+  "artifact": {
+    "path": "D:\\AegisWAF\\dist\\AegisWAF-Desktop-CompletedModules\\AegisWAF.exe",
+    "sha256": "4648AF47531BA06BF2E1B5BF39BBC66C87864D6029BA0BA4086685FBEE37D42D",
+    "sizeBytes": 170721643,
+    "sourceCommit": "bed7e045767732c6d958820801832e82a46b16dd",
+    "manifest": "files=6, signed=false, workingTreeClean=true",
+    "peHeader": "MZ",
+    "authenticode": "NotSigned"
+  },
   "boundary": "No live PostgreSQL outage execution or authenticated published-EXE smoke claim."
 }
