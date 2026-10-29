@@ -13,7 +13,7 @@ public sealed class BrowserMultiSiteHealthSummaryRetentionContractTests
         Assert.Contains("historyRetention", sites, StringComparison.Ordinal);
         Assert.Contains("summaryLoadState==='ready'&&summaryMeta.historyPersisted===false", sites, StringComparison.Ordinal);
         Assert.Contains("ข้อมูลหน่วยความจำชั่วคราว", sites, StringComparison.Ordinal);
-        Assert.Contains("summaryStatus.className=`notice ${summaryLoadState==='unavailable'?'error':summaryDegraded?'warning':''}`", sites, StringComparison.Ordinal);
+        Assert.Contains("summaryStatus.className=`notice ${summaryLoadState==='unavailable'?'error':summaryDegraded||summaryTruncated?'warning':''}`", sites, StringComparison.Ordinal);
     }
 
     private static string SourceSlice(string startMarker, string endMarker)
