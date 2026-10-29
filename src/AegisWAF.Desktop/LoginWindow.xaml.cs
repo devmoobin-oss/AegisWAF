@@ -47,12 +47,7 @@ public partial class LoginWindow : Window
         {
             await App.Gateway.StopAsync();
             Status("เริ่มระบบป้องกันไม่สำเร็จ", "Red");
-            var msg = ex.Message;
-            if (msg.Contains("address already in use", StringComparison.OrdinalIgnoreCase) || msg.Contains("Only one usage", StringComparison.OrdinalIgnoreCase))
-                msg = $"พอร์ต {_settings.ListenPort} ถูกโปรแกรมอื่นใช้อยู่ (อาจเปิด AegisWAF ซ้อนกัน) — ปิดตัวที่ใช้พอร์ตนี้ หรือกด ตั้งค่าใหม่ เพื่อเปลี่ยนพอร์ต";
-            else if (msg.Contains("password", StringComparison.OrdinalIgnoreCase) || msg.Contains("Connection refused", StringComparison.OrdinalIgnoreCase) || msg.Contains("actively refused", StringComparison.OrdinalIgnoreCase))
-                msg = "เชื่อมต่อฐานข้อมูลไม่ได้ — ตรวจสอบว่า PostgreSQL ทำงานอยู่ หรือกด ตั้งค่าใหม่ เพื่อแก้รหัสผ่านฐานข้อมูล (" + ex.Message + ")";
-            ErrorText.Text = msg;
+            ErrorText.Text = GatewayStartupFailure.Describe(ex.Message, _settings.ListenPort);
             RetryButton.Visibility = Visibility.Visible;
         }
     }
