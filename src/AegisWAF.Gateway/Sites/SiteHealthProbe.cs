@@ -14,6 +14,8 @@ public sealed record SiteHealthProbeResult(
 /// <summary>Performs bounded on-demand probes through the same per-site egress guard as YARP.</summary>
 public sealed class SiteHealthProbe
 {
+    internal const int MaxConcurrentUpstreams = 8;
+
     public async Task<IReadOnlyList<SiteHealthProbeResult>> ProbeAsync(GatewaySite site, CancellationToken ct)
     {
         var health = site.Health ?? new SiteHealthPolicy();
@@ -27,29 +29,39 @@ public sealed class SiteHealthProbe
             ConnectCallback = (context, token) => EgressConnectionGuard.ConnectAsync(policy, context.DnsEndPoint, token)
         };
         using var client = new HttpClient(handler) { Timeout = timeout };
-        var results = new List<SiteHealthProbeResult>();
         var checkedAt = DateTimeOffset.UtcNow;
-        foreach (var upstream in site.Upstreams)
+
+        using var concurrency = new SemaphoreSlim(MaxConcurrentUpstreams);
+        var probes = site.Upstreams.Select(async upstream =>
         {
-            var probeUri = BuildProbeUri(upstream.Address, health.Path);
+            await concurrency.WaitAsync(ct);
             try
             {
-                using var request = new HttpRequestMessage(HttpMethod.Get, probeUri);
-                using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
-                var healthy = response.IsSuccessStatusCode;
-                results.Add(new SiteHealthProbeResult(upstream.Id, upstream.Address.ToString(), healthy ? "healthy" : "unhealthy",
-                    healthy ? null : "http_" + (int)response.StatusCode, checkedAt));
+                var probeUri = BuildProbeUri(upstream.Address, health.Path);
+                try
+                {
+                    using var request = new HttpRequestMessage(HttpMethod.Get, probeUri);
+                    using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+                    var healthy = response.IsSuccessStatusCode;
+                    return new SiteHealthProbeResult(upstream.Id, upstream.Address.ToString(), healthy ? "healthy" : "unhealthy",
+                        healthy ? null : "http_" + (int)response.StatusCode, checkedAt);
+                }
+                catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+                {
+                    return new SiteHealthProbeResult(upstream.Id, upstream.Address.ToString(), "unhealthy", "timeout", checkedAt);
+                }
+                catch (HttpRequestException ex)
+                {
+                    return new SiteHealthProbeResult(upstream.Id, upstream.Address.ToString(), "unhealthy", SafeFailureReason(ex), checkedAt);
+                }
             }
-            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            finally
             {
-                results.Add(new SiteHealthProbeResult(upstream.Id, upstream.Address.ToString(), "unhealthy", "timeout", checkedAt));
+                concurrency.Release();
             }
-            catch (HttpRequestException ex)
-            {
-                results.Add(new SiteHealthProbeResult(upstream.Id, upstream.Address.ToString(), "unhealthy", SafeFailureReason(ex), checkedAt));
-            }
-        }
-        return results;
+        });
+
+        return await Task.WhenAll(probes);
     }
 
     internal static Uri BuildProbeUri(Uri upstream, string path)

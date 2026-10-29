@@ -1,0 +1,27 @@
+{
+  "module": "Module 139",
+  "title": "Bounded parallel Multi-Site health probes",
+  "beforePercent": 0,
+  "afterPercent": 100,
+  "targetPercent": 100,
+  "opportunity": "Manual health checks probed every upstream sequentially, so multiple slow upstreams could consume the aggregate 10-second budget before all configured upstreams received a result.",
+  "implementation": [
+    "Added a fixed MaxConcurrentUpstreams limit of 8 using SemaphoreSlim.",
+    "Executed independent upstream probes with Task.WhenAll while preserving one checkedAt timestamp, bounded failure reasons, caller cancellation, and aggregate budget cancellation semantics.",
+    "Added a regression contract requiring bounded admission and guaranteed semaphore release."
+  ],
+  "verification": {
+    "tddRed": "1/1 expected failure before implementation",
+    "focusedContract": "1/1 passed",
+    "healthProbeSafetyAndBudget": "5/5 passed",
+    "healthProbeRegression": "12/14 passed; 2 pre-existing loopback cases were blocked by environment socket_AccessDenied",
+    "releaseSolutionBuild": "0 warnings / 0 errors",
+    "gitDiffCheck": "passed"
+  },
+  "boundary": [
+    "Live loopback concurrency execution is blocked by the environment's socket_AccessDenied policy",
+    "Authenticated browser/published-EXE smoke",
+    "Visual responsive verification",
+    "CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification"
+  ]
+}
