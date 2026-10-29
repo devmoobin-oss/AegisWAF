@@ -106,8 +106,23 @@ internal static class SitePersistenceCodec
             throw new InvalidDataException($"Persisted Site {row.SiteId} rate-limit policy is outside the allowed range");
         if (row.Version < 1)
             throw new InvalidDataException($"Persisted Site {row.SiteId} row version is invalid");
-        if (row.EgressAllowedPorts.Any(x => x is < 1 or > 65535))
-            throw new InvalidDataException($"Persisted Site {row.SiteId} egress port is outside the allowed range");
+
+        var egressHosts = row.EgressAllowedHosts.Select(x => SiteConfigurationValidator.NormalizeHostname(x ?? "")).ToArray();
+        if (egressHosts.Length == 0 || egressHosts.Any(x => x.Length == 0))
+            throw new InvalidDataException($"Persisted Site {row.SiteId} contains an invalid egress host");
+        if (egressHosts.Distinct(StringComparer.OrdinalIgnoreCase).Count() != egressHosts.Length)
+            throw new InvalidDataException($"Persisted Site {row.SiteId} contains duplicate egress hosts after normalization");
+
+        if (row.EgressAllowedPorts.Length == 0 || row.EgressAllowedPorts.Any(x => x is < 1 or > 65535))
+            throw new InvalidDataException($"Persisted Site {row.SiteId} egress ports must be between 1 and 65535");
+        if (row.EgressAllowedPorts.Distinct().Count() != row.EgressAllowedPorts.Length)
+            throw new InvalidDataException($"Persisted Site {row.SiteId} contains duplicate egress ports");
+
+        var egressSchemes = row.EgressAllowedSchemes.Select(x => (x ?? "").Trim().ToLowerInvariant()).ToArray();
+        if (egressSchemes.Length == 0 || egressSchemes.Any(x => x != Uri.UriSchemeHttp && x != Uri.UriSchemeHttps))
+            throw new InvalidDataException($"Persisted Site {row.SiteId} egress schemes must be HTTP or HTTPS");
+        if (egressSchemes.Distinct(StringComparer.Ordinal).Count() != egressSchemes.Length)
+            throw new InvalidDataException($"Persisted Site {row.SiteId} contains duplicate egress schemes");
 
         return new GatewaySite(
             row.SiteId,
@@ -117,7 +132,7 @@ internal static class SitePersistenceCodec
             upstreams,
             string.IsNullOrWhiteSpace(row.WafPolicy) ? "default" : row.WafPolicy,
             new SiteRateLimitPolicy(row.RateRequests, row.RateWindowSeconds, row.RateGlobalRequests),
-            new SiteEgressPolicy(row.EgressAllowedHosts, row.EgressAllowedPorts, row.EgressAllowedSchemes, row.EgressAllowPrivateExceptions),
+            new SiteEgressPolicy(egressHosts, row.EgressAllowedPorts, egressSchemes, row.EgressAllowPrivateExceptions),
             new SiteHealthPolicy(row.HealthPath, row.HealthIntervalSeconds, row.HealthTimeoutSeconds, row.HealthPassiveReactivationSeconds),
             row.Version);
     }

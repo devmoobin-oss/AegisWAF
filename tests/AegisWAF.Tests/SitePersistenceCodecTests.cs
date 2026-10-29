@@ -49,4 +49,30 @@ public sealed class SitePersistenceCodecTests
 
         Assert.Contains("credentials", error.Message, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public void Persistence_codec_rejects_invalid_or_duplicate_egress_entries_before_materialization()
+    {
+        var cases = new[]
+        {
+            (new[] { "origin.example.com", "ORIGIN.EXAMPLE.COM." }, new[] { 443 }, new[] { "https" }, "duplicate egress host"),
+            (new[] { "origin.example.com" }, new[] { 443, 443 }, new[] { "https" }, "duplicate egress port"),
+            (new[] { "origin.example.com" }, new[] { 443 }, new[] { "https", "HTTPS" }, "duplicate egress scheme"),
+            (new[] { "*" }, new[] { 443 }, new[] { "https" }, "egress host"),
+            (new[] { "not a host" }, new[] { 443 }, new[] { "https" }, "egress host"),
+            (new[] { "origin.example.com" }, new[] { 443 }, new[] { "ftp" }, "egress scheme")
+        };
+
+        foreach (var testCase in cases)
+        {
+            var row = new SitePersistenceRow(
+                "broken", true, ["broken.example.com"], ["/"],
+                ["primary"], ["https://origin.example.com/"], [100], "default",
+                testCase.Item1, testCase.Item2, testCase.Item3, false, "/", 10, 3, 30, 300, 60, 10000);
+
+            var error = Assert.Throws<InvalidDataException>(() => SitePersistenceCodec.FromRow(row));
+
+            Assert.Contains(testCase.Item4, error.Message, StringComparison.OrdinalIgnoreCase);
+        }
+    }
 }
