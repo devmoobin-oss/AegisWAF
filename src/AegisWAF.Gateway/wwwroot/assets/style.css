@@ -1,4 +1,5 @@
 :root{color-scheme:dark;--bg:#060e1b;--side:#081426;--panel:#0b1b30;--panel2:#0a182b;--line:#15304e;--line2:#1d3d60;--text:#e8f1ff;--muted:#8aa3c0;--blue:#2f9bff;--cyan:#2ad4c0;--red:#ff4d5e;--orange:#ffb020;--green:#17c98a;--violet:#8266fa;font-family:'Segoe UI','Noto Sans Thai',Tahoma,sans-serif;background:var(--bg);color:var(--text)}
+*{scrollbar-color:var(--line2) transparent;scrollbar-width:thin}
 *{box-sizing:border-box}body{margin:0;display:flex;min-height:100vh;background:var(--bg)}button{font:inherit;cursor:pointer;color:inherit}[hidden]{display:none!important}
 .ic{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}.ic.sm{width:14px;height:14px}
 /* sidebar */
