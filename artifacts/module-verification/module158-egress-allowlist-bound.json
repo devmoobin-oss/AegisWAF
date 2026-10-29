@@ -1,0 +1,42 @@
+{
+  "module": 158,
+  "title": "Bound per-Site Multi-Site egress allowlists",
+  "progress": {
+    "beforePercent": 0,
+    "afterPercent": 100,
+    "targetPercent": 100
+  },
+  "opportunity": {
+    "rootCause": "Per-Site egress AllowedHosts, AllowedPorts, and AllowedSchemes had no cardinality limits in configuration or typed snapshot validation, although the values are persisted and expanded into runtime egress policies and cluster metadata.",
+    "risk": "Oversized egress arrays could increase persistence, policy evaluation, metadata, and activation work without a bounded per-Site contract."
+  },
+  "implementation": {
+    "limits": {
+      "egressHostsPerSite": 64,
+      "egressPortsPerSite": 32,
+      "egressSchemesPerSite": 4
+    },
+    "behavior": "Both IConfiguration and typed snapshot validation now reject oversized egress allowlists before persistence-backed activation or runtime policy generation."
+  },
+  "tdd": {
+    "red": {
+      "test": "SiteConfigurationCardinalityTests.Rejects_oversized_egress_allowlists_in_configuration_and_snapshot_paths",
+      "result": "failed 1/1 because neither validation path returned egress cardinality errors"
+    },
+    "green": {
+      "focused": "SiteConfigurationCardinalityTests passed 7/7"
+    }
+  },
+  "verification": {
+    "multiSiteRegression": "passed 264/264 across 99 executable test classes; external PostgreSQL fault-injection and non-test filename placeholders were not executable suite classes",
+    "releaseBuild": "passed with 0 warnings and 0 errors",
+    "javascriptSyntax": "node --check passed",
+    "gitDiffCheck": "passed",
+    "sourceCommit": "cec4007"
+  },
+  "boundary": [
+    "PostgreSQL-backed integration and live oversized egress persistence/activation were not run in this environment",
+    "Authenticated browser and published-EXE smoke were not run",
+    "Visual responsive, screen-reader, CodeQL/SARIF, external penetration, load/SLO, SIEM, Authenticode, and production certification remain unverified"
+  ]
+}
