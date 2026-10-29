@@ -58,6 +58,20 @@ internal static class SitePersistenceCodec
             row.UpstreamAddresses is null || row.UpstreamWeights is null ||
             row.EgressAllowedHosts is null || row.EgressAllowedPorts is null || row.EgressAllowedSchemes is null)
             throw new InvalidDataException($"Persisted Site {row.SiteId} contains a null array");
+        if (row.Hostnames.Length > SiteConfigurationValidator.MaxHostnamesPerSite)
+            throw new InvalidDataException($"Persisted Site {row.SiteId} may contain at most {SiteConfigurationValidator.MaxHostnamesPerSite} hostnames");
+        if (row.PathPrefixes.Length > SiteConfigurationValidator.MaxPathPrefixesPerSite)
+            throw new InvalidDataException($"Persisted Site {row.SiteId} may contain at most {SiteConfigurationValidator.MaxPathPrefixesPerSite} path prefixes");
+        if (row.UpstreamIds.Length > SiteConfigurationValidator.MaxUpstreamsPerSite ||
+            row.UpstreamAddresses.Length > SiteConfigurationValidator.MaxUpstreamsPerSite ||
+            row.UpstreamWeights.Length > SiteConfigurationValidator.MaxUpstreamsPerSite)
+            throw new InvalidDataException($"Persisted Site {row.SiteId} may contain at most {SiteConfigurationValidator.MaxUpstreamsPerSite} upstreams");
+        if (row.EgressAllowedHosts.Length > SiteConfigurationValidator.MaxEgressHostsPerSite)
+            throw new InvalidDataException($"Persisted Site {row.SiteId} may contain at most {SiteConfigurationValidator.MaxEgressHostsPerSite} egress hosts");
+        if (row.EgressAllowedPorts.Length > SiteConfigurationValidator.MaxEgressPortsPerSite)
+            throw new InvalidDataException($"Persisted Site {row.SiteId} may contain at most {SiteConfigurationValidator.MaxEgressPortsPerSite} egress ports");
+        if (row.EgressAllowedSchemes.Length > SiteConfigurationValidator.MaxEgressSchemesPerSite)
+            throw new InvalidDataException($"Persisted Site {row.SiteId} may contain at most {SiteConfigurationValidator.MaxEgressSchemesPerSite} egress schemes");
 
         var hostnames = row.Hostnames.Select(x => SiteConfigurationValidator.NormalizeHostname(x ?? "")).ToArray();
         if (hostnames.Any(x => x.Length == 0) || hostnames.Distinct(StringComparer.OrdinalIgnoreCase).Count() != hostnames.Length)

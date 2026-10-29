@@ -75,4 +75,58 @@ public sealed class SitePersistenceCodecTests
             Assert.Contains(testCase.Item4, error.Message, StringComparison.OrdinalIgnoreCase);
         }
     }
+
+    [Fact]
+    public void Persistence_codec_rejects_oversized_site_collections_before_materialization()
+    {
+        var cases = new[]
+        {
+            (MakeRow(hostnames: Enumerable.Range(0, 33).Select(x => $"host-{x}.example.com").ToArray()), "hostnames"),
+            (MakeRow(pathPrefixes: Enumerable.Range(0, 65).Select(x => $"/path-{x}").ToArray()), "path prefixes"),
+            (MakeRow(
+                upstreamIds: Enumerable.Range(0, 33).Select(x => $"upstream-{x}").ToArray(),
+                upstreamAddresses: Enumerable.Range(0, 33).Select(x => $"https://origin-{x}.example.com/").ToArray(),
+                upstreamWeights: Enumerable.Repeat(100, 33).ToArray()), "upstreams"),
+            (MakeRow(egressAllowedHosts: Enumerable.Range(0, 65).Select(x => $"origin-{x}.example.com").ToArray()), "egress hosts"),
+            (MakeRow(egressAllowedPorts: Enumerable.Range(0, 33).Select(x => 4000 + x).ToArray()), "egress ports"),
+            (MakeRow(egressAllowedSchemes: ["https", "http", "https", "http", "https"]), "egress schemes")
+        };
+
+        foreach (var testCase in cases)
+        {
+            var error = Assert.Throws<InvalidDataException>(() => SitePersistenceCodec.FromRow(testCase.Item1));
+
+            Assert.Contains($"at most", error.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains(testCase.Item2, error.Message, StringComparison.OrdinalIgnoreCase);
+        }
+
+        static SitePersistenceRow MakeRow(
+            string[]? hostnames = null,
+            string[]? pathPrefixes = null,
+            string[]? upstreamIds = null,
+            string[]? upstreamAddresses = null,
+            int[]? upstreamWeights = null,
+            string[]? egressAllowedHosts = null,
+            int[]? egressAllowedPorts = null,
+            string[]? egressAllowedSchemes = null) => new(
+                "broken",
+                true,
+                hostnames ?? ["broken.example.com"],
+                pathPrefixes ?? ["/"],
+                upstreamIds ?? ["primary"],
+                upstreamAddresses ?? ["https://origin.example.com/"],
+                upstreamWeights ?? [100],
+                "default",
+                egressAllowedHosts ?? ["origin.example.com"],
+                egressAllowedPorts ?? [443],
+                egressAllowedSchemes ?? ["https"],
+                false,
+                "/",
+                10,
+                3,
+                30,
+                300,
+                60,
+                10000);
+    }
 }

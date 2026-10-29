@@ -1,0 +1,35 @@
+{
+  "module": 162,
+  "title": "Reject oversized persisted Multi-Site collections before materialization",
+  "progress": {
+    "beforePercent": 0,
+    "afterPercent": 100,
+    "targetPercent": 100
+  },
+  "opportunity": {
+    "rootCause": "SitePersistenceCodec.FromRow could iterate and materialize oversized persisted arrays before later validation.",
+    "risk": "A malformed database row could increase per-Site allocation and parser work before runtime activation rejects the snapshot."
+  },
+  "implementation": {
+    "behavior": "FromRow reuses the existing per-Site limits and fails closed before iteration for hostnames 32, path prefixes 64, upstreams 32, egress hosts 64, egress ports 32, and egress schemes 4."
+  },
+  "tdd": {
+    "red": {
+      "test": "SitePersistenceCodecTests.Persistence_codec_rejects_oversized_site_collections_before_materialization",
+      "result": "failed 1/1 because oversized persisted collections produced no exception"
+    },
+    "green": {
+      "focused": "SitePersistenceCodecTests passed 5/5"
+    }
+  },
+  "verification": {
+    "relatedRegression": "passed 76/76 across configuration, editor, persistence, activation, security, health-trend, UI-contract, and handoff classes",
+    "releaseBuild": "passed with 0 warnings and 0 errors",
+    "javascriptSyntax": "node --check passed",
+    "gitDiffCheck": "passed"
+  },
+  "boundary": [
+    "Live PostgreSQL oversized-row execution and query-plan/latency benchmark were not available",
+    "Authenticated browser/published-EXE smoke, visual responsive/screen-reader verification, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification remain unverified"
+  ]
+}

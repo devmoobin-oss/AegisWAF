@@ -13,12 +13,12 @@ public static class SiteConfigurationValidator
     public const int MaximumAllowedGeneratedRoutes = 1_000_000;
     public const int DefaultMaxGeneratedDestinations = 100_000;
     public const int MaximumAllowedGeneratedDestinations = 1_000_000;
-    private const int MaxHostnamesPerSite = 32;
-    private const int MaxPathPrefixesPerSite = 64;
-    private const int MaxUpstreamsPerSite = 32;
-    private const int MaxEgressHostsPerSite = 64;
-    private const int MaxEgressPortsPerSite = 32;
-    private const int MaxEgressSchemesPerSite = 4;
+    internal const int MaxHostnamesPerSite = 32;
+    internal const int MaxPathPrefixesPerSite = 64;
+    internal const int MaxUpstreamsPerSite = 32;
+    internal const int MaxEgressHostsPerSite = 64;
+    internal const int MaxEgressPortsPerSite = 32;
+    internal const int MaxEgressSchemesPerSite = 4;
 
     public static IReadOnlyList<string> Validate(IConfiguration configuration)
     {
