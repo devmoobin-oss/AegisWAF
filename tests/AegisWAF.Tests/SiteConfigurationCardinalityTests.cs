@@ -75,6 +75,44 @@ public sealed class SiteConfigurationCardinalityTests
         Assert.Contains(errors, error => error.Contains("at most 32 upstreams", StringComparison.OrdinalIgnoreCase));
     }
 
+    [Fact]
+    public void Rejects_more_generated_routes_than_the_global_runtime_limit()
+    {
+        var configuration = Config(new Dictionary<string, string?>
+        {
+            ["Waf:Sites:MaxGeneratedRoutes"] = "3",
+            ["Sites:shop:Hostnames:0"] = "shop-a.example.com",
+            ["Sites:shop:Hostnames:1"] = "shop-b.example.com",
+            ["Sites:shop:PathPrefixes:0"] = "/api",
+            ["Sites:shop:PathPrefixes:1"] = "/admin",
+            ["Sites:shop:Upstreams:0:Address"] = "https://origin.example.com/"
+        });
+
+        var errors = SiteConfigurationValidator.Validate(configuration);
+
+        Assert.Contains(errors, error => error.Contains("generate at most 3 routes", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Rejects_more_generated_destinations_than_the_global_runtime_limit()
+    {
+        var configuration = Config(new Dictionary<string, string?>
+        {
+            ["Waf:Sites:MaxGeneratedDestinations"] = "1"
+        });
+        var site = new GatewaySite("shop", true, ["shop.example.com"], ["/"],
+            [
+                new SiteUpstream("primary", new Uri("https://origin-a.example.com/")),
+                new SiteUpstream("secondary", new Uri("https://origin-b.example.com/"))
+            ], "default", new SiteRateLimitPolicy(),
+            new SiteEgressPolicy(["origin-a.example.com", "origin-b.example.com"], [443], ["https"]));
+
+        var errors = SiteConfigurationValidator.ValidateSnapshot(
+            new SiteConfigurationSnapshot([site], false), configuration);
+
+        Assert.Contains(errors, error => error.Contains("generate at most 1 destinations", StringComparison.OrdinalIgnoreCase));
+    }
+
     private static IConfiguration Config(Dictionary<string, string?> values) =>
         new ConfigurationBuilder().AddInMemoryCollection(values).Build();
 

@@ -9,6 +9,10 @@ public static class SiteConfigurationValidator
     private static readonly IdnMapping HostnameIdn = new() { UseStd3AsciiRules = true };
     public const int DefaultMaxSites = 10_000;
     public const int MaximumAllowedSites = 100_000;
+    public const int DefaultMaxGeneratedRoutes = 100_000;
+    public const int MaximumAllowedGeneratedRoutes = 1_000_000;
+    public const int DefaultMaxGeneratedDestinations = 100_000;
+    public const int MaximumAllowedGeneratedDestinations = 1_000_000;
     private const int MaxHostnamesPerSite = 32;
     private const int MaxPathPrefixesPerSite = 64;
     private const int MaxUpstreamsPerSite = 32;
@@ -28,6 +32,10 @@ public static class SiteConfigurationValidator
         }
 
         var maxSites = ResolveMaxSites(configuration);
+        var maxGeneratedRoutes = ResolveMaxGeneratedRoutes(configuration);
+        var maxGeneratedDestinations = ResolveMaxGeneratedDestinations(configuration);
+        long generatedRoutes = 0;
+        long generatedDestinations = 0;
         if (siteSections.Length > maxSites)
             errors.Add($"Configuration may contain at most {maxSites} Sites");
 
@@ -99,6 +107,8 @@ public static class SiteConfigurationValidator
                 else if (!normalizedPaths.Add(NormalizePath(rawPath)))
                     errors.Add($"Site {id} contains duplicate path prefixes after normalization");
             }
+            generatedRoutes += (long)normalizedHosts.Length * normalizedPaths.Count;
+            generatedDestinations += upstreamSections.Length;
 
             if (enforcing)
             {
@@ -153,6 +163,11 @@ public static class SiteConfigurationValidator
             }
         }
 
+        if (generatedRoutes > maxGeneratedRoutes)
+            errors.Add($"Configuration may generate at most {maxGeneratedRoutes} routes");
+        if (generatedDestinations > maxGeneratedDestinations)
+            errors.Add($"Configuration may generate at most {maxGeneratedDestinations} destinations");
+
         if (enforcing && activeSites == 0)
             errors.Add("Production requires at least one active Site");
 
@@ -175,6 +190,10 @@ public static class SiteConfigurationValidator
         var activeHostnames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var sites = snapshot.Sites ?? [];
         var maxSites = ResolveMaxSites(configuration);
+        var maxGeneratedRoutes = ResolveMaxGeneratedRoutes(configuration);
+        var maxGeneratedDestinations = ResolveMaxGeneratedDestinations(configuration);
+        long generatedRoutes = 0;
+        long generatedDestinations = 0;
         if (sites.Count > maxSites)
             errors.Add($"Site snapshot may contain at most {maxSites} Sites");
 
@@ -307,7 +326,19 @@ public static class SiteConfigurationValidator
                 errors.Add($"Site {id} rate window must be between 1 and 3600 seconds");
             if (site.RateLimit.GlobalRequests is < 1 or > 10_000_000)
                 errors.Add($"Site {id} global rate limit must be between 1 and 10000000");
+
+            generatedRoutes += (long)(site.Hostnames ?? [])
+                .Select(NormalizeHostname)
+                .Where(x => x.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Count() * normalizedPaths.Count;
+            generatedDestinations += (site.Upstreams ?? []).Count;
         }
+
+        if (generatedRoutes > maxGeneratedRoutes)
+            errors.Add($"Site snapshot may generate at most {maxGeneratedRoutes} routes");
+        if (generatedDestinations > maxGeneratedDestinations)
+            errors.Add($"Site snapshot may generate at most {maxGeneratedDestinations} destinations");
 
         if (enforcing && sites.Count(x => x.Enabled) == 0)
             errors.Add("Production requires at least one active Site");
@@ -316,6 +347,12 @@ public static class SiteConfigurationValidator
 
     public static int ResolveMaxSites(IConfiguration configuration) =>
         Math.Clamp(configuration.GetValue("Waf:Sites:MaxSites", DefaultMaxSites), 1, MaximumAllowedSites);
+
+    public static int ResolveMaxGeneratedRoutes(IConfiguration configuration) =>
+        Math.Clamp(configuration.GetValue("Waf:Sites:MaxGeneratedRoutes", DefaultMaxGeneratedRoutes), 1, MaximumAllowedGeneratedRoutes);
+
+    public static int ResolveMaxGeneratedDestinations(IConfiguration configuration) =>
+        Math.Clamp(configuration.GetValue("Waf:Sites:MaxGeneratedDestinations", DefaultMaxGeneratedDestinations), 1, MaximumAllowedGeneratedDestinations);
 
     internal static string NormalizeId(string value) =>
         value.Trim().ToLowerInvariant();
