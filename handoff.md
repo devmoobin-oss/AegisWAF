@@ -4014,3 +4014,23 @@
 - Source commit at publish time: `2c302b63e448489efed21dcbd458c76a69499e18`.
 - Verification: PE header bytes `77,90` (`MZ`); release manifest verification passed (`files=6`, `signed=false`, `workingTreeClean=true`). Authenticode status is `NotSigned`, so Windows Smart App Control may block this local artifact until it is trusted/unblocked or signed by a trusted publisher.
 - Boundary: this artifact is not Authenticode-signed and does not claim live PostgreSQL first-start integration, authenticated browser/published-EXE smoke, visual responsive/screen-reader verification, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, or production certification.
+
+### Module 165 final progress record — 2026-10-30
+
+- Before: 0%; After: 100%; Target: 100% for the defined authoritative empty-database Site snapshot boundary.
+- Opportunity/root cause: `TryLoadSnapshot` returned `null` both when `waf_sites` was missing and when the existing table contained zero rows. This allowed configuration fallback and could resurrect a deleted Site during `EnsureSeededAsync` on restart.
+- Implementation: a successful `waf_sites` read now always returns `SiteConfigurationSnapshot`, including an empty `Sites` list; `null` remains only for missing connection configuration or the intentional `UndefinedTable` first-start migration path.
+- TDD red: `SiteEmptyDatabaseSnapshotContractTests.Empty_database_result_is_materialized_as_an_authoritative_snapshot` failed 1/1 before implementation because the zero-row path returned `null`.
+- TDD green: focused contract passed 1/1 after implementation.
+- Verification so far: related regression passed 80/80; live PostgreSQL execution was attempted but unavailable because `127.0.0.1:5432` was not listening.
+- Evidence: `artifacts/module-verification/module165-empty-database-site-snapshot-boundary.json`.
+- Boundary: live PostgreSQL empty-table startup, authenticated browser/published-EXE smoke, visual responsive/screen-reader verification, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification remain unverified until their required environment/gates are available.
+
+### Current handoff pointer — 2026-10-30 (after Module 165)
+
+- This is the authoritative continuation block. Read this block before starting further work; older historical records above are retained for audit only.
+- Latest completed modules: Module 165 = 100%; Module 164 = 100%; Module 163 = 100%; Module 162 = 100%; Module 161 = 100%; Module 160 = 100%; Module 159 = 100%; Module 158 = 100%; Module 157 = 100%; Module 156 = 100%; Module 155 = 100%; Module 154 = 100%; Module 153 = 100%; Module 152 = 100%; Module 151 = 100%; Module 150 = 100%; Module 149 = 100%; Module 148 = 100%; Module 147 = 100%; Module 146 = 100%; Module 145 = 100%; Module 141 = 100%; Module 140 = 100%; Module 139 = 100%; Module 138 = 100%; Module 137 = 100%; Module 134 = 100%; Module 133 = 100%; Module 132 = 100%; Module 131 = 100%; Module 130 = 100%; Module 129 = 100%; Module 128 = 100%; Module 127 = 100%; Module 126 = 100%; Module 117 = 100%; Module 116 = 100%; Module 115 = 100%; Module 114 = 100%; Module 113 = 100%; Module 112 = 100%; Module 111 = 100%; Module 110 = 100%; Module 109 = 100%; Module 108 = 100%; Module 107 = 100%; Module 106 = 100%; Module 105 = 100%; Module 104 = 100%; Module 103 = 100%; Module 102 = 100%; Module 101 = 100%; Module 100 = 100%; Module 99 = 100%; Module 98 = 100%; Module 97 = 100%; Module 95 = 100%; Module 94 = 100%; Module 93 = 100%; Module 92 = 100%; Module 91 = 100%; Module 90 = 100%; Module 88 = 100%; Module 87 = 100%; Module 41 = 90% and Module 60 = 90%.
+- Latest artifact remains the Module 164 completed-modules bundle until Module 165 is published: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`, SHA-256 `BFC250DCB045CD397DD717996393DAE01A2DA665E8271AFEF40D8CB46619FE32`.
+- Latest Hosted evidence remains run `40445541235`, full regression `509/509`, `TRX_REGRESSION_PASS`; Module 41 = 90% and Module 60 = 90% pending GitHub Code scanning/Advanced Security and fresh Hosted SARIF evidence.
+- Local PostgreSQL-dependent integration, duplicate-hostname execution, concurrent multi-instance mutation, authenticated browser/published-EXE smoke, full VSTest testhost connectivity, visual responsive verification, and whole-console premium UI audit gates remain unverified when their external services/credentials or baseline tooling are unavailable.
+- Next action: run Release verification and publish the completed-modules bundle through Module 165, then audit the next concrete Multi-Site hardening opportunity.

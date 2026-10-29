@@ -424,7 +424,7 @@ public sealed class SiteDatabaseStore(IConfiguration configuration)
                     throw new InvalidDataException($"Site configuration contains more than {maxSites} Sites");
                 sites.Add(ReadSite(reader));
             }
-            return sites.Count == 0 ? null : new SiteConfigurationSnapshot(sites, false);
+            return new SiteConfigurationSnapshot(sites, false);
         }
         catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.UndefinedTable)
         {
