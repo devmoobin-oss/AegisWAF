@@ -614,6 +614,19 @@ public static class GatewayApp
         catch (OperationCanceledException) when (SiteHealthReadBudget.IsBudgetCancellation(ct, readCt))
         { return SiteDatabaseUnavailable(ctx, "health-history-timeout", "site_health_read_timeout"); }
         if (site is null) return Results.NotFound(new { error = $"Site '{id}' was not found" });
+        registry.TryGetById(site.Id, out var active);
+        if (SiteRuntimeState.IsPendingRestart(site, active))
+            return Results.Ok(new
+            {
+                siteId = site.Id,
+                retention = "none",
+                historyPersisted = false,
+                historyRetention = "none",
+                maxObservationsPerSite = 64,
+                pendingRestart = true,
+                activationStatus = "pending-restart",
+                observations = Array.Empty<object>()
+            });
         var boundedLimit = Math.Clamp(limit ?? 20, 1, 100);
         var processMemory = history.Read(site.Id, boundedLimit);
         var hasPendingHistory = history.HasPending(site.Id);
@@ -655,7 +668,32 @@ public static class GatewayApp
         catch (OperationCanceledException) when (SiteHealthReadBudget.IsBudgetCancellation(ct, readCt))
         { return SiteDatabaseUnavailable(ctx, "health-trend-timeout", "site_health_read_timeout"); }
         if (site is null) return Results.NotFound(new { error = $"Site '{id}' was not found" });
+        registry.TryGetById(site.Id, out var active);
         var boundedWindow = Math.Clamp(window ?? 20, 1, SiteHealthTrendCalculator.MaxWindow);
+        if (SiteRuntimeState.IsPendingRestart(site, active))
+            return Results.Ok(new
+            {
+                siteId = site.Id,
+                windowSize = boundedWindow,
+                total = 0,
+                healthy = 0,
+                unhealthy = 0,
+                unknown = 0,
+                healthyPercent = 0d,
+                consecutiveUnhealthy = 0,
+                alertState = "pending-restart",
+                recoveryState = "none",
+                effectiveAlertState = "pending-restart",
+                lastCheckedAt = (DateTimeOffset?)null,
+                isStale = false,
+                acknowledgedUntil = (DateTimeOffset?)null,
+                acknowledgedBy = (string?)null,
+                alertSuppressed = false,
+                historyPersisted = false,
+                historyRetention = "none",
+                pendingRestart = true,
+                activationStatus = "pending-restart"
+            });
         var processMemory = history.Read(site.Id, SiteHealthTrendCalculator.MaxWindow);
         var hasPendingHistory = history.HasPending(site.Id);
         IReadOnlyList<SiteHealthObservation> persisted = [];
