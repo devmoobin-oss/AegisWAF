@@ -430,10 +430,6 @@ public sealed class SiteDatabaseStore(IConfiguration configuration)
         {
             return null; // First start: migration runs after the builder is created.
         }
-        catch (NpgsqlException)
-        {
-            return null; // Bootstrap remains responsible for the authoritative startup error.
-        }
     }
 
     public static GatewaySite ToGatewaySite(SiteManagementRequest request)
