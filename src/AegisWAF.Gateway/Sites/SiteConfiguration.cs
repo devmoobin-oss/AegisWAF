@@ -48,6 +48,8 @@ public static class SiteConfigurationValidator
                 errors.Add($"Site {id} references undefined WafPolicy {wafPolicy}");
 
             var hostnames = site.GetSection("Hostnames").Get<string[]>() ?? [];
+            if (hostnames.Length > MaxHostnamesPerSite)
+                errors.Add($"Site {id} may contain at most {MaxHostnamesPerSite} hostnames");
             var normalizedHosts = hostnames.Select(NormalizeHostname).Where(x => x.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
             if (hostnames.Any(x => NormalizeHostname(x).Length == 0))
                 errors.Add($"Site {id} contains an invalid hostname");
@@ -65,6 +67,8 @@ public static class SiteConfigurationValidator
             var upstreamSections = site.GetSection("Upstreams").GetChildren().ToArray();
             if (upstreamSections.Length == 0)
                 errors.Add($"Site {id} must define at least one upstream");
+            else if (upstreamSections.Length > MaxUpstreamsPerSite)
+                errors.Add($"Site {id} may contain at most {MaxUpstreamsPerSite} upstreams");
 
             foreach (var upstream in upstreamSections)
             {
@@ -79,6 +83,10 @@ public static class SiteConfigurationValidator
                 if (enforcing && uri is not null && IPAddress.TryParse(uri.Host, out var literal) && IsDisallowedLiteral(literal))
                     errors.Add($"Site {id} upstream {upstream.Key} must not target a private, loopback, metadata, multicast, or special-use IP literal");
             }
+
+            var pathSections = site.GetSection("PathPrefixes").GetChildren().ToArray();
+            if (pathSections.Length > MaxPathPrefixesPerSite)
+                errors.Add($"Site {id} may contain at most {MaxPathPrefixesPerSite} path prefixes");
 
             if (enforcing)
             {

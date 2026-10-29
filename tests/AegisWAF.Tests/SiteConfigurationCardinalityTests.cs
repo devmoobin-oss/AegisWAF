@@ -51,6 +51,30 @@ public sealed class SiteConfigurationCardinalityTests
         Assert.Contains("more than", store, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Rejects_oversized_per_site_collections_before_binding_runtime_routes()
+    {
+        var values = new Dictionary<string, string?>
+        {
+            ["Sites:shop:Hostnames:0"] = "shop-0.example.com",
+            ["Sites:shop:PathPrefixes:0"] = "/",
+            ["Sites:shop:Upstreams:0:Address"] = "https://origin-0.example.com/"
+        };
+        for (var index = 1; index <= 32; index++)
+        {
+            values[$"Sites:shop:Hostnames:{index}"] = $"shop-{index}.example.com";
+            values[$"Sites:shop:Upstreams:{index}:Address"] = $"https://origin-{index}.example.com/";
+        }
+        for (var index = 1; index <= 64; index++)
+            values[$"Sites:shop:PathPrefixes:{index}"] = $"/path-{index}";
+
+        var errors = SiteConfigurationValidator.Validate(Config(values));
+
+        Assert.Contains(errors, error => error.Contains("at most 32 hostnames", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(errors, error => error.Contains("at most 64 path prefixes", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(errors, error => error.Contains("at most 32 upstreams", StringComparison.OrdinalIgnoreCase));
+    }
+
     private static IConfiguration Config(Dictionary<string, string?> values) =>
         new ConfigurationBuilder().AddInMemoryCollection(values).Build();
 
