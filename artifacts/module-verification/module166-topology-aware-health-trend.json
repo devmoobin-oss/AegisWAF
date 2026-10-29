@@ -28,11 +28,11 @@
     "javascriptSyntax": "node --check passed",
     "gitDiffCheck": "passed",
     "publishedArtifact": {
-      "path": "pending Module 166 publish",
-      "sha256": "pending",
-      "bytes": 0,
-      "sourceCommit": "pending",
-      "manifest": "pending"
+      "path": "D:\\AegisWAF\\dist\\AegisWAF-Desktop-CompletedModules\\AegisWAF.exe",
+      "sha256": "F533818CC95C94125C868D480443F7C39D086FA360F2BB860673226800AF42FC",
+      "bytes": 170716011,
+      "sourceCommit": "cede2e0f400859e8b841fe4a5c326c5bf3e0719b",
+      "manifest": "passed files=6 signed=false workingTreeClean=true"
     }
   },
   "boundary": [
