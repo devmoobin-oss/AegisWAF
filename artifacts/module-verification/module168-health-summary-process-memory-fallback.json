@@ -1,0 +1,14 @@
+{
+  "module": 168,
+  "title": "Multi-Site health summary process-memory fallback",
+  "beforePercent": 0,
+  "afterPercent": 100,
+  "targetPercent": 100,
+  "red": "SiteHealthSummaryProcessMemoryFallbackContractTests failed 2/2 before the Summary fallback implementation.",
+  "focusedTests": "pending-final-commit",
+  "releaseBuild": "pending-final-commit",
+  "fullVstest": "not rerun: prior full testhost boundary remains aborted after 90 seconds",
+  "liveDatabaseOutage": "not available in this environment",
+  "artifact": "pending-publish",
+  "boundary": "No live PostgreSQL outage execution or authenticated published-EXE smoke claim."
+}

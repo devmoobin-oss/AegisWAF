@@ -759,7 +759,7 @@ public static class GatewayApp
             if (mutationLease is not null) await mutationLease.DisposeAsync();
         }
     }).Require(Roles.Operator);
-    app.MapGet("/api/sites/health/summary", async (SiteDatabaseStore store, SiteHealthSummaryFailureTelemetry summaryTelemetry, int? window, int? limit, HttpContext ctx, CancellationToken ct) =>
+    app.MapGet("/api/sites/health/summary", async (SiteDatabaseStore store, SiteHealthHistory history, SiteHealthSummaryFailureTelemetry summaryTelemetry, int? window, int? limit, HttpContext ctx, CancellationToken ct) =>
     {
         var summaryGeneratedAt = DateTimeOffset.UtcNow;
         var summaryTimer = Stopwatch.StartNew();
@@ -795,7 +795,46 @@ public static class GatewayApp
         try
         {
             expiredAcknowledgementsRemoved = await store.CleanupExpiredHealthAlertAcknowledgementsAsync(DateTimeOffset.UtcNow, summaryCt);
+        }
+        catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
+        {
+            var failure = summaryTelemetry.RecordFailure();
+            ctx.Response.Headers["X-Aegis-Health-Summary-Failures"] = failure.ConsecutiveFailures.ToString();
+            return SiteDatabaseUnavailable(ctx, "health-summary-listed", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable");
+        }
+        catch (OperationCanceledException) when (SiteHealthSummaryBudget.IsBudgetCancellation(ct, summaryCt))
+        {
+            var failure = summaryTelemetry.RecordFailure();
+            ctx.Response.Headers["X-Aegis-Health-Summary-Failures"] = failure.ConsecutiveFailures.ToString();
+            return SiteDatabaseUnavailable(ctx, "health-summary-timeout", "site_health_summary_timeout");
+        }
+        var historyPersisted = true;
+        try
+        {
             histories = await store.ListHealthHistoryBySiteAsync(siteIds, SiteHealthTrendCalculator.MaxWindow, summaryCt);
+        }
+        catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException)
+        {
+            historyPersisted = false;
+            histories = siteIds.ToDictionary(
+                siteId => siteId,
+                siteId => history.Read(siteId, SiteHealthTrendCalculator.MaxWindow),
+                StringComparer.OrdinalIgnoreCase);
+        }
+        catch (InvalidDataException)
+        {
+            var failure = summaryTelemetry.RecordFailure();
+            ctx.Response.Headers["X-Aegis-Health-Summary-Failures"] = failure.ConsecutiveFailures.ToString();
+            return SiteDatabaseUnavailable(ctx, "health-summary-listed", "site_persistence_invalid");
+        }
+        catch (OperationCanceledException) when (SiteHealthSummaryBudget.IsBudgetCancellation(ct, summaryCt))
+        {
+            var failure = summaryTelemetry.RecordFailure();
+            ctx.Response.Headers["X-Aegis-Health-Summary-Failures"] = failure.ConsecutiveFailures.ToString();
+            return SiteDatabaseUnavailable(ctx, "health-summary-timeout", "site_health_summary_timeout");
+        }
+        try
+        {
             acknowledgements = await store.ListHealthAlertAcknowledgementsAsync(siteIds, summaryCt);
         }
         catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
@@ -810,6 +849,13 @@ public static class GatewayApp
             ctx.Response.Headers["X-Aegis-Health-Summary-Failures"] = failure.ConsecutiveFailures.ToString();
             return SiteDatabaseUnavailable(ctx, "health-summary-timeout", "site_health_summary_timeout");
         }
+        histories = storedSites.ToDictionary(
+            site => site.Id,
+            site => SiteHealthHistory.Merge(
+                histories.TryGetValue(site.Id, out var persisted) ? persisted : [],
+                history.Read(site.Id, SiteHealthTrendCalculator.MaxWindow),
+                SiteHealthTrendCalculator.MaxWindow),
+            StringComparer.OrdinalIgnoreCase);
         var inputs = storedSites.Select(site =>
             (site.Id, histories.TryGetValue(site.Id, out var observations)
                 ? SiteHealthTrendCalculator.FilterToCurrentUpstreams(observations, site.Upstreams.Select(x => x.Id))
@@ -869,6 +915,8 @@ public static class GatewayApp
             status = withinBudget ? "ready" : "slow",
             summaryFailureCount = telemetry.TotalFailures,
             summaryConsecutiveFailures = telemetry.ConsecutiveFailures,
+            historyPersisted,
+            historyRetention = historyPersisted ? "postgresql" : "process-memory",
             sites = projected
         });
     }).Require(Roles.Viewer);
