@@ -17,6 +17,20 @@ public static class SiteHealthTrendCalculator
     public const int MaxWindow = 64;
     public const int CriticalUnhealthyThreshold = 3;
 
+    public static IReadOnlyList<SiteHealthObservation> FilterToCurrentUpstreams(
+        IReadOnlyList<SiteHealthObservation> observations,
+        IEnumerable<string> currentUpstreamIds)
+    {
+        ArgumentNullException.ThrowIfNull(observations);
+        ArgumentNullException.ThrowIfNull(currentUpstreamIds);
+        var current = currentUpstreamIds
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return observations
+            .Where(x => current.Contains(x.UpstreamId))
+            .ToArray();
+    }
+
     public static SiteHealthTrend Calculate(IReadOnlyList<SiteHealthObservation> observations, int window, int expectedUpstreamCount = 0)
     {
         var boundedWindow = Math.Clamp(window, 1, MaxWindow);

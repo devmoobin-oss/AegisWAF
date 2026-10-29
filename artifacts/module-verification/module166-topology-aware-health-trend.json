@@ -1,0 +1,42 @@
+{
+  "module": 166,
+  "title": "Topology-aware Multi-Site health trend calculations",
+  "progress": {
+    "beforePercent": 0,
+    "afterPercent": 100,
+    "targetPercent": 100
+  },
+  "opportunity": {
+    "rootCause": "Health history retained rows for removed upstreams, while trend, acknowledgement, and summary calculations used the complete history with the current upstream count.",
+    "risk": "A topology change could leave a Site degraded or critical because of failures belonging to an upstream that is no longer configured. Recent observations for current upstreams could also be hidden by retired rows within a small query window."
+  },
+  "implementation": {
+    "behavior": "Trend-facing calculations filter observations to current upstream IDs while the raw history endpoint remains audit-complete. Direct trend and summary read the bounded retention maximum before filtering, then apply the requested display window."
+  },
+  "tdd": {
+    "red": {
+      "test": "SiteHealthTrendTests.Trend_ignores_history_for_upstreams_removed_from_the_current_site_topology",
+      "result": "failed 1/1 before implementation because FilterToCurrentUpstreams did not exist"
+    },
+    "green": {
+      "focused": "passed 19/19 across health trend, topology filter, endpoint, and summary contracts"
+    }
+  },
+  "verification": {
+    "relatedRegression": "passed 83/83 across empty-snapshot, bootstrap-failure, configuration, persistence, activation, security, health-trend, UI-contract, and handoff classes",
+    "releaseBuild": "passed with 0 warnings and 0 errors",
+    "javascriptSyntax": "node --check passed",
+    "gitDiffCheck": "passed",
+    "publishedArtifact": {
+      "path": "pending Module 166 publish",
+      "sha256": "pending",
+      "bytes": 0,
+      "sourceCommit": "pending",
+      "manifest": "pending"
+    }
+  },
+  "boundary": [
+    "Live PostgreSQL topology-change execution was not available because 127.0.0.1:5432 was not listening",
+    "Authenticated browser/published-EXE smoke, visual responsive/screen-reader verification, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification remain unverified"
+  ]
+}

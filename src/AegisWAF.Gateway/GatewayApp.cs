@@ -630,11 +630,12 @@ public static class GatewayApp
         if (site is null) return Results.NotFound(new { error = $"Site '{id}' was not found" });
         var boundedWindow = Math.Clamp(window ?? 20, 1, SiteHealthTrendCalculator.MaxWindow);
         IReadOnlyList<SiteHealthObservation> observations;
-        try { observations = await store.ListHealthHistoryAsync(site.Id, boundedWindow, readCt); }
+        try { observations = await store.ListHealthHistoryAsync(site.Id, SiteHealthTrendCalculator.MaxWindow, readCt); }
         catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
         { return SiteDatabaseUnavailable(ctx, "health-trend-listed", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
         catch (OperationCanceledException) when (SiteHealthReadBudget.IsBudgetCancellation(ct, readCt))
         { return SiteDatabaseUnavailable(ctx, "health-trend-timeout", "site_health_read_timeout"); }
+        observations = SiteHealthTrendCalculator.FilterToCurrentUpstreams(observations, site.Upstreams.Select(x => x.Id));
         var trend = SiteHealthTrendCalculator.Calculate(observations, boundedWindow, site.Upstreams.Count);
         var trendNow = DateTimeOffset.UtcNow;
         var trendIsStale = HealthAlertLifecycle.IsStale(trend, trendNow);
@@ -688,6 +689,7 @@ public static class GatewayApp
         { return SiteDatabaseUnavailable(ctx, "health-alert-acknowledged", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
         catch (OperationCanceledException) when (SiteHealthReadBudget.IsBudgetCancellation(ct, readCt))
         { return SiteDatabaseUnavailable(ctx, "health-alert-read-timeout", "site_health_read_timeout"); }
+        observations = SiteHealthTrendCalculator.FilterToCurrentUpstreams(observations, site.Upstreams.Select(x => x.Id));
         var trend = SiteHealthTrendCalculator.Calculate(observations, SiteHealthTrendCalculator.MaxWindow, site.Upstreams.Count);
         var trendNow = DateTimeOffset.UtcNow;
         var trendIsStale = HealthAlertLifecycle.IsStale(trend, trendNow);
@@ -767,7 +769,7 @@ public static class GatewayApp
         try
         {
             expiredAcknowledgementsRemoved = await store.CleanupExpiredHealthAlertAcknowledgementsAsync(DateTimeOffset.UtcNow, summaryCt);
-            histories = await store.ListHealthHistoryBySiteAsync(siteIds, boundedWindow, summaryCt);
+            histories = await store.ListHealthHistoryBySiteAsync(siteIds, SiteHealthTrendCalculator.MaxWindow, summaryCt);
             acknowledgements = await store.ListHealthAlertAcknowledgementsAsync(siteIds, summaryCt);
         }
         catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
@@ -783,7 +785,9 @@ public static class GatewayApp
             return SiteDatabaseUnavailable(ctx, "health-summary-timeout", "site_health_summary_timeout");
         }
         var inputs = storedSites.Select(site =>
-            (site.Id, histories.TryGetValue(site.Id, out var observations) ? observations : (IReadOnlyList<SiteHealthObservation>)[]));
+            (site.Id, histories.TryGetValue(site.Id, out var observations)
+                ? SiteHealthTrendCalculator.FilterToCurrentUpstreams(observations, site.Upstreams.Select(x => x.Id))
+                : (IReadOnlyList<SiteHealthObservation>)[]));
         var expectedUpstreamCounts = storedSites.ToDictionary(x => x.Id, x => x.Upstreams.Count, StringComparer.OrdinalIgnoreCase);
         var comparison = SiteHealthComparisonCalculator.Calculate(inputs, boundedWindow, boundedLimit, DateTimeOffset.UtcNow, expectedUpstreamCounts);
         var alertCounts = SiteHealthSummaryAlertCounts.Calculate(comparison);
