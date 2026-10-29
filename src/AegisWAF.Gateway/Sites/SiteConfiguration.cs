@@ -392,6 +392,9 @@ public static class SiteConfigurationValidator
     internal static string NormalizeId(string value) =>
         value.Trim().ToLowerInvariant();
 
+    internal static bool IsValidSiteId(string value) =>
+        RegexPatterns.SiteId.IsMatch(NormalizeId(value));
+
     private static class RegexPatterns
     {
         internal static readonly System.Text.RegularExpressions.Regex SiteId =

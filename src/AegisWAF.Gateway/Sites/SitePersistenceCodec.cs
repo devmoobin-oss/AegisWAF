@@ -52,8 +52,9 @@ internal static class SitePersistenceCodec
 
     internal static GatewaySite FromRow(SitePersistenceRow row)
     {
-        if (string.IsNullOrWhiteSpace(row.SiteId))
-            throw new InvalidDataException("Persisted Site ID is empty");
+        var siteId = SiteConfigurationValidator.NormalizeId(row.SiteId ?? "");
+        if (!SiteConfigurationValidator.IsValidSiteId(siteId))
+            throw new InvalidDataException($"Persisted Site {row.SiteId} has an invalid ID");
         if (row.Hostnames is null || row.PathPrefixes is null || row.UpstreamIds is null ||
             row.UpstreamAddresses is null || row.UpstreamWeights is null ||
             row.EgressAllowedHosts is null || row.EgressAllowedPorts is null || row.EgressAllowedSchemes is null)
@@ -74,9 +75,13 @@ internal static class SitePersistenceCodec
             throw new InvalidDataException($"Persisted Site {row.SiteId} may contain at most {SiteConfigurationValidator.MaxEgressSchemesPerSite} egress schemes");
 
         var hostnames = row.Hostnames.Select(x => SiteConfigurationValidator.NormalizeHostname(x ?? "")).ToArray();
+        if (hostnames.Length == 0)
+            throw new InvalidDataException($"Persisted Site {siteId} must contain at least one hostname");
         if (hostnames.Any(x => x.Length == 0) || hostnames.Distinct(StringComparer.OrdinalIgnoreCase).Count() != hostnames.Length)
             throw new InvalidDataException($"Persisted Site {row.SiteId} contains invalid or duplicate hostnames");
 
+        if (row.PathPrefixes.Length == 0)
+            throw new InvalidDataException($"Persisted Site {siteId} must contain at least one path prefix");
         var pathPrefixes = row.PathPrefixes.Select(x =>
         {
             var raw = (x ?? "").Trim();
@@ -139,7 +144,7 @@ internal static class SitePersistenceCodec
             throw new InvalidDataException($"Persisted Site {row.SiteId} contains duplicate egress schemes");
 
         return new GatewaySite(
-            row.SiteId,
+            siteId,
             row.Enabled,
             hostnames,
             pathPrefixes,

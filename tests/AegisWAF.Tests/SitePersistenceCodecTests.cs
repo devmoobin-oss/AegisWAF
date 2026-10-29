@@ -129,4 +129,59 @@ public sealed class SitePersistenceCodecTests
                 60,
                 10000);
     }
+
+    [Fact]
+    public void Persistence_codec_rejects_invalid_site_identity_and_empty_required_collections()
+    {
+        var cases = new[]
+        {
+            (MakeRow(siteId: "bad site"), "invalid ID"),
+            (MakeRow(hostnames: []), "hostname"),
+            (MakeRow(pathPrefixes: []), "path prefix")
+        };
+
+        foreach (var testCase in cases)
+        {
+            var error = Assert.Throws<InvalidDataException>(() => SitePersistenceCodec.FromRow(testCase.Item1));
+
+            Assert.Contains(testCase.Item2, error.Message, StringComparison.OrdinalIgnoreCase);
+        }
+
+        static SitePersistenceRow MakeRow(
+            string siteId = "broken",
+            string[]? hostnames = null,
+            string[]? pathPrefixes = null) => new(
+                siteId,
+                true,
+                hostnames ?? ["broken.example.com"],
+                pathPrefixes ?? ["/"],
+                ["primary"],
+                ["https://origin.example.com/"],
+                [100],
+                "default",
+                ["origin.example.com"],
+                [443],
+                ["https"],
+                false,
+                "/",
+                10,
+                3,
+                30,
+                300,
+                60,
+                10000);
+    }
+
+    [Fact]
+    public void Persistence_codec_canonicalizes_a_valid_site_id_before_materialization()
+    {
+        var row = new SitePersistenceRow(
+            "  SHOP  ", true, ["shop.example.com"], ["/"],
+            ["primary"], ["https://origin.example.com/"], [100], "default",
+            ["origin.example.com"], [443], ["https"], false, "/", 10, 3, 30, 300, 60, 10000);
+
+        var restored = SitePersistenceCodec.FromRow(row);
+
+        Assert.Equal("shop", restored.Id);
+    }
 }
