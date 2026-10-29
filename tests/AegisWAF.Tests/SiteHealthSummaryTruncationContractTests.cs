@@ -13,10 +13,10 @@ public sealed class SiteHealthSummaryTruncationContractTests
         Assert.True(start >= 0 && end > start, "Could not isolate the health summary endpoint.");
         var endpoint = source[start..end];
 
-        Assert.Contains("allStoredSites", endpoint, StringComparison.Ordinal);
-        Assert.Contains("totalSites = allStoredSites.Count", endpoint, StringComparison.Ordinal);
+        Assert.Contains("summaryPage.TotalSites", endpoint, StringComparison.Ordinal);
+        Assert.Contains("totalSites,", endpoint, StringComparison.Ordinal);
         Assert.Contains("returnedSites = projected.Length", endpoint, StringComparison.Ordinal);
-        Assert.Contains("truncated = allStoredSites.Count > projected.Length", endpoint, StringComparison.Ordinal);
+        Assert.Contains("truncated = totalSites > projected.Length", endpoint, StringComparison.Ordinal);
     }
 
     [Fact]

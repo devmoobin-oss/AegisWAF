@@ -1,0 +1,55 @@
+{
+  "module": 148,
+  "title": "Bound Multi-Site Health Summary Site reads while preserving total-count metadata",
+  "progress": {
+    "before": 0,
+    "after": 100,
+    "target": 100
+  },
+  "opportunity": {
+    "rootCause": "The Health Summary endpoint loaded every waf_sites row with ListAsync and then retained only the first bounded limit, causing unnecessary application-side object allocation and row transfer as Site count grew.",
+    "scope": "SiteDatabaseStore.ListSummaryPageAsync and GET /api/sites/health/summary"
+  },
+  "implementation": [
+    "Added a parameterized summary page query with ORDER BY site_id, LIMIT @limit, and COUNT(*) OVER() total-count metadata.",
+    "Changed the endpoint to consume the bounded page while preserving totalSites, returnedSites, and truncated response semantics.",
+    "Kept the existing summary query budget, health history window, acknowledgement handling, and operator UI contracts intact."
+  ],
+  "verification": {
+    "tddRed": {
+      "tests": 1,
+      "failed": 1,
+      "reason": "The summary endpoint still called ListAsync and the store had no bounded page/count query contract."
+    },
+    "focused": {
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "classes": [
+        "SiteHealthSummaryPagedReadContractTests",
+        "SiteHealthSummaryTruncationContractTests"
+      ]
+    },
+    "multiSiteRegression": {
+      "passed": 116,
+      "failed": 0,
+      "skipped": 0,
+      "runner": "in-process xUnit"
+    },
+    "releaseBuild": {
+      "warnings": 0,
+      "errors": 0,
+      "solution": "AegisWAF.slnx"
+    },
+    "javascriptSyntax": "passed",
+    "gitDiffCheck": "passed"
+  },
+  "boundaries": [
+    "Large live PostgreSQL Site-count query-plan and latency benchmark; COUNT(*) OVER() still requires database-side count work",
+    "Live PostgreSQL failure/cancellation execution",
+    "Authenticated browser/published-EXE smoke",
+    "Visual responsive and screen-reader verification",
+    "CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification"
+  ],
+  "recordedAt": "2026-10-30"
+}

@@ -26,6 +26,32 @@ public sealed class SiteDatabaseStore(IConfiguration configuration)
         return result;
     }
 
+    public async Task<SiteSummaryPage> ListSummaryPageAsync(int limit, CancellationToken ct)
+    {
+        limit = Math.Clamp(limit, 1, 100);
+        await using var db = await OpenAsync(ct);
+        await using var cmd = new NpgsqlCommand("""
+            SELECT site_id, enabled, hostnames, path_prefixes, upstream_ids, upstream_addresses,
+                   upstream_weights, waf_policy, egress_allowed_hosts, egress_allowed_ports,
+                   egress_allowed_schemes, egress_allow_private_exceptions, health_path, health_interval_seconds, health_timeout_seconds,
+                   health_passive_reactivation_seconds, rate_requests, rate_window_seconds, rate_global_requests, row_version,
+                   COUNT(*) OVER() AS total_sites
+            FROM waf_sites
+            ORDER BY site_id
+            LIMIT @limit
+            """, db);
+        cmd.Parameters.AddWithValue("limit", limit);
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        var result = new List<GatewaySite>(limit);
+        long totalSites = 0;
+        while (await reader.ReadAsync(ct))
+        {
+            result.Add(ReadSite(reader));
+            totalSites = reader.GetInt64(20);
+        }
+        return new SiteSummaryPage(result, totalSites);
+    }
+
     public async Task<GatewaySite?> FindByIdAsync(string siteId, CancellationToken ct)
     {
         await using var db = await OpenAsync(ct);
@@ -532,3 +558,5 @@ public sealed record SiteUpdateResult(SiteUpdateStatus Status, long? CurrentVers
 public enum SiteDeleteStatus { Deleted, NotFound, Conflict }
 
 public sealed record SiteDeleteResult(SiteDeleteStatus Status, long? CurrentVersion = null);
+
+public sealed record SiteSummaryPage(IReadOnlyList<GatewaySite> Sites, long TotalSites);

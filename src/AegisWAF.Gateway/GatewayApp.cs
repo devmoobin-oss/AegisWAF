@@ -739,12 +739,13 @@ public static class GatewayApp
         var boundedLimit = Math.Clamp(limit ?? 100, 1, 100);
         using var summaryBudget = SiteHealthSummaryBudget.Create(ct, summaryQueryBudgetMs);
         var summaryCt = summaryBudget.Token;
-        IReadOnlyList<GatewaySite> allStoredSites;
         IReadOnlyList<GatewaySite> storedSites;
+        long totalSites;
         try
         {
-            allStoredSites = await store.ListAsync(summaryCt);
-            storedSites = allStoredSites.Take(boundedLimit).ToArray();
+            var summaryPage = await store.ListSummaryPageAsync(boundedLimit, summaryCt);
+            storedSites = summaryPage.Sites;
+            totalSites = summaryPage.TotalSites;
         }
         catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
         {
@@ -818,9 +819,9 @@ public static class GatewayApp
         return Results.Ok(new
         {
             windowSize = boundedWindow,
-            totalSites = allStoredSites.Count,
+            totalSites,
             returnedSites = projected.Length,
-            truncated = allStoredSites.Count > projected.Length,
+            truncated = totalSites > projected.Length,
             criticalSites = alertCounts.CriticalSites,
             degradedSites = alertCounts.DegradedSites,
             healthySites = alertCounts.HealthySites,
