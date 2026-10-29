@@ -1,0 +1,37 @@
+{
+  "module": 159,
+  "title": "Align Multi-Site egress syntax validation before configuration binding",
+  "progress": {
+    "beforePercent": 0,
+    "afterPercent": 100,
+    "targetPercent": 100
+  },
+  "opportunity": {
+    "rootCause": "Configuration validation only checked egress host, port, and scheme syntax inside production enforcement. Typed snapshot validation checked the same common syntax in all modes, so development configuration could reach binding with wildcard, invalid-port, or unsupported-scheme values before the later snapshot gate.",
+    "risk": "Invalid egress policy values could produce delayed or inconsistent startup diagnostics and allow malformed configuration to travel farther through the binding path than necessary."
+  },
+  "implementation": {
+    "behavior": "Common egress host, port, and HTTP/HTTPS scheme validation now runs for all configuration modes; production-only HTTPS allowlist and private-exception rules remain enforced separately."
+  },
+  "tdd": {
+    "red": {
+      "test": "SiteConfigurationTests.Rejects_invalid_egress_values_before_binding_in_development_mode",
+      "result": "failed 1/1 because development configuration returned no common egress syntax errors"
+    },
+    "green": {
+      "focused": "SiteConfigurationTests passed 22/22"
+    }
+  },
+  "verification": {
+    "multiSiteRegression": "passed 265/265 across 99 executable test classes; external PostgreSQL fault-injection and non-test filename placeholders were not executable suite classes",
+    "releaseBuild": "passed with 0 warnings and 0 errors",
+    "javascriptSyntax": "node --check passed",
+    "gitDiffCheck": "passed",
+    "sourceCommit": "c8a4300"
+  },
+  "boundary": [
+    "PostgreSQL-backed integration and live configuration reload were not run in this environment",
+    "Authenticated browser and published-EXE smoke were not run",
+    "Visual responsive, screen-reader, CodeQL/SARIF, external penetration, load/SLO, SIEM, Authenticode, and production certification remain unverified"
+  ]
+}
