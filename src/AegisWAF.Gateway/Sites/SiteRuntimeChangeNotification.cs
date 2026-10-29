@@ -33,7 +33,10 @@ public static class SiteRuntimeChangeNotification
             if (root.ValueKind != JsonValueKind.Object ||
                 !root.TryGetProperty("schema", out var schema) ||
                 !root.TryGetProperty("operation", out var operation) ||
-                !root.TryGetProperty("siteId", out var siteId)) return false;
+                !root.TryGetProperty("siteId", out var siteId) ||
+                schema.ValueKind != JsonValueKind.String ||
+                operation.ValueKind != JsonValueKind.String ||
+                siteId.ValueKind != JsonValueKind.String) return false;
             var schemaValue = schema.GetString();
             var operationValue = operation.GetString();
             var siteIdValue = siteId.GetString();

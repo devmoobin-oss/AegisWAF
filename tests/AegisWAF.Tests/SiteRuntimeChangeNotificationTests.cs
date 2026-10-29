@@ -25,4 +25,18 @@ public sealed class SiteRuntimeChangeNotificationTests
         Assert.False(SiteRuntimeChangeNotification.TryParse("{\"schema\":\"wrong\",\"operation\":\"site.update\",\"siteId\":\"site-a\"}", out _));
         Assert.False(SiteRuntimeChangeNotification.TryParse(new string('x', SiteRuntimeChangeNotification.MaxPayloadLength + 1), out _));
     }
+
+    [Fact]
+    public void Payload_with_wrong_json_types_is_rejected_without_throwing()
+    {
+        var malformedPayloads = new[]
+        {
+            "{\"schema\":[],\"operation\":\"site.update\",\"siteId\":\"site-a\"}",
+            "{\"schema\":\"aegiswaf.site.v1\",\"operation\":42,\"siteId\":\"site-a\"}",
+            "{\"schema\":\"aegiswaf.site.v1\",\"operation\":\"site.update\",\"siteId\":123}"
+        };
+
+        foreach (var payload in malformedPayloads)
+            Assert.False(SiteRuntimeChangeNotification.TryParse(payload, out _));
+    }
 }
