@@ -9,6 +9,14 @@
   "releaseBuild": "Release passed: 0 warnings, 0 errors",
   "fullVstest": "not rerun: prior full testhost boundary remains aborted after 90 seconds",
   "liveDatabaseRecovery": "not available in this environment",
-  "artifact": "pending-publish",
+  "artifact": {
+    "path": "D:\\AegisWAF\\dist\\AegisWAF-Desktop-CompletedModules\\AegisWAF.exe",
+    "sha256": "E36EE0933F817A2874B3899CB5582BF432AC86138CDA43E4BD33F20CFB445171",
+    "sizeBytes": 170723179,
+    "sourceCommit": "d5f8d02b5b3da8146ebfd469ca05cc0e965f335a",
+    "manifest": "files=6, signed=false, workingTreeClean=true",
+    "peHeader": "MZ",
+    "authenticode": "NotSigned"
+  },
   "boundary": "No live PostgreSQL failure/recovery execution or authenticated published-EXE smoke claim."
 }
