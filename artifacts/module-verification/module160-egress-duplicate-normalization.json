@@ -1,0 +1,37 @@
+{
+  "module": 160,
+  "title": "Reject duplicate Multi-Site egress entries after normalization",
+  "progress": {
+    "beforePercent": 0,
+    "afterPercent": 100,
+    "targetPercent": 100
+  },
+  "opportunity": {
+    "rootCause": "Egress allowlists were cardinality-bounded and syntax-checked but duplicate hosts, ports, and schemes were still accepted. Host casing/trailing dots and scheme casing could represent the same policy value more than once.",
+    "risk": "Duplicate policy entries increase persisted and runtime metadata without adding capability and can make configuration intent ambiguous across configuration and database snapshot paths."
+  },
+  "implementation": {
+    "behavior": "Configuration and typed snapshot validation now reject duplicate egress hosts after hostname normalization, duplicate ports, and duplicate schemes after case normalization."
+  },
+  "tdd": {
+    "red": {
+      "test": "SiteConfigurationCardinalityTests.Rejects_duplicate_egress_entries_after_normalization_in_both_validation_paths",
+      "result": "failed 1/1 because duplicate egress entries were accepted by both validation paths"
+    },
+    "green": {
+      "focused": "SiteConfigurationCardinalityTests passed 8/8"
+    }
+  },
+  "verification": {
+    "multiSiteRegression": "passed 266/266 across 99 executable test classes; external PostgreSQL fault-injection and non-test filename placeholders were not executable suite classes",
+    "releaseBuild": "passed with 0 warnings and 0 errors",
+    "javascriptSyntax": "node --check passed",
+    "gitDiffCheck": "passed",
+    "sourceCommit": "1722dad"
+  },
+  "boundary": [
+    "PostgreSQL-backed integration and live duplicate-policy persistence/reload were not run in this environment",
+    "Authenticated browser and published-EXE smoke were not run",
+    "Visual responsive, screen-reader, CodeQL/SARIF, external penetration, load/SLO, SIEM, Authenticode, and production certification remain unverified"
+  ]
+}
