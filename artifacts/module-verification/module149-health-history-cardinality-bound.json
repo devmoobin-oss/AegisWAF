@@ -1,0 +1,55 @@
+{
+  "module": 149,
+  "title": "Bound process-memory Multi-Site health history by Site cardinality",
+  "progress": {
+    "before": 0,
+    "after": 100,
+    "target": 100
+  },
+  "opportunity": {
+    "rootCause": "SiteHealthHistory bounded observations per Site but retained an unbounded dictionary of Site keys; repeated Site creation/deletion could grow process-memory fallback state indefinitely.",
+    "scope": "SiteHealthHistory process-memory fallback"
+  },
+  "implementation": [
+    "Added a configurable global maxSites bound with a safe default of 1024 and constructor validation.",
+    "Added recency tracking and least-recently-used eviction when a new Site would exceed the bound.",
+    "Touching a Site on Record and Read preserves recently active Site histories while retaining per-Site observation bounds and reason redaction."
+  ],
+  "verification": {
+    "tddRed": {
+      "tests": 1,
+      "failed": 1,
+      "reason": "The history implementation had no maxSites or recency/cardinality bound."
+    },
+    "focused": {
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "classes": [
+        "SiteHealthHistoryCardinalityContractTests",
+        "SiteHealthHistoryTests"
+      ]
+    },
+    "multiSiteRegression": {
+      "passed": 120,
+      "failed": 0,
+      "skipped": 0,
+      "runner": "in-process xUnit"
+    },
+    "releaseBuild": {
+      "warnings": 0,
+      "errors": 0,
+      "solution": "AegisWAF.slnx"
+    },
+    "javascriptSyntax": "passed",
+    "gitDiffCheck": "passed"
+  },
+  "boundaries": [
+    "Long-running process-memory allocation benchmark with thousands of live Sites",
+    "Live PostgreSQL fallback activation and concurrent multi-instance execution",
+    "Authenticated browser/published-EXE smoke",
+    "Visual responsive and screen-reader verification",
+    "CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification"
+  ],
+  "recordedAt": "2026-10-30"
+}

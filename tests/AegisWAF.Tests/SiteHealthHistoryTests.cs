@@ -33,4 +33,21 @@ public sealed class SiteHealthHistoryTests
         Assert.Equal(2, history.Read("shop", 2).Count);
         Assert.Empty(history.Read("missing", 100));
     }
+
+    [Fact]
+    public void History_evicts_the_least_recently_used_site_when_global_bound_is_reached()
+    {
+        var history = new SiteHealthHistory(maxObservationsPerSite: 2, maxSites: 2);
+        var now = DateTimeOffset.UtcNow;
+        var observation = new SiteHealthProbeResult("one", "origin", "healthy", null, now);
+
+        history.Record("old", [observation]);
+        history.Record("recent", [observation with { CheckedAt = now.AddSeconds(1) }]);
+        _ = history.Read("old", 1); // Make old the most recently used entry.
+        history.Record("new", [observation with { CheckedAt = now.AddSeconds(2) }]);
+
+        Assert.NotEmpty(history.Read("old", 1));
+        Assert.NotEmpty(history.Read("new", 1));
+        Assert.Empty(history.Read("recent", 1));
+    }
 }
