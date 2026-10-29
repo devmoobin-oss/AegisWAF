@@ -60,7 +60,7 @@ public sealed record SiteHealthSummaryDto(int WindowSize, int TotalSites, int Cr
     int QueryBudgetMs = 2_000, bool WithinBudget = true, string Status = "ready",
     long SummaryFailureCount = 0, long SummaryConsecutiveFailures = 0, int RecoveredSites = 0,
     int StaleCriticalSites = 0, int StaleDegradedSites = 0, int ReturnedSites = 0, bool Truncated = false,
-    bool HistoryPersisted = true, string? HistoryRetention = null);
+    bool HistoryPersisted = true, string? HistoryRetention = null, string CountsScope = "all-enabled-sites");
 public sealed record AuditEntryDto(DateTimeOffset OccurredAt, string Action, string Target, string? Actor, string? ClientIp, string Outcome)
 {
     public string LocalTime => OccurredAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");

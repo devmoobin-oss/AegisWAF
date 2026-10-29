@@ -914,6 +914,7 @@ public static class GatewayApp
             totalSites,
             returnedSites = projected.Length,
             truncated = totalSites > projected.Length,
+            countsScope = SiteHealthSummaryCountScope.For(totalSites, projected.Length),
             criticalSites = alertCounts.CriticalSites,
             degradedSites = alertCounts.DegradedSites,
             healthySites = alertCounts.HealthySites,

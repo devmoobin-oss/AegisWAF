@@ -111,7 +111,7 @@ public partial class SitesView : UserControl, IPage
             ? "ข้อมูลเก่า 0"
             : $"ข้อมูลเก่า {summary.StaleSites} (เดิมวิกฤติ {summary.StaleCriticalSites} · เดิมเฝ้าระวัง {summary.StaleDegradedSites})";
         var scopeLabel = summary is not null && summary.Truncated
-            ? $" · แสดง {summary.ReturnedSites} จาก {summary.TotalSites} Site"
+            ? $" · แสดง {summary.ReturnedSites} จาก {summary.TotalSites} Site{(summary.CountsScope == "returned-sites" ? " · ตัวเลขสรุปนับจาก Site ที่แสดงเท่านั้น" : "")}"
             : "";
         var historyLabel = summary is not null && !summary.HistoryPersisted
             ? summary.HistoryRetention == "process-memory"
