@@ -1,0 +1,14 @@
+{
+  "module": 169,
+  "title": "Multi-Site health persistence acknowledgement",
+  "beforePercent": 0,
+  "afterPercent": 100,
+  "targetPercent": 100,
+  "red": "SiteHealthHistoryTests.Pending_observations_are_cleared_only_after_durable_persistence_succeeds failed before HasPending/MarkPersisted existed.",
+  "focusedTests": "18/18 passed",
+  "releaseBuild": "Release passed: 0 warnings, 0 errors",
+  "fullVstest": "not rerun: prior full testhost boundary remains aborted after 90 seconds",
+  "liveDatabaseRecovery": "not available in this environment",
+  "artifact": "pending-publish",
+  "boundary": "No live PostgreSQL failure/recovery execution or authenticated published-EXE smoke claim."
+}

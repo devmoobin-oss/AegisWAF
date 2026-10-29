@@ -91,4 +91,19 @@ public sealed class SiteHealthHistoryTests
         Assert.Equal(now, merged[0].CheckedAt);
         Assert.Equal(now.AddSeconds(-1), merged[1].CheckedAt);
     }
+
+    [Fact]
+    public void Pending_observations_are_cleared_only_after_durable_persistence_succeeds()
+    {
+        var history = new SiteHealthHistory();
+        var now = DateTimeOffset.UtcNow;
+        var probe = new SiteHealthProbeResult("primary", "origin", "unhealthy", "timeout", now);
+        var observation = new SiteHealthObservation("primary", "unhealthy", "timeout", now);
+
+        history.Record("shop", [probe]);
+
+        Assert.True(history.HasPending("shop"));
+        history.MarkPersisted("shop", [observation]);
+        Assert.False(history.HasPending("shop"));
+    }
 }

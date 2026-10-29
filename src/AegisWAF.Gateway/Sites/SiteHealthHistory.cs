@@ -45,9 +45,38 @@ public sealed class SiteHealthHistory
             bucket.LastTouched = NextTouch();
             foreach (var result in results)
             {
-                bucket.Observations.Enqueue(new SiteHealthObservation(result.UpstreamId, result.Health, SanitizeReason(result.Reason), result.CheckedAt));
-                while (bucket.Observations.Count > _maxObservationsPerSite) bucket.Observations.Dequeue();
+                var observation = new SiteHealthObservation(result.UpstreamId, result.Health, SanitizeReason(result.Reason), result.CheckedAt);
+                bucket.Observations.Enqueue(observation);
+                bucket.Pending.Add(ObservationKey.From(observation));
+                while (bucket.Observations.Count > _maxObservationsPerSite)
+                {
+                    var evicted = bucket.Observations.Dequeue();
+                    var key = ObservationKey.From(evicted);
+                    if (!bucket.Observations.Any(x => ObservationKey.From(x).Equals(key))) bucket.Pending.Remove(key);
+                }
             }
+        }
+    }
+
+    public void MarkPersisted(string siteId, IReadOnlyList<SiteHealthObservation> observations)
+    {
+        if (string.IsNullOrWhiteSpace(siteId) || observations.Count == 0) return;
+        lock (_gate)
+        {
+            if (!_observations.TryGetValue(siteId, out var bucket)) return;
+            bucket.LastTouched = NextTouch();
+            foreach (var observation in observations) bucket.Pending.Remove(ObservationKey.From(observation));
+        }
+    }
+
+    public bool HasPending(string siteId)
+    {
+        if (string.IsNullOrWhiteSpace(siteId)) return false;
+        lock (_gate)
+        {
+            if (!_observations.TryGetValue(siteId, out var bucket)) return false;
+            bucket.LastTouched = NextTouch();
+            return bucket.Pending.Count > 0;
         }
     }
 
@@ -94,11 +123,18 @@ public sealed class SiteHealthHistory
     private sealed class HistoryBucket(int capacity)
     {
         public Queue<SiteHealthObservation> Observations { get; } = new(capacity);
+        public HashSet<ObservationKey> Pending { get; } = [];
         public long LastTouched { get; set; }
     }
 
     private sealed record ObservationKey(string UpstreamId, string Health, string? Reason, DateTimeOffset CheckedAt)
     {
+        public static ObservationKey From(SiteHealthObservation observation) => new(
+            observation.UpstreamId.Trim(),
+            observation.Health.Trim(),
+            SanitizeReason(observation.Reason),
+            observation.CheckedAt);
+
         public bool Equals(ObservationKey? other) => other is not null
             && string.Equals(UpstreamId, other.UpstreamId, StringComparison.OrdinalIgnoreCase)
             && string.Equals(Health, other.Health, StringComparison.OrdinalIgnoreCase)

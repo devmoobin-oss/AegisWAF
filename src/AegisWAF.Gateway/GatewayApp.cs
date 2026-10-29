@@ -572,12 +572,14 @@ public static class GatewayApp
         catch (OperationCanceledException) when (SiteHealthProbeBudget.IsBudgetCancellation(ct, probeBudget.Token))
         { return SiteHealthProbeTimedOut(ctx); }
         history.Record(site.Id, probeResults);
+        var persistedObservations = probeResults.Select(x => new SiteHealthObservation(x.UpstreamId, x.Health, x.Reason, x.CheckedAt)).ToArray();
         var historyPersisted = true;
         using var writeBudget = SiteHealthWriteBudget.Create(ct);
         var writeCt = writeBudget.Token;
         try
         {
-            await store.RecordHealthHistoryAsync(site.Id, probeResults.Select(x => new SiteHealthObservation(x.UpstreamId, x.Health, x.Reason, x.CheckedAt)).ToArray(), writeCt);
+            await store.RecordHealthHistoryAsync(site.Id, persistedObservations, writeCt);
+            history.MarkPersisted(site.Id, persistedObservations);
         }
         catch (OperationCanceledException) when (SiteHealthWriteBudget.IsBudgetCancellation(ct, writeCt))
         {
@@ -590,7 +592,10 @@ public static class GatewayApp
         var checkedAt = probeResults.Count == 0 ? DateTimeOffset.UtcNow : probeResults.Max(x => x.CheckedAt);
         var upstreams = probeResults.Select(result => new { id = result.UpstreamId, address = result.Address, health = result.Health, reason = result.Reason }).ToArray();
         var health = upstreams.Length == 0 ? "invalid" : upstreams.All(x => x.health == "unhealthy") ? "unhealthy" : upstreams.Any(x => x.health == "healthy") ? "healthy" : "unknown";
-        return Results.Ok(new { siteId = site.Id, health, pendingRestart = false, activationStatus = "active", version = site.Version, activeVersion = active!.Version, etag = SiteConcurrency.ToEtag(site.Version), fresh = true, source = "active-probe", checkedAt, lastProbeAt = checkedAt, historyRetention = historyPersisted ? "postgresql" : "process-memory", historyPersisted, upstreams });
+        var hasPendingHistory = history.HasPending(site.Id);
+        historyPersisted = historyPersisted && !hasPendingHistory;
+        var historyRetention = historyPersisted ? "postgresql" : hasPendingHistory ? "postgresql+process-memory" : "process-memory";
+        return Results.Ok(new { siteId = site.Id, health, pendingRestart = false, activationStatus = "active", version = site.Version, activeVersion = active!.Version, etag = SiteConcurrency.ToEtag(site.Version), fresh = true, source = "active-probe", checkedAt, lastProbeAt = checkedAt, historyRetention, historyPersisted, upstreams });
     }).Require(Roles.Viewer);
     app.MapGet("/api/sites/{id}/health/history", async (string id, SiteRegistry registry, SiteDatabaseStore store, SiteHealthHistory history, int? limit, HttpContext ctx, CancellationToken ct) =>
     {
@@ -611,20 +616,23 @@ public static class GatewayApp
         if (site is null) return Results.NotFound(new { error = $"Site '{id}' was not found" });
         var boundedLimit = Math.Clamp(limit ?? 20, 1, 100);
         var processMemory = history.Read(site.Id, boundedLimit);
+        var hasPendingHistory = history.HasPending(site.Id);
         IReadOnlyList<SiteHealthObservation> persisted = [];
-        var historyPersisted = true;
+        var databaseHistoryAvailable = true;
         try { persisted = await store.ListHealthHistoryAsync(site.Id, boundedLimit, readCt); }
         catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException)
-        { historyPersisted = false; }
+        { databaseHistoryAvailable = false; }
         catch (InvalidDataException)
         { return SiteDatabaseUnavailable(ctx, "health-history-listed", "site_persistence_invalid"); }
         catch (OperationCanceledException) when (SiteHealthReadBudget.IsBudgetCancellation(ct, readCt))
         { return SiteDatabaseUnavailable(ctx, "health-history-timeout", "site_health_read_timeout"); }
         var observations = SiteHealthHistory.Merge(persisted, processMemory, boundedLimit);
+        var historyPersisted = databaseHistoryAvailable && !hasPendingHistory;
+        var historyRetention = !databaseHistoryAvailable ? "process-memory" : hasPendingHistory ? "postgresql+process-memory" : "postgresql";
         return Results.Ok(new
         {
             siteId = site.Id,
-            retention = historyPersisted ? "postgresql" : "process-memory",
+            retention = historyRetention,
             historyPersisted,
             maxObservationsPerSite = 64,
             observations = observations.Select(x => new { upstreamId = x.UpstreamId, health = x.Health, reason = x.Reason, checkedAt = x.CheckedAt })
@@ -649,16 +657,19 @@ public static class GatewayApp
         if (site is null) return Results.NotFound(new { error = $"Site '{id}' was not found" });
         var boundedWindow = Math.Clamp(window ?? 20, 1, SiteHealthTrendCalculator.MaxWindow);
         var processMemory = history.Read(site.Id, SiteHealthTrendCalculator.MaxWindow);
+        var hasPendingHistory = history.HasPending(site.Id);
         IReadOnlyList<SiteHealthObservation> persisted = [];
-        var historyPersisted = true;
+        var databaseHistoryAvailable = true;
         try { persisted = await store.ListHealthHistoryAsync(site.Id, SiteHealthTrendCalculator.MaxWindow, readCt); }
         catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException)
-        { historyPersisted = false; }
+        { databaseHistoryAvailable = false; }
         catch (InvalidDataException)
         { return SiteDatabaseUnavailable(ctx, "health-trend-listed", "site_persistence_invalid"); }
         catch (OperationCanceledException) when (SiteHealthReadBudget.IsBudgetCancellation(ct, readCt))
         { return SiteDatabaseUnavailable(ctx, "health-trend-timeout", "site_health_read_timeout"); }
         var observations = SiteHealthHistory.Merge(persisted, processMemory, SiteHealthTrendCalculator.MaxWindow);
+        var historyPersisted = databaseHistoryAvailable && !hasPendingHistory;
+        var historyRetention = !databaseHistoryAvailable ? "process-memory" : hasPendingHistory ? "postgresql+process-memory" : "postgresql";
         observations = SiteHealthTrendCalculator.FilterToCurrentUpstreams(observations, site.Upstreams.Select(x => x.Id));
         var trend = SiteHealthTrendCalculator.Calculate(observations, boundedWindow, site.Upstreams.Count);
         var trendNow = DateTimeOffset.UtcNow;
@@ -692,7 +703,7 @@ public static class GatewayApp
             acknowledgedBy = acknowledgement?.AcknowledgedBy,
             alertSuppressed = suppressed,
             historyPersisted,
-            historyRetention = historyPersisted ? "postgresql" : "process-memory"
+            historyRetention
         });
     }).Require(Roles.Viewer);
     app.MapPost("/api/sites/{id}/health/alerts/acknowledge", async (string id, SiteHealthAlertAcknowledgeRequest? input, SiteDatabaseStore store, HttpContext ctx, CancellationToken ct) =>
@@ -856,6 +867,10 @@ public static class GatewayApp
                 history.Read(site.Id, SiteHealthTrendCalculator.MaxWindow),
                 SiteHealthTrendCalculator.MaxWindow),
             StringComparer.OrdinalIgnoreCase);
+        var hasPendingHistory = storedSites.Any(site => history.HasPending(site.Id));
+        var databaseHistoryAvailable = historyPersisted;
+        historyPersisted = databaseHistoryAvailable && !hasPendingHistory;
+        var historyRetention = !databaseHistoryAvailable ? "process-memory" : hasPendingHistory ? "postgresql+process-memory" : "postgresql";
         var inputs = storedSites.Select(site =>
             (site.Id, histories.TryGetValue(site.Id, out var observations)
                 ? SiteHealthTrendCalculator.FilterToCurrentUpstreams(observations, site.Upstreams.Select(x => x.Id))
@@ -916,7 +931,7 @@ public static class GatewayApp
             summaryFailureCount = telemetry.TotalFailures,
             summaryConsecutiveFailures = telemetry.ConsecutiveFailures,
             historyPersisted,
-            historyRetention = historyPersisted ? "postgresql" : "process-memory",
+            historyRetention,
             sites = projected
         });
     }).Require(Roles.Viewer);

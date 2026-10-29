@@ -12,8 +12,9 @@ public sealed class SiteHealthProcessMemoryFallbackContractTests
         Assert.Contains("SiteHealthHistory history", endpoint, StringComparison.Ordinal);
         Assert.Contains("history.Read(site.Id", endpoint, StringComparison.Ordinal);
         Assert.Contains("SiteHealthHistory.Merge(persisted, processMemory", endpoint, StringComparison.Ordinal);
-        Assert.Contains("historyPersisted = false", endpoint, StringComparison.Ordinal);
-        Assert.Contains("retention = historyPersisted ? \"postgresql\" : \"process-memory\"", endpoint, StringComparison.Ordinal);
+        Assert.Contains("databaseHistoryAvailable = false", endpoint, StringComparison.Ordinal);
+        Assert.Contains("var historyPersisted = databaseHistoryAvailable && !hasPendingHistory", endpoint, StringComparison.Ordinal);
+        Assert.Contains("historyRetention", endpoint, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -26,6 +27,16 @@ public sealed class SiteHealthProcessMemoryFallbackContractTests
         Assert.Contains("SiteHealthHistory.Merge(persisted, processMemory", endpoint, StringComparison.Ordinal);
         Assert.Contains("historyRetention", endpoint, StringComparison.Ordinal);
         Assert.Contains("FilterToCurrentUpstreams", endpoint, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Manual_probe_marks_only_successfully_persisted_observations_as_durable()
+    {
+        var endpoint = Endpoint("app.MapPost(\"/api/sites/{id}/health\"", "app.MapGet(\"/api/sites/{id}/health/history\"");
+
+        Assert.Contains("history.MarkPersisted(site.Id, persistedObservations)", endpoint, StringComparison.Ordinal);
+        Assert.Contains("var hasPendingHistory = history.HasPending(site.Id)", endpoint, StringComparison.Ordinal);
+        Assert.Contains("postgresql+process-memory", endpoint, StringComparison.Ordinal);
     }
 
     [Fact]
