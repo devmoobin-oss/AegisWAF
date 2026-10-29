@@ -193,6 +193,25 @@ public sealed class SiteConfigurationTests
     }
 
     [Fact]
+    public void Rejects_invalid_egress_values_before_binding_in_development_mode()
+    {
+        var config = Config(new Dictionary<string, string?>
+        {
+            ["Sites:shop:Hostnames:0"] = "shop.example.com",
+            ["Sites:shop:Upstreams:0:Address"] = "http://origin.example.com:8080/",
+            ["Sites:shop:Egress:AllowedHosts:0"] = "*",
+            ["Sites:shop:Egress:AllowedPorts:0"] = "0",
+            ["Sites:shop:Egress:AllowedSchemes:0"] = "ftp"
+        });
+
+        var errors = SiteConfigurationValidator.Validate(config);
+
+        Assert.Contains(errors, error => error.Contains("egress host", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(errors, error => error.Contains("egress port", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(errors, error => error.Contains("egress scheme", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void Production_requires_each_upstream_to_be_covered_by_site_egress_policy()
     {
         var config = Config(new Dictionary<string, string?>
