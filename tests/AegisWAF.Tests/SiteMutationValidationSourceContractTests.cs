@@ -17,7 +17,7 @@ public sealed class SiteMutationValidationSourceContractTests
 
         foreach (var endpoint in new[] { post, put })
         {
-            Assert.Contains("storedSitesForValidation = await store.ListAsync(ct)", endpoint);
+            Assert.Contains("storedSitesForValidation = await store.ListAsync(validationCt)", endpoint);
             Assert.Contains("SiteConfigurationValidator.ValidateSnapshot", endpoint);
             Assert.DoesNotContain("registry.Current.Sites", endpoint);
         }

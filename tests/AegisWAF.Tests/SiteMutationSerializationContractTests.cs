@@ -15,7 +15,7 @@ public sealed class SiteMutationSerializationContractTests
         Assert.Contains("pg_try_advisory_lock", store, StringComparison.Ordinal);
         Assert.DoesNotContain("SELECT pg_advisory_lock", store, StringComparison.Ordinal);
         Assert.Contains("aegiswaf.site_mutation.v1", store, StringComparison.Ordinal);
-        Assert.Equal(3, Count(gateway, "AcquireSiteMutationLockAsync"));
+        Assert.Equal(4, Count(gateway, "AcquireSiteMutationLockAsync"));
         Assert.Equal(3, Count(gateway, "await using var mutationLock"));
     }
 

@@ -457,6 +457,7 @@ public static class GatewayApp
         using var readBudget = SiteHealthReadBudget.Create(ct);
         var readCt = readBudget.Token;
         var activeSites = registry.Current.Sites;
+        var activeById = activeSites.ToDictionary(site => site.Id, StringComparer.OrdinalIgnoreCase);
         IReadOnlyList<GatewaySite> storedSites;
         try { storedSites = await store.ListAsync(readCt); }
         catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
@@ -465,7 +466,7 @@ public static class GatewayApp
         { return SiteDatabaseUnavailable(ctx, "list-timeout", "site_health_read_timeout"); }
         var result = storedSites.Select(site =>
         {
-            var active = activeSites.FirstOrDefault(x => x.Id.Equals(site.Id, StringComparison.OrdinalIgnoreCase));
+            activeById.TryGetValue(site.Id, out var active);
             var pendingRestart = active is null || active.Version != site.Version || !SiteConfigurationEditor.AreEquivalent(active, site);
             if (pendingRestart)
             {
