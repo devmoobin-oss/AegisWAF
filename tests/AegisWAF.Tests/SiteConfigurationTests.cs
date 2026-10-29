@@ -160,6 +160,21 @@ public sealed class SiteConfigurationTests
     }
 
     [Fact]
+    public void Rejects_invalid_site_id_before_binding_runtime_routes_even_when_disabled()
+    {
+        var config = Config(new Dictionary<string, string?>
+        {
+            ["Sites:Bad Site:Enabled"] = "false",
+            ["Sites:Bad Site:Hostnames:0"] = "app.example.com",
+            ["Sites:Bad Site:Upstreams:0:Address"] = "https://origin.example.com/"
+        });
+
+        var errors = SiteConfigurationValidator.Validate(config);
+
+        Assert.Contains(errors, error => error.Contains("invalid ID", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void Production_requires_each_upstream_to_be_covered_by_site_egress_policy()
     {
         var config = Config(new Dictionary<string, string?>

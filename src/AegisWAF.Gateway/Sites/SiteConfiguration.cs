@@ -38,6 +38,8 @@ public static class SiteConfigurationValidator
         foreach (var site in siteSections)
         {
             var id = NormalizeId(site.Key);
+            if (!RegexPatterns.SiteId.IsMatch(id))
+                errors.Add($"Site {site.Key} has an invalid ID");
             var enabled = site.GetValue("Enabled", true);
             if (!enabled) continue;
             activeSites++;
