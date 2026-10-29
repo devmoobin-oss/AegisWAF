@@ -148,6 +148,38 @@ public sealed class SiteConfigurationCardinalityTests
         Assert.Contains(snapshotErrors, error => error.Contains("egress schemes", StringComparison.OrdinalIgnoreCase));
     }
 
+    [Fact]
+    public void Rejects_duplicate_egress_entries_after_normalization_in_both_validation_paths()
+    {
+        var values = new Dictionary<string, string?>
+        {
+            ["Sites:shop:Hostnames:0"] = "shop.example.com",
+            ["Sites:shop:Upstreams:0:Address"] = "https://origin.example.com/",
+            ["Sites:shop:Egress:AllowedHosts:0"] = "origin.example.com",
+            ["Sites:shop:Egress:AllowedHosts:1"] = "ORIGIN.EXAMPLE.COM.",
+            ["Sites:shop:Egress:AllowedPorts:0"] = "443",
+            ["Sites:shop:Egress:AllowedPorts:1"] = "443",
+            ["Sites:shop:Egress:AllowedSchemes:0"] = "https",
+            ["Sites:shop:Egress:AllowedSchemes:1"] = "HTTPS"
+        };
+        var configuration = Config(values);
+        var configurationErrors = SiteConfigurationValidator.Validate(configuration);
+        var snapshot = new SiteConfigurationSnapshot([
+            new GatewaySite("shop", true, ["shop.example.com"], ["/"],
+                [new SiteUpstream("primary", new Uri("https://origin.example.com/"))], "default",
+                new SiteRateLimitPolicy(), new SiteEgressPolicy(
+                    ["origin.example.com", "ORIGIN.EXAMPLE.COM."], [443, 443], ["https", "HTTPS"]))
+        ], false);
+        var snapshotErrors = SiteConfigurationValidator.ValidateSnapshot(snapshot, configuration);
+
+        foreach (var errors in new[] { configurationErrors, snapshotErrors })
+        {
+            Assert.Contains(errors, error => error.Contains("duplicate egress host", StringComparison.OrdinalIgnoreCase));
+            Assert.Contains(errors, error => error.Contains("duplicate egress port", StringComparison.OrdinalIgnoreCase));
+            Assert.Contains(errors, error => error.Contains("duplicate egress scheme", StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
     private static IConfiguration Config(Dictionary<string, string?> values) =>
         new ConfigurationBuilder().AddInMemoryCollection(values).Build();
 

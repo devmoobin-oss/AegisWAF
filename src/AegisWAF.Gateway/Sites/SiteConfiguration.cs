@@ -129,6 +129,14 @@ public static class SiteConfigurationValidator
             if (allowedSchemes.Any(x => !string.Equals(x, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) &&
                                         !string.Equals(x, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)))
                 errors.Add($"Site {id} egress scheme entries must be HTTP or HTTPS");
+            var normalizedEgressHosts = allowedHosts.Select(NormalizeHostname).Where(x => x.Length > 0).ToArray();
+            if (normalizedEgressHosts.Length != normalizedEgressHosts.Distinct(StringComparer.OrdinalIgnoreCase).Count())
+                errors.Add($"Site {id} contains duplicate egress hosts after normalization");
+            if (allowedPorts.Length != allowedPorts.Distinct().Count())
+                errors.Add($"Site {id} contains duplicate egress ports");
+            var normalizedEgressSchemes = allowedSchemes.Select(x => (x ?? "").Trim().ToLowerInvariant()).ToArray();
+            if (normalizedEgressSchemes.Length != normalizedEgressSchemes.Distinct(StringComparer.Ordinal).Count())
+                errors.Add($"Site {id} contains duplicate egress schemes");
 
             if (enforcing)
             {
@@ -309,6 +317,14 @@ public static class SiteConfigurationValidator
                     allowedSchemes.Any(x => !string.Equals(x, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) &&
                                             !string.Equals(x, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)))
                     errors.Add($"Site {id} egress schemes must be HTTP or HTTPS");
+                var normalizedEgressHosts = allowedHosts.Select(NormalizeHostname).Where(x => x.Length > 0).ToArray();
+                if (normalizedEgressHosts.Length != normalizedEgressHosts.Distinct(StringComparer.OrdinalIgnoreCase).Count())
+                    errors.Add($"Site {id} contains duplicate egress hosts after normalization");
+                if (allowedPorts.Count != allowedPorts.Distinct().Count())
+                    errors.Add($"Site {id} contains duplicate egress ports");
+                var normalizedEgressSchemes = allowedSchemes.Select(x => (x ?? "").Trim().ToLowerInvariant()).ToArray();
+                if (normalizedEgressSchemes.Length != normalizedEgressSchemes.Distinct(StringComparer.Ordinal).Count())
+                    errors.Add($"Site {id} contains duplicate egress schemes");
                 if (enforcing)
                 {
                     if (allowedSchemes.Any(x => !string.Equals(x, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)))
