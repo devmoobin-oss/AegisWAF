@@ -27,7 +27,14 @@
     "broaderCrossModule": "81/83; the two failures were live health-probe tests blocked by socket_AccessDenied on loopback listeners, outside this change",
     "releaseBuild": "passed with 0 warnings and 0 errors",
     "javascriptSyntax": "node --check passed",
-    "gitDiffCheck": "passed"
+    "gitDiffCheck": "passed",
+    "publishedArtifact": {
+      "path": "D:\\AegisWAF\\dist\\AegisWAF-Desktop-CompletedModules\\AegisWAF.exe",
+      "sha256": "08A020F9E2C7A0C53FFD29DDEA7EE0397845EDC0358976722121A780D4919453",
+      "bytes": 170713963,
+      "sourceCommit": "c9a58f995f371ab58878cd913801f15e52fcd7e6",
+      "manifest": "passed files=6 signed=false workingTreeClean=true"
+    }
   },
   "boundary": [
     "Live PostgreSQL malformed-row execution and persistence reload were not available in this environment",
