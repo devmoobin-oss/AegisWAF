@@ -1,0 +1,23 @@
+{
+  "module": 173,
+  "title": "Desktop dynamic-view resource scope",
+  "beforePercent": 0,
+  "afterPercent": 100,
+  "targetPercent": 100,
+  "red": "DesktopDynamicResourceScopeContractTests failed before implementation because DashboardView and ProtectionView still used direct UserControl FindResource calls.",
+  "focusedTests": "9/9 passed (DesktopDynamicResourceScopeContractTests, DesktopOwaspResourceScopeContractTests, and UiContractTests)",
+  "javascriptSyntax": "node --check passed",
+  "releaseBuild": "Release passed: 0 warnings, 0 errors",
+  "diffCheck": "git diff --check passed before commit",
+  "implementation": "DashboardView and ProtectionView now resolve their dynamic Card, MutedText, and Ghost styles through Application.Current.FindResource, preventing early-render resource lookup failures before the controls are attached to the window tree.",
+  "artifact": {
+    "path": "D:\\AegisWAF\\dist\\AegisWAF-Desktop-CompletedModules\\AegisWAF.exe",
+    "sha256": "57D85721116BB9010DD2285B560CCADBA73A32DA201950E0F29D6AC03B429E9B",
+    "sizeBytes": 170723179,
+    "sourceCommit": "45df9b7007231e03c574d320fcbb9b1105d0b129",
+    "manifest": "files=6, signed=false, workingTreeClean=true",
+    "peHeader": "MZ",
+    "authenticode": "NotSigned"
+  },
+  "boundary": "No authenticated visual browser/published-EXE smoke claim; Authenticode signing, hosted CodeQL/SARIF, external penetration testing, load/SLO, SIEM, and production certification remain outside this verification run."
+}
