@@ -13,14 +13,17 @@ public sealed class SiteEndpointReadBudgetTests
         var listEndpoint = Endpoint(source, "app.MapGet(\"/api/sites\"", "app.MapPost(\"/api/sites/{id}/health\"");
         var manualHealthEndpoint = Endpoint(source, "app.MapPost(\"/api/sites/{id}/health\"", "app.MapGet(\"/api/sites/{id}/health/history\"");
 
-        foreach (var endpoint in new[] { listEndpoint, manualHealthEndpoint })
-        {
-            Assert.Contains("using var readBudget = SiteHealthReadBudget.Create(ct);", endpoint, StringComparison.Ordinal);
-            Assert.Contains("var readCt = readBudget.Token;", endpoint, StringComparison.Ordinal);
-            Assert.Contains("store.ListAsync(readCt)", endpoint, StringComparison.Ordinal);
-            Assert.Contains("SiteHealthReadBudget.IsBudgetCancellation(ct, readCt)", endpoint, StringComparison.Ordinal);
-            Assert.Contains("site_health_read_timeout", endpoint, StringComparison.Ordinal);
-        }
+        Assert.Contains("using var readBudget = SiteHealthReadBudget.Create(ct);", listEndpoint, StringComparison.Ordinal);
+        Assert.Contains("var readCt = readBudget.Token;", listEndpoint, StringComparison.Ordinal);
+        Assert.Contains("store.ListAsync(readCt)", listEndpoint, StringComparison.Ordinal);
+        Assert.Contains("SiteHealthReadBudget.IsBudgetCancellation(ct, readCt)", listEndpoint, StringComparison.Ordinal);
+        Assert.Contains("site_health_read_timeout", listEndpoint, StringComparison.Ordinal);
+
+        Assert.Contains("using var readBudget = SiteHealthReadBudget.Create(ct);", manualHealthEndpoint, StringComparison.Ordinal);
+        Assert.Contains("var readCt = readBudget.Token;", manualHealthEndpoint, StringComparison.Ordinal);
+        Assert.Contains("store.FindByIdAsync", manualHealthEndpoint, StringComparison.Ordinal);
+        Assert.Contains("SiteHealthReadBudget.IsBudgetCancellation(ct, readCt)", manualHealthEndpoint, StringComparison.Ordinal);
+        Assert.Contains("site_health_read_timeout", manualHealthEndpoint, StringComparison.Ordinal);
     }
 
     private static string Endpoint(string source, string startMarker, string endMarker)

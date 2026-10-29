@@ -50,4 +50,45 @@ public sealed class SiteHealthHistoryTests
         Assert.NotEmpty(history.Read("new", 1));
         Assert.Empty(history.Read("recent", 1));
     }
+
+    [Fact]
+    public void Merge_combines_persisted_and_process_memory_history_without_duplicates()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var persisted = new[]
+        {
+            new SiteHealthObservation("primary", "unhealthy", "timeout", now.AddSeconds(-2)),
+            new SiteHealthObservation("primary", "healthy", null, now.AddSeconds(-3))
+        };
+        var processMemory = new[]
+        {
+            persisted[0],
+            new SiteHealthObservation("primary", "healthy", null, now)
+        };
+
+        var merged = SiteHealthHistory.Merge(persisted, processMemory, 10);
+
+        Assert.Equal(3, merged.Count);
+        Assert.Equal(now, merged[0].CheckedAt);
+        Assert.Equal(now.AddSeconds(-2), merged[1].CheckedAt);
+        Assert.Equal(now.AddSeconds(-3), merged[2].CheckedAt);
+    }
+
+    [Fact]
+    public void Merge_respects_the_bounded_window_after_ordering()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var merged = SiteHealthHistory.Merge(
+            [new SiteHealthObservation("one", "healthy", null, now.AddSeconds(-3))],
+            [
+                new SiteHealthObservation("one", "unhealthy", "timeout", now.AddSeconds(-2)),
+                new SiteHealthObservation("one", "healthy", null, now.AddSeconds(-1)),
+                new SiteHealthObservation("one", "healthy", null, now)
+            ],
+            2);
+
+        Assert.Equal(2, merged.Count);
+        Assert.Equal(now, merged[0].CheckedAt);
+        Assert.Equal(now.AddSeconds(-1), merged[1].CheckedAt);
+    }
 }

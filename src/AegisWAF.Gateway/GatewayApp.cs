@@ -592,49 +592,73 @@ public static class GatewayApp
         var health = upstreams.Length == 0 ? "invalid" : upstreams.All(x => x.health == "unhealthy") ? "unhealthy" : upstreams.Any(x => x.health == "healthy") ? "healthy" : "unknown";
         return Results.Ok(new { siteId = site.Id, health, pendingRestart = false, activationStatus = "active", version = site.Version, activeVersion = active!.Version, etag = SiteConcurrency.ToEtag(site.Version), fresh = true, source = "active-probe", checkedAt, lastProbeAt = checkedAt, historyRetention = historyPersisted ? "postgresql" : "process-memory", historyPersisted, upstreams });
     }).Require(Roles.Viewer);
-    app.MapGet("/api/sites/{id}/health/history", async (string id, SiteDatabaseStore store, int? limit, HttpContext ctx, CancellationToken ct) =>
+    app.MapGet("/api/sites/{id}/health/history", async (string id, SiteRegistry registry, SiteDatabaseStore store, SiteHealthHistory history, int? limit, HttpContext ctx, CancellationToken ct) =>
     {
         using var readBudget = SiteHealthReadBudget.Create(ct);
         var readCt = readBudget.Token;
+        var normalizedId = id.Trim().ToLowerInvariant();
         GatewaySite? site;
-        try { site = await store.FindByIdAsync(id.Trim().ToLowerInvariant(), readCt); }
-        catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
-        { return SiteDatabaseUnavailable(ctx, "health-history-listed", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
+        try { site = await store.FindByIdAsync(normalizedId, readCt); }
+        catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException)
+        {
+            if (!registry.TryGetById(normalizedId, out site) || site is null)
+                return SiteDatabaseUnavailable(ctx, "health-history-listed", "site_database_unavailable");
+        }
+        catch (InvalidDataException)
+        { return SiteDatabaseUnavailable(ctx, "health-history-listed", "site_persistence_invalid"); }
         catch (OperationCanceledException) when (SiteHealthReadBudget.IsBudgetCancellation(ct, readCt))
         { return SiteDatabaseUnavailable(ctx, "health-history-timeout", "site_health_read_timeout"); }
         if (site is null) return Results.NotFound(new { error = $"Site '{id}' was not found" });
-        IReadOnlyList<SiteHealthObservation> observations;
-        try { observations = await store.ListHealthHistoryAsync(site.Id, limit ?? 20, readCt); }
-        catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
-        { return SiteDatabaseUnavailable(ctx, "health-history-listed", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
+        var boundedLimit = Math.Clamp(limit ?? 20, 1, 100);
+        var processMemory = history.Read(site.Id, boundedLimit);
+        IReadOnlyList<SiteHealthObservation> persisted = [];
+        var historyPersisted = true;
+        try { persisted = await store.ListHealthHistoryAsync(site.Id, boundedLimit, readCt); }
+        catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException)
+        { historyPersisted = false; }
+        catch (InvalidDataException)
+        { return SiteDatabaseUnavailable(ctx, "health-history-listed", "site_persistence_invalid"); }
         catch (OperationCanceledException) when (SiteHealthReadBudget.IsBudgetCancellation(ct, readCt))
         { return SiteDatabaseUnavailable(ctx, "health-history-timeout", "site_health_read_timeout"); }
+        var observations = SiteHealthHistory.Merge(persisted, processMemory, boundedLimit);
         return Results.Ok(new
         {
             siteId = site.Id,
-            retention = "postgresql",
+            retention = historyPersisted ? "postgresql" : "process-memory",
+            historyPersisted,
             maxObservationsPerSite = 64,
             observations = observations.Select(x => new { upstreamId = x.UpstreamId, health = x.Health, reason = x.Reason, checkedAt = x.CheckedAt })
         });
     }).Require(Roles.Viewer);
-    app.MapGet("/api/sites/{id}/health/trend", async (string id, SiteDatabaseStore store, int? window, HttpContext ctx, CancellationToken ct) =>
+    app.MapGet("/api/sites/{id}/health/trend", async (string id, SiteRegistry registry, SiteDatabaseStore store, SiteHealthHistory history, int? window, HttpContext ctx, CancellationToken ct) =>
     {
         using var readBudget = SiteHealthReadBudget.Create(ct);
         var readCt = readBudget.Token;
+        var normalizedId = id.Trim().ToLowerInvariant();
         GatewaySite? site;
-        try { site = await store.FindByIdAsync(id.Trim().ToLowerInvariant(), readCt); }
-        catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
-        { return SiteDatabaseUnavailable(ctx, "health-trend-listed", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
+        try { site = await store.FindByIdAsync(normalizedId, readCt); }
+        catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException)
+        {
+            if (!registry.TryGetById(normalizedId, out site) || site is null)
+                return SiteDatabaseUnavailable(ctx, "health-trend-listed", "site_database_unavailable");
+        }
+        catch (InvalidDataException)
+        { return SiteDatabaseUnavailable(ctx, "health-trend-listed", "site_persistence_invalid"); }
         catch (OperationCanceledException) when (SiteHealthReadBudget.IsBudgetCancellation(ct, readCt))
         { return SiteDatabaseUnavailable(ctx, "health-trend-timeout", "site_health_read_timeout"); }
         if (site is null) return Results.NotFound(new { error = $"Site '{id}' was not found" });
         var boundedWindow = Math.Clamp(window ?? 20, 1, SiteHealthTrendCalculator.MaxWindow);
-        IReadOnlyList<SiteHealthObservation> observations;
-        try { observations = await store.ListHealthHistoryAsync(site.Id, SiteHealthTrendCalculator.MaxWindow, readCt); }
-        catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
-        { return SiteDatabaseUnavailable(ctx, "health-trend-listed", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
+        var processMemory = history.Read(site.Id, SiteHealthTrendCalculator.MaxWindow);
+        IReadOnlyList<SiteHealthObservation> persisted = [];
+        var historyPersisted = true;
+        try { persisted = await store.ListHealthHistoryAsync(site.Id, SiteHealthTrendCalculator.MaxWindow, readCt); }
+        catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException)
+        { historyPersisted = false; }
+        catch (InvalidDataException)
+        { return SiteDatabaseUnavailable(ctx, "health-trend-listed", "site_persistence_invalid"); }
         catch (OperationCanceledException) when (SiteHealthReadBudget.IsBudgetCancellation(ct, readCt))
         { return SiteDatabaseUnavailable(ctx, "health-trend-timeout", "site_health_read_timeout"); }
+        var observations = SiteHealthHistory.Merge(persisted, processMemory, SiteHealthTrendCalculator.MaxWindow);
         observations = SiteHealthTrendCalculator.FilterToCurrentUpstreams(observations, site.Upstreams.Select(x => x.Id));
         var trend = SiteHealthTrendCalculator.Calculate(observations, boundedWindow, site.Upstreams.Count);
         var trendNow = DateTimeOffset.UtcNow;
@@ -666,7 +690,9 @@ public static class GatewayApp
             isStale = trendIsStale,
             acknowledgedUntil = acknowledgement?.AcknowledgedUntil,
             acknowledgedBy = acknowledgement?.AcknowledgedBy,
-            alertSuppressed = suppressed
+            alertSuppressed = suppressed,
+            historyPersisted,
+            historyRetention = historyPersisted ? "postgresql" : "process-memory"
         });
     }).Require(Roles.Viewer);
     app.MapPost("/api/sites/{id}/health/alerts/acknowledge", async (string id, SiteHealthAlertAcknowledgeRequest? input, SiteDatabaseStore store, HttpContext ctx, CancellationToken ct) =>

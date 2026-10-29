@@ -43,11 +43,13 @@ public sealed record SiteHealthCheckDto(string SiteId, string Health, bool Pendi
     long Version = 1, long? ActiveVersion = null, string ActivationStatus = "active", string Etag = "\"1\"",
     bool? HistoryPersisted = null, string? HistoryRetention = null);
 public sealed record SiteHealthObservationDto(string UpstreamId, string Health, string? Reason, DateTimeOffset CheckedAt);
-public sealed record SiteHealthHistoryDto(string SiteId, string Retention, int MaxObservationsPerSite, SiteHealthObservationDto[] Observations);
+public sealed record SiteHealthHistoryDto(string SiteId, string Retention, int MaxObservationsPerSite, SiteHealthObservationDto[] Observations,
+    bool HistoryPersisted = true);
 public sealed record SiteHealthTrendDto(string SiteId, int WindowSize, int Total, int Healthy, int Unhealthy, int Unknown,
     double HealthyPercent, int ConsecutiveUnhealthy, string AlertState, DateTimeOffset? LastCheckedAt,
     DateTimeOffset? AcknowledgedUntil = null, string? AcknowledgedBy = null, bool AlertSuppressed = false,
-    string RecoveryState = "none", bool IsStale = false, string? EffectiveAlertState = null);
+    string RecoveryState = "none", bool IsStale = false, string? EffectiveAlertState = null,
+    bool HistoryPersisted = true, string? HistoryRetention = null);
 public sealed record SiteHealthComparisonDto(string SiteId, int Total, int Healthy, int Unhealthy, int Unknown,
     double HealthyPercent, int ConsecutiveUnhealthy, string AlertState, bool IsStale,
     DateTimeOffset? LastCheckedAt, DateTimeOffset? AcknowledgedUntil, string? AcknowledgedBy, bool AlertSuppressed,

@@ -62,12 +62,54 @@ public sealed class SiteHealthHistory
         }
     }
 
+    /// <summary>
+    /// Combines durable observations with the bounded process-local fallback.
+    /// A probe can be present in both sources after PostgreSQL recovers, so the
+    /// same observation must only be exposed once.
+    /// </summary>
+    public static IReadOnlyList<SiteHealthObservation> Merge(
+        IReadOnlyList<SiteHealthObservation> persisted,
+        IReadOnlyList<SiteHealthObservation> processMemory,
+        int limit = 20)
+    {
+        ArgumentNullException.ThrowIfNull(persisted);
+        ArgumentNullException.ThrowIfNull(processMemory);
+        limit = Math.Clamp(limit, 1, 100);
+
+        return persisted
+            .Concat(processMemory)
+            .GroupBy(x => new ObservationKey(
+                x.UpstreamId.Trim(),
+                x.Health.Trim(),
+                x.Reason?.Trim(),
+                x.CheckedAt))
+            .Select(group => group.First())
+            .OrderByDescending(x => x.CheckedAt)
+            .Take(limit)
+            .ToArray();
+    }
+
     private long NextTouch() => _touchSequence == long.MaxValue ? long.MaxValue : ++_touchSequence;
 
     private sealed class HistoryBucket(int capacity)
     {
         public Queue<SiteHealthObservation> Observations { get; } = new(capacity);
         public long LastTouched { get; set; }
+    }
+
+    private sealed record ObservationKey(string UpstreamId, string Health, string? Reason, DateTimeOffset CheckedAt)
+    {
+        public bool Equals(ObservationKey? other) => other is not null
+            && string.Equals(UpstreamId, other.UpstreamId, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(Health, other.Health, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(Reason, other.Reason, StringComparison.Ordinal)
+            && CheckedAt == other.CheckedAt;
+
+        public override int GetHashCode() => HashCode.Combine(
+            StringComparer.OrdinalIgnoreCase.GetHashCode(UpstreamId),
+            StringComparer.OrdinalIgnoreCase.GetHashCode(Health),
+            Reason is null ? 0 : StringComparer.Ordinal.GetHashCode(Reason),
+            CheckedAt);
     }
 
     private static string? SanitizeReason(string? reason)

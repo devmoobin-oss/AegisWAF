@@ -1,0 +1,14 @@
+{
+  "module": 167,
+  "title": "Multi-Site health history process-memory fallback",
+  "beforePercent": 0,
+  "afterPercent": 100,
+  "targetPercent": 100,
+  "red": "SiteHealthHistoryTests.Merge_* failed 2/2 before SiteHealthHistory.Merge existed.",
+  "focusedTests": "pending-final-commit",
+  "releaseBuild": "pending-final-commit",
+  "fullVstest": "aborted: vstest.console could not connect to the testhost after 90 seconds",
+  "liveDatabaseOutage": "not available in this environment",
+  "artifact": "pending-publish",
+  "boundary": "No live PostgreSQL outage execution or authenticated published-EXE smoke claim."
+}
