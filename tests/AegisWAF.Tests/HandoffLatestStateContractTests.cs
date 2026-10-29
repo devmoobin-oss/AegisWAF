@@ -9,11 +9,12 @@ public sealed class HandoffLatestStateContractTests
     {
         var root = FindRepoRoot();
         var handoff = File.ReadAllText(Path.Combine(root, "handoff.md"), Encoding.UTF8);
-        const string marker = "### Current handoff pointer — 2026-10-30 (after Module 146)";
+        const string marker = "### Current handoff pointer — 2026-10-30 (after Module 147)";
         var markerIndex = handoff.LastIndexOf(marker, StringComparison.Ordinal);
 
         Assert.True(markerIndex >= 0, "handoff.md must end with a current pointer.");
         var pointer = handoff[markerIndex..];
+        Assert.Contains("Module 147 = 100%", pointer);
         Assert.Contains("Module 146 = 100%", pointer);
         Assert.Contains("Module 145 = 100%", pointer);
         Assert.Contains("Module 141 = 100%", pointer);
