@@ -26,7 +26,14 @@
     "relatedRegression": "passed 76/76 across configuration, editor, persistence, activation, security, health-trend, UI-contract, and handoff classes",
     "releaseBuild": "passed with 0 warnings and 0 errors",
     "javascriptSyntax": "node --check passed",
-    "gitDiffCheck": "passed"
+    "gitDiffCheck": "passed",
+    "publishedArtifact": {
+      "path": "D:\\AegisWAF\\dist\\AegisWAF-Desktop-CompletedModules\\AegisWAF.exe",
+      "sha256": "1C23A36D8D58391CD89D4A8411E32B4057678C629D9797BC85F9FF5397E0EE80",
+      "bytes": 170714475,
+      "sourceCommit": "870612888ede4d80f30a51e8b0cdd7016a298a8b",
+      "manifest": "passed files=6 signed=false workingTreeClean=true"
+    }
   },
   "boundary": [
     "Live PostgreSQL oversized-row execution and query-plan/latency benchmark were not available",
