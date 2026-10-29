@@ -26,7 +26,14 @@
     "relatedRegression": "passed 80/80 across empty-snapshot, bootstrap-failure, configuration, editor, persistence, activation, security, health-trend, UI-contract, and handoff classes",
     "releaseBuild": "passed with 0 warnings and 0 errors",
     "javascriptSyntax": "node --check passed",
-    "gitDiffCheck": "passed"
+    "gitDiffCheck": "passed",
+    "publishedArtifact": {
+      "path": "D:\\AegisWAF\\dist\\AegisWAF-Desktop-CompletedModules\\AegisWAF.exe",
+      "sha256": "038D921455BCC8A72FF68DD01909B52CF57295BC68498AB31CAEE99CDE794983",
+      "bytes": 170714987,
+      "sourceCommit": "f48326f907fd7e9c14ad34aecc7d4f63aaf23407",
+      "manifest": "passed files=6 signed=false workingTreeClean=true"
+    }
   },
   "boundary": [
     "Live PostgreSQL empty-table startup execution was attempted but unavailable because 127.0.0.1:5432 was not listening",
