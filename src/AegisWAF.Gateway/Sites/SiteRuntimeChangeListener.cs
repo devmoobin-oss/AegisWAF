@@ -96,10 +96,9 @@ public sealed class SiteRuntimeChangeListener(
             while (!ct.IsCancellationRequested)
             {
                 await connection.WaitAsync(ct);
-                while (wakeups.Reader.TryRead(out _))
-                {
-                    await ReloadSnapshotWithRetryAsync(ct);
-                }
+                if (!wakeups.Reader.TryRead(out _)) continue;
+                while (wakeups.Reader.TryRead(out _)) { }
+                await ReloadSnapshotWithRetryAsync(ct);
             }
         }
         finally
