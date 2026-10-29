@@ -550,13 +550,12 @@ public static class GatewayApp
     {
         using var readBudget = SiteHealthReadBudget.Create(ct);
         var readCt = readBudget.Token;
-        IReadOnlyList<GatewaySite> storedSites;
-        try { storedSites = await store.ListAsync(readCt); }
+        GatewaySite? site;
+        try { site = await store.FindByIdAsync(id.Trim().ToLowerInvariant(), readCt); }
         catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
         { return SiteDatabaseUnavailable(ctx, "health-checked", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
         catch (OperationCanceledException) when (SiteHealthReadBudget.IsBudgetCancellation(ct, readCt))
         { return SiteDatabaseUnavailable(ctx, "health-check-timeout", "site_health_read_timeout"); }
-        var site = storedSites.FirstOrDefault(x => x.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
         if (site is null) return Results.NotFound(new { error = $"Site '{id}' was not found" });
         var active = registry.Current.Sites.FirstOrDefault(x => x.Id.Equals(site.Id, StringComparison.OrdinalIgnoreCase));
         if (active is null || active.Version != site.Version || !SiteConfigurationEditor.AreEquivalent(active, site))
@@ -592,13 +591,12 @@ public static class GatewayApp
     {
         using var readBudget = SiteHealthReadBudget.Create(ct);
         var readCt = readBudget.Token;
-        IReadOnlyList<GatewaySite> storedSites;
-        try { storedSites = await store.ListAsync(readCt); }
+        GatewaySite? site;
+        try { site = await store.FindByIdAsync(id.Trim().ToLowerInvariant(), readCt); }
         catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
         { return SiteDatabaseUnavailable(ctx, "health-history-listed", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
         catch (OperationCanceledException) when (SiteHealthReadBudget.IsBudgetCancellation(ct, readCt))
         { return SiteDatabaseUnavailable(ctx, "health-history-timeout", "site_health_read_timeout"); }
-        var site = storedSites.FirstOrDefault(x => x.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
         if (site is null) return Results.NotFound(new { error = $"Site '{id}' was not found" });
         IReadOnlyList<SiteHealthObservation> observations;
         try { observations = await store.ListHealthHistoryAsync(site.Id, limit ?? 20, readCt); }
@@ -618,13 +616,12 @@ public static class GatewayApp
     {
         using var readBudget = SiteHealthReadBudget.Create(ct);
         var readCt = readBudget.Token;
-        IReadOnlyList<GatewaySite> storedSites;
-        try { storedSites = await store.ListAsync(readCt); }
+        GatewaySite? site;
+        try { site = await store.FindByIdAsync(id.Trim().ToLowerInvariant(), readCt); }
         catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
         { return SiteDatabaseUnavailable(ctx, "health-trend-listed", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
         catch (OperationCanceledException) when (SiteHealthReadBudget.IsBudgetCancellation(ct, readCt))
         { return SiteDatabaseUnavailable(ctx, "health-trend-timeout", "site_health_read_timeout"); }
-        var site = storedSites.FirstOrDefault(x => x.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
         if (site is null) return Results.NotFound(new { error = $"Site '{id}' was not found" });
         var boundedWindow = Math.Clamp(window ?? 20, 1, SiteHealthTrendCalculator.MaxWindow);
         IReadOnlyList<SiteHealthObservation> observations;
@@ -673,13 +670,12 @@ public static class GatewayApp
         input ??= new SiteHealthAlertAcknowledgeRequest();
         if (!HealthAlertLifecycle.TryValidateCooldown(input.CooldownSeconds, out var cooldownError))
             return Results.BadRequest(new { error = "invalid_cooldown", detail = cooldownError });
-        IReadOnlyList<GatewaySite> storedSites;
-        try { storedSites = await store.ListAsync(readCt); }
+        GatewaySite? site;
+        try { site = await store.FindByIdAsync(id.Trim().ToLowerInvariant(), readCt); }
         catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
         { return SiteDatabaseUnavailable(ctx, "health-alert-acknowledged", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
         catch (OperationCanceledException) when (SiteHealthReadBudget.IsBudgetCancellation(ct, readCt))
         { return SiteDatabaseUnavailable(ctx, "health-alert-read-timeout", "site_health_read_timeout"); }
-        var site = storedSites.FirstOrDefault(x => x.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
         if (site is null) return Results.NotFound(new { error = $"Site '{id}' was not found" });
         IReadOnlyList<SiteHealthObservation> observations;
         try { observations = await store.ListHealthHistoryAsync(site.Id, SiteHealthTrendCalculator.MaxWindow, readCt); }

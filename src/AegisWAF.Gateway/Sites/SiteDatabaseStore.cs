@@ -13,17 +13,26 @@ public sealed class SiteDatabaseStore(IConfiguration configuration)
                upstream_weights, waf_policy, egress_allowed_hosts, egress_allowed_ports,
                egress_allowed_schemes, egress_allow_private_exceptions, health_path, health_interval_seconds, health_timeout_seconds,
                health_passive_reactivation_seconds, rate_requests, rate_window_seconds, rate_global_requests, row_version
-        FROM waf_sites ORDER BY site_id
+        FROM waf_sites
         """;
 
     public async Task<IReadOnlyList<GatewaySite>> ListAsync(CancellationToken ct)
     {
         await using var db = await OpenAsync(ct);
-        await using var cmd = new NpgsqlCommand(SelectSql, db);
+        await using var cmd = new NpgsqlCommand(SelectSql + " ORDER BY site_id", db);
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         var result = new List<GatewaySite>();
         while (await reader.ReadAsync(ct)) result.Add(ReadSite(reader));
         return result;
+    }
+
+    public async Task<GatewaySite?> FindByIdAsync(string siteId, CancellationToken ct)
+    {
+        await using var db = await OpenAsync(ct);
+        await using var cmd = new NpgsqlCommand(SelectSql + " WHERE site_id=@site_id", db);
+        cmd.Parameters.AddWithValue("site_id", siteId);
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        return await reader.ReadAsync(ct) ? ReadSite(reader) : null;
     }
 
     /// <summary>
@@ -367,7 +376,7 @@ public sealed class SiteDatabaseStore(IConfiguration configuration)
         {
             using var db = new NpgsqlConnection(connectionString);
             db.Open();
-            using var cmd = new NpgsqlCommand(SelectSql, db);
+            using var cmd = new NpgsqlCommand(SelectSql + " ORDER BY site_id", db);
             using var reader = cmd.ExecuteReader();
             var sites = new List<GatewaySite>();
             while (reader.Read()) sites.Add(ReadSite(reader));
