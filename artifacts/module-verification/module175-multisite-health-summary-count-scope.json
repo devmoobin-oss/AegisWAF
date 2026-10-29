@@ -1,0 +1,23 @@
+{
+  "module": 175,
+  "title": "Multi-Site Health Summary count scope",
+  "beforePercent": 0,
+  "afterPercent": 100,
+  "targetPercent": 100,
+  "red": "SiteHealthSummaryCountScopeContractTests initially could not compile because the count-scope classifier did not exist.",
+  "focusedTests": "20/20 passed across the Multi-Site Health Summary regression set, including count scope, truncation, enabled-Site scope, bounded paging, fallback, alert counts, Browser, and Desktop contracts",
+  "javascriptSyntax": "node --check passed",
+  "releaseBuild": "Release passed: 0 warnings, 0 errors",
+  "diffCheck": "git diff --check passed",
+  "implementation": "The summary API now exposes countsScope as all-enabled-sites or returned-sites. Browser and Desktop explicitly explain that alert totals are limited to displayed Sites when the bounded summary is truncated, while retaining the bounded query for predictable cost.",
+  "artifact": {
+    "path": "D:\\AegisWAF\\dist\\AegisWAF-Desktop-CompletedModules\\AegisWAF.exe",
+    "sha256": "7F84CD8D15893F02201833B5EFC0E239BD8A82906904A1C968C46448B80127BA",
+    "sizeBytes": 170728299,
+    "sourceCommit": "7e52fc9fe691bf5500e92c2f1960ce509c7981d9",
+    "manifest": "files=6, signed=false, workingTreeClean=true",
+    "peHeader": "MZ",
+    "authenticode": "NotSigned"
+  },
+  "boundary": "This module makes the bounded-page scope explicit; it does not add an expensive unbounded global alert aggregation query. Authenticated visual published-EXE smoke, PostgreSQL-backed live integration, Authenticode signing, hosted CodeQL/SARIF, external penetration testing, load/SLO, SIEM, and production certification remain outside this verification run."
+}
