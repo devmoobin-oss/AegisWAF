@@ -1,0 +1,26 @@
+{
+  "module": "Module 140",
+  "title": "Multi-Site runtime destination lookup index",
+  "beforePercent": 0,
+  "afterPercent": 100,
+  "targetPercent": 100,
+  "opportunity": "GET /api/sites searched cluster.AllDestinations with FirstOrDefault for every configured upstream, producing O(U^2) matching work for a Site with many upstreams.",
+  "implementation": [
+    "Built one case-insensitive activeDestinationById dictionary per active Site cluster.",
+    "Replaced repeated destination scans with TryGetValue while preserving unknown, healthy, and unhealthy status mapping.",
+    "Added a regression contract that rejects the nested destination scan and requires the indexed lookup."
+  ],
+  "verification": {
+    "tddRed": "1/1 expected failure before implementation",
+    "focusedContracts": "10/10 passed",
+    "releaseSolutionBuild": "0 warnings / 0 errors",
+    "gitDiffCheck": "passed",
+    "broadRegression": "Not rerun in full because the prior deterministic baseline remains 468/595 with 127 PostgreSQL-dependent failures at 127.0.0.1:5432; all affected Multi-Site contracts passed"
+  },
+  "boundary": [
+    "Large live YARP cluster destination latency benchmark",
+    "Authenticated browser/published-EXE smoke",
+    "Visual responsive verification",
+    "CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification"
+  ]
+}

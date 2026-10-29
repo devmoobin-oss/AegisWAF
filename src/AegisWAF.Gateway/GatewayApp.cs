@@ -508,9 +508,13 @@ public static class GatewayApp
             }
 
             proxy.TryGetCluster("site-" + site.Id, out var cluster);
+            var activeDestinationById = cluster?.DestinationsState.AllDestinations
+                .ToDictionary(destination => destination.DestinationId, StringComparer.OrdinalIgnoreCase);
             var upstreams = site.Upstreams.Select(upstream =>
             {
-                var yarp = cluster is null ? null : cluster.DestinationsState.AllDestinations.FirstOrDefault(x => x.DestinationId == upstream.Id);
+                var yarp = activeDestinationById is not null && activeDestinationById.TryGetValue(upstream.Id, out var destination)
+                    ? destination
+                    : null;
                 var status = yarp is null
                     ? legacyHealth.Get(site.Id, upstream.Id)?.Healthy == false ? "unhealthy" : "unknown"
                     : SiteProxyHealth.Status(yarp.Health.Active.ToString(), yarp.Health.Passive.ToString());
