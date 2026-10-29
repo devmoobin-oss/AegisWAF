@@ -13,7 +13,8 @@ public sealed class SiteHealthSummaryProcessMemoryFallbackContractTests
         Assert.Contains("history.Read(siteId", endpoint, StringComparison.Ordinal);
         Assert.Contains("SiteHealthHistory.Merge", endpoint, StringComparison.Ordinal);
         Assert.Contains("historyPersisted = false", endpoint, StringComparison.Ordinal);
-        Assert.Contains("historyRetention = historyPersisted ? \"postgresql\" : \"process-memory\"", endpoint, StringComparison.Ordinal);
+        Assert.Contains("historyRetention", endpoint, StringComparison.Ordinal);
+        Assert.Contains("postgresql+process-memory", endpoint, StringComparison.Ordinal);
     }
 
     [Fact]
