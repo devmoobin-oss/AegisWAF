@@ -15,9 +15,9 @@
   "browserSmoke": "not available in this environment",
   "artifact": {
     "path": "D:\\AegisWAF\\dist\\AegisWAF-Desktop-CompletedModules\\AegisWAF.exe",
-    "sha256": "439458CD8D318BC90BABDF9535F8F70DA417E82B46F4A5EFA766465210C43F27",
+    "sha256": "0C34164BEA74943CE56E7B943DE7E14A2336A0AB801BAF2FD56AB97B21BA5DBA",
     "sizeBytes": 170723179,
-    "sourceCommit": "c766a111535e85dfc286f0f224144a9e1c94929a",
+    "sourceCommit": "f09db99d6e7d94ae4ced86078b5db9e67453dba2",
     "manifest": "files=6, signed=false, workingTreeClean=true",
     "peHeader": "MZ",
     "authenticode": "NotSigned"
