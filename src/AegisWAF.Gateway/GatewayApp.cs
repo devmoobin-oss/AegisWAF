@@ -783,7 +783,7 @@ public static class GatewayApp
         long totalSites;
         try
         {
-            var summaryPage = await store.ListSummaryPageAsync(boundedLimit, summaryCt);
+            var summaryPage = await store.ListEnabledSummaryPageAsync(boundedLimit, summaryCt);
             storedSites = summaryPage.Sites;
             totalSites = summaryPage.TotalSites;
         }

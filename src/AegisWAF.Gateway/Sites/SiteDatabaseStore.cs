@@ -33,7 +33,7 @@ public sealed class SiteDatabaseStore(IConfiguration configuration)
         return result;
     }
 
-    public async Task<SiteSummaryPage> ListSummaryPageAsync(int limit, CancellationToken ct)
+    public async Task<SiteSummaryPage> ListEnabledSummaryPageAsync(int limit, CancellationToken ct)
     {
         limit = Math.Clamp(limit, 1, 100);
         await using var db = await OpenAsync(ct);
@@ -44,6 +44,7 @@ public sealed class SiteDatabaseStore(IConfiguration configuration)
                    health_passive_reactivation_seconds, rate_requests, rate_window_seconds, rate_global_requests, row_version,
                    COUNT(*) OVER() AS total_sites
             FROM waf_sites
+            WHERE enabled
             ORDER BY site_id
             LIMIT @limit
             """, db);

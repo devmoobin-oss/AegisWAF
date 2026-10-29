@@ -15,7 +15,7 @@ public sealed class SiteHealthSummaryPagedReadContractTests
 
         Assert.True(start >= 0 && end > start, "Could not isolate the health summary endpoint.");
         var endpoint = gateway[start..end];
-        Assert.Contains("store.ListSummaryPageAsync(boundedLimit, summaryCt)", endpoint, StringComparison.Ordinal);
+        Assert.Contains("store.ListEnabledSummaryPageAsync(boundedLimit, summaryCt)", endpoint, StringComparison.Ordinal);
         Assert.DoesNotContain("store.ListAsync(summaryCt)", endpoint, StringComparison.Ordinal);
         Assert.Contains("COUNT(*) OVER()", store, StringComparison.Ordinal);
         Assert.Contains("LIMIT @limit", store, StringComparison.Ordinal);
