@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
 using AegisWAF.Gateway;
+using Microsoft.Extensions.Configuration;
 
 namespace AegisWAF.Gateway.Sites;
 
@@ -12,11 +13,38 @@ public sealed record SiteHealthProbeResult(
     DateTimeOffset CheckedAt);
 
 /// <summary>Performs bounded on-demand probes through the same per-site egress guard as YARP.</summary>
-public sealed class SiteHealthProbe
+public sealed class SiteHealthProbe : IDisposable
 {
     internal const int MaxConcurrentUpstreams = 8;
+    internal const int MaxConcurrentBatches = 16;
+    private const int MaxConfiguredConcurrentBatches = 128;
+    private readonly SemaphoreSlim _batchConcurrency;
+
+    public SiteHealthProbe(IConfiguration? configuration = null)
+    {
+        var maxBatches = Math.Clamp(
+            configuration?.GetValue("Waf:Sites:HealthProbeMaxConcurrentBatches", MaxConcurrentBatches) ?? MaxConcurrentBatches,
+            1,
+            MaxConfiguredConcurrentBatches);
+        _batchConcurrency = new SemaphoreSlim(maxBatches);
+    }
 
     public async Task<IReadOnlyList<SiteHealthProbeResult>> ProbeAsync(GatewaySite site, CancellationToken ct)
+    {
+        await _batchConcurrency.WaitAsync(ct);
+        try
+        {
+            return await ProbeCoreAsync(site, ct);
+        }
+        finally
+        {
+            _batchConcurrency.Release();
+        }
+    }
+
+    public void Dispose() => _batchConcurrency.Dispose();
+
+    private static async Task<IReadOnlyList<SiteHealthProbeResult>> ProbeCoreAsync(GatewaySite site, CancellationToken ct)
     {
         var health = site.Health ?? new SiteHealthPolicy();
         var timeout = TimeSpan.FromSeconds(Math.Clamp(health.TimeoutSeconds, 1, 30));
