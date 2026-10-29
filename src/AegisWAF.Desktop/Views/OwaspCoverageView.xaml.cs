@@ -42,7 +42,7 @@ public partial class OwaspCoverageView : UserControl, IPage
         {
             Children =
             {
-                new StackPanel { Orientation = Orientation.Horizontal, Children = { new TextBlock { Text = "\uE72E", FontFamily = (FontFamily)FindResource("IconFont"), Foreground = Ui.Brush("Blue"), FontSize = 20, Margin = new Thickness(0, 0, 10, 0), VerticalAlignment = VerticalAlignment.Center }, new TextBlock { Text = "OWASP Top 10 Coverage", FontSize = 20, FontWeight = FontWeights.SemiBold, FontFamily = (FontFamily)FindResource("SignFont"), Foreground = Ui.Brush("Text") } } },
+                new StackPanel { Orientation = Orientation.Horizontal, Children = { new TextBlock { Text = "\uE72E", FontFamily = (FontFamily)Application.Current.FindResource("IconFont"), Foreground = Ui.Brush("Blue"), FontSize = 20, Margin = new Thickness(0, 0, 10, 0), VerticalAlignment = VerticalAlignment.Center }, new TextBlock { Text = "OWASP Top 10 Coverage", FontSize = 20, FontWeight = FontWeights.SemiBold, FontFamily = (FontFamily)Application.Current.FindResource("SignFont"), Foreground = Ui.Brush("Text") } } },
                 new TextBlock { Text = "แผนที่ความครอบคลุมของกลไกป้องกัน AegisWAF ตาม OWASP Top 10:2021", Foreground = Ui.Brush("Muted"), FontSize = 13, Margin = new Thickness(0, 6, 0, 12), TextWrapping = TextWrapping.Wrap },
                 new TextBlock { Text = "วงสถานีบอกระดับที่กฎของ AegisWAF ช่วยได้ในแต่ละหมวด (เต็ม = ครอบคลุม, ครึ่ง = บางส่วน, กลวง = อยู่นอกขอบเขต WAF) — ไม่ใช่การรับรองความปลอดภัยครบถ้วน และไม่ทดแทน secure coding หรือ outbound allowlist", Foreground = Ui.Brush("Orange"), FontSize = 12.5, TextWrapping = TextWrapping.Wrap }
             }
