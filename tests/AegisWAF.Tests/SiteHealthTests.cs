@@ -42,7 +42,27 @@ public sealed class SiteHealthTests
         Assert.Equal("timeout", health.Get(site.Id, "primary")?.Reason);
     }
 
-    private static GatewaySite Site(params SiteUpstream[] upstreams) =>
-        new("site-a", true, ["app-a.example.com"], ["/"], upstreams, "default",
+    [Fact]
+    public void Evicts_the_least_recently_used_site_when_global_state_bound_is_reached()
+    {
+        var oldSite = Site("site-old", new SiteUpstream("primary", new Uri("https://old.example.com/")));
+        var recentSite = Site("site-recent", new SiteUpstream("primary", new Uri("https://recent.example.com/")));
+        var newSite = Site("site-new", new SiteUpstream("primary", new Uri("https://new.example.com/")));
+        var health = new SiteHealthRegistry(maxSites: 2);
+
+        health.MarkHealthy(oldSite.Id, "primary");
+        health.MarkHealthy(recentSite.Id, "primary");
+        _ = health.Get(oldSite.Id, "primary");
+        health.MarkHealthy(newSite.Id, "primary");
+
+        Assert.NotNull(health.Get(oldSite.Id, "primary"));
+        Assert.Null(health.Get(recentSite.Id, "primary"));
+        Assert.NotNull(health.Get(newSite.Id, "primary"));
+    }
+
+    private static GatewaySite Site(params SiteUpstream[] upstreams) => Site("site-a", upstreams);
+
+    private static GatewaySite Site(string id, params SiteUpstream[] upstreams) =>
+        new(id, true, [$"{id}.example.com"], ["/"], upstreams, "default",
             new SiteRateLimitPolicy(), new SiteEgressPolicy(upstreams.Select(x => x.Address.Host).ToArray(), new[] { 443 }, new[] { "https" }));
 }
