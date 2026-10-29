@@ -73,19 +73,21 @@ public sealed class SiteDatabaseStore(IConfiguration configuration)
         if (observations.Count == 0) return;
         await using var db = await OpenAsync(ct);
         await using var tx = await db.BeginTransactionAsync(ct);
+        await using var batch = new NpgsqlBatch(db, tx);
         foreach (var observation in observations)
         {
-            await using var insert = new NpgsqlCommand("""
+            var insert = new NpgsqlBatchCommand("""
                 INSERT INTO waf_site_health_observations(site_id, upstream_id, health, reason, checked_at)
                 VALUES (@site_id, @upstream_id, @health, @reason, @checked_at)
-                """, db, tx);
+                """);
             insert.Parameters.AddWithValue("site_id", siteId);
             insert.Parameters.AddWithValue("upstream_id", observation.UpstreamId);
             insert.Parameters.AddWithValue("health", observation.Health);
             insert.Parameters.AddWithValue("reason", (object?)observation.Reason ?? DBNull.Value);
             insert.Parameters.AddWithValue("checked_at", observation.CheckedAt);
-            await insert.ExecuteNonQueryAsync(ct);
+            batch.BatchCommands.Add(insert);
         }
+        await batch.ExecuteNonQueryAsync(ct);
         await using (var trim = new NpgsqlCommand("""
             DELETE FROM waf_site_health_observations
             WHERE site_id=@site_id
