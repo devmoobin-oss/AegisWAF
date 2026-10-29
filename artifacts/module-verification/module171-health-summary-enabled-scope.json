@@ -17,7 +17,7 @@
     "path": "D:\\AegisWAF\\dist\\AegisWAF-Desktop-CompletedModules\\AegisWAF.exe",
     "sha256": "0C34164BEA74943CE56E7B943DE7E14A2336A0AB801BAF2FD56AB97B21BA5DBA",
     "sizeBytes": 170723179,
-    "sourceCommit": "f09db99d6e7d94ae4ced86078b5db9e67453dba2",
+    "sourceCommit": "f09db99fff8c5c12c02dc1388e553579df4dfb2d",
     "manifest": "files=6, signed=false, workingTreeClean=true",
     "peHeader": "MZ",
     "authenticode": "NotSigned"
