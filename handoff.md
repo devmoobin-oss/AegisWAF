@@ -4093,6 +4093,36 @@
 - Local PostgreSQL-dependent integration, live outage fallback execution, duplicate-hostname execution, concurrent multi-instance mutation, authenticated browser/published-EXE smoke, full VSTest testhost connectivity, visual responsive verification, and whole-console premium UI audit gates remain unverified when their external services/credentials or baseline tooling are unavailable.
 - Next action: audit the next concrete Multi-Site hardening opportunity while preserving the 0% → 100% progress record and stated verification boundary.
 
+### Module 177 final progress record — 2026-10-30
+
+- Before: 0%; After: 100%; Target: 100% for the defined Multi-Site health alert runtime activation guard scope.
+- Opportunity/root cause: persisted Site configuration could be newer than the active Gateway route, but the acknowledgement endpoint did not enforce the same pending-restart state used by Site listing and manual health checks.
+- Implementation: added `SiteRuntimeState.IsPendingRestart`, reused it for Site listing and manual health, and blocked alert acknowledgement with stable code `site_runtime_pending_restart` plus Thai recovery guidance until the route is active.
+- TDD red: `SiteRuntimeStateTests` and `SiteHealthAlertRuntimeGuardContractTests` failed before the helper and endpoint guard were implemented.
+- TDD green: targeted Multi-Site regression passed 60/60 discovered tests with 0 failures and 0 skips; `node --check` passed; Release build passed with 0 warnings and 0 errors; `git diff --check` passed.
+- Evidence: `artifacts/module-verification/module177-multisite-health-alert-runtime-guard.json`.
+- Plan: `docs/superpowers/plans/2026-10-30-multisite-health-alert-runtime-guard-plan.md`.
+- Boundary: this module prevents acknowledgement against an inactive runtime route; it does not automatically activate, mutate, or delete Site configuration. PostgreSQL-backed live outage execution, authenticated visual published-EXE smoke, full VSTest testhost connectivity, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification remain unverified.
+
+### Published EXE — Module 177 completed modules bundle — 2026-10-30
+
+- Scope: published the completed-modules bundle through Module 177 only; incomplete modules and external gates were not promoted.
+- Publish configuration: `Release`, `win-x64`, self-contained, single-file, `net10.0-windows`.
+- Artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`, SHA-256 `8456A54324F332A841AF80CFAEAE43CBD7CB89738AE0023C7EF6DAB85C6C10F1`, `170731883` bytes.
+- Source commit at publish time: `3d8c49091d384af792327b0edd2236aa2bdc4d82`.
+- Verification: PE header bytes `77,90` (`MZ`); release manifest verification passed (`files=6`, `signed=false`, `workingTreeClean=true`). Authenticode status is `NotSigned`, so Windows Smart App Control may block this local artifact until it is trusted/unblocked or signed by a trusted publisher.
+- Boundary: this artifact does not claim PostgreSQL-backed live outage execution, authenticated visual published-EXE smoke, hosted CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, or production certification.
+
+### Current handoff pointer — 2026-10-30 (after Module 177)
+
+- This is the final authoritative continuation block at the end of this file; older historical records above are retained for audit only.
+- Latest completed modules: Module 177 = 100%; Module 176 = 100%; Module 175 = 100%; Module 174 = 100%; Module 173 = 100%; Module 172 = 100%; Module 171 = 100%; Module 170 = 100%; Module 169 = 100%; Module 168 = 100%; Module 167 = 100%; Module 166 = 100%; Module 165 = 100%; Module 164 = 100%; Module 163 = 100%; Module 162 = 100%; Module 161 = 100%; Module 160 = 100%; Module 159 = 100%; Module 158 = 100%; Module 157 = 100%; Module 156 = 100%; Module 155 = 100%; Module 154 = 100%; Module 153 = 100%; Module 152 = 100%; Module 151 = 100%; Module 150 = 100%; Module 149 = 100%; Module 148 = 100%; Module 147 = 100%; Module 146 = 100%; Module 145 = 100%; Module 144 = 100%; Module 143 = 100%; Module 142 = 100%; Module 141 = 100%; Module 140 = 100%; Module 139 = 100%; Module 138 = 100%; Module 137 = 100%; Module 136 = 100%; Module 135 = 100%; Module 134 = 100%; Module 133 = 100%; Module 132 = 100%; Module 131 = 100%; Module 130 = 100%; Module 129 = 100%; Module 128 = 100%; Module 127 = 100%; Module 126 = 100%; Module 125 = 100%; Module 124 = 100%; Module 123 = 100%; Module 122 = 100%; Module 121 = 100%; Module 120 = 100%; Module 119 = 100%; Module 118 = 100%; Module 117 = 100%; Module 116 = 100%; Module 115 = 100%; Module 114 = 100%; Module 113 = 100%; Module 112 = 100%; Module 111 = 100%; Module 110 = 100%; Module 109 = 100%; Module 108 = 100%; Module 107 = 100%; Module 106 = 100%; Module 105 = 100%; Module 104 = 100%; Module 103 = 100%; Module 102 = 100%; Module 101 = 100%; Module 100 = 100%; Module 99 = 100%; Module 98 = 100%; Module 97 = 100%; Module 96 = 100%; Module 95 = 100%; Module 94 = 100%; Module 93 = 100%; Module 92 = 100%; Module 91 = 100%; Module 90 = 100%; Module 89 = 100%; Module 88 = 100%; Module 87 = 100%; Module 86 = 100%; Module 85 = 100%; Module 84 = 100%; Module 83 = 100%; Module 82 = 100%; Module 81 = 100%; Module 80 = 100%; Module 79 = 100%; Module 78 = 100%; Module 77 = 100%; Module 76 = 100%; Module 75 = 100%; Module 74 = 100%; Module 73 = 100%; Module 72 = 100%; Module 41 = 90% and Module 60 = 90%.
+- Latest artifact: `D:\AegisWAF\dist\AegisWAF-Desktop-CompletedModules\AegisWAF.exe`; SHA-256 `8456A54324F332A841AF80CFAEAE43CBD7CB89738AE0023C7EF6DAB85C6C10F1`; source commit `3d8c49091d384af792327b0edd2236aa2bdc4d82`.
+- Latest artifact verification: PE header `MZ`; release manifest `files=6`, `signed=false`, `workingTreeClean=true`; Authenticode `NotSigned`.
+- Latest Hosted evidence remains run `40513964822`: SBOM, secret scan, dependency audit, .NET tests, and direct-origin guardrail passed; CodeQL preflight failed because repository Code scanning/Advanced Security is unavailable, so Module 41 = 90% and Module 60 = 90% remain pending external enablement and fresh SARIF evidence.
+- Local PostgreSQL-dependent integration, authenticated visual published-EXE smoke, full VSTest testhost connectivity, visual responsive verification, whole-console premium UI audit gates, Authenticode signing, external penetration testing, load/SLO, SIEM, and production certification remain unverified when their external services, credentials, or baseline tooling are unavailable.
+- Next action: audit the next concrete Multi-Site hardening opportunity while preserving the 0% → 100% progress record and stated verification boundary.
+
 ### Current handoff pointer — 2026-10-30 (after Module 175)
 
 - This is the authoritative continuation block at the end of this file. Read this block before starting further work; older historical records above are retained for audit only.
