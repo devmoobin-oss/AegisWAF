@@ -118,9 +118,12 @@ public partial class SitesView : UserControl, IPage
                 ? " · ข้อมูล Health ยังอยู่ในหน่วยความจำชั่วคราว"
                 : " · ข้อมูล Health ยังบันทึก PostgreSQL ไม่ครบ"
             : "";
+        var pendingLabel = summary is not null && summary.PendingRestartSites > 0
+            ? $" · รอเปิดใช้ {summary.PendingRestartSites} Site"
+            : "";
         SummaryText.Text = summary is null
             ? "Health trend summary unavailable — รายการ Site ยังคงใช้งานได้"
-            : $"ภาพรวม {summary.TotalSites} Site · health trend: วิกฤติปัจจุบัน {summary.CriticalSites} · เฝ้าระวังปัจจุบัน {summary.DegradedSites} · กลับมาปกติ {summary.RecoveredSites} · ปกติ {summary.HealthySites} · ไม่มีข้อมูล {summary.NoDataSites} · {staleAlertLabel}{scopeLabel}{historyLabel} · สถานะ runtime ดูในแถว Site · query {summary.QueryDurationMs} ms ({(summary.WithinBudget ? "พร้อม" : "ช้า")}){ageLabel}";
+            : $"ภาพรวม {summary.TotalSites} Site · health trend: วิกฤติปัจจุบัน {summary.CriticalSites} · เฝ้าระวังปัจจุบัน {summary.DegradedSites} · กลับมาปกติ {summary.RecoveredSites} · ปกติ {summary.HealthySites} · ไม่มีข้อมูล {summary.NoDataSites} · {staleAlertLabel}{scopeLabel}{historyLabel}{pendingLabel} · สถานะ runtime ดูในแถว Site · query {summary.QueryDurationMs} ms ({(summary.WithinBudget ? "พร้อม" : "ช้า")}){ageLabel}";
         if (summary is not null && _summaryRecovery.IsFreshnessStale(now))
             SummaryText.Text = $"ข้อมูล summary เกินอายุ {_summaryRecovery.LastSuccessfulSummaryAge(now)!.Value.TotalMinutes:0.#} นาที · {SummaryText.Text}";
         if (!fresh && summary is not null)

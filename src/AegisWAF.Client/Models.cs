@@ -49,18 +49,18 @@ public sealed record SiteHealthTrendDto(string SiteId, int WindowSize, int Total
     double HealthyPercent, int ConsecutiveUnhealthy, string AlertState, DateTimeOffset? LastCheckedAt,
     DateTimeOffset? AcknowledgedUntil = null, string? AcknowledgedBy = null, bool AlertSuppressed = false,
     string RecoveryState = "none", bool IsStale = false, string? EffectiveAlertState = null,
-    bool HistoryPersisted = true, string? HistoryRetention = null);
+    bool HistoryPersisted = true, string? HistoryRetention = null, bool PendingRestart = false, string ActivationStatus = "active");
 public sealed record SiteHealthComparisonDto(string SiteId, int Total, int Healthy, int Unhealthy, int Unknown,
     double HealthyPercent, int ConsecutiveUnhealthy, string AlertState, bool IsStale,
     DateTimeOffset? LastCheckedAt, DateTimeOffset? AcknowledgedUntil, string? AcknowledgedBy, bool AlertSuppressed,
-    string RecoveryState = "none", string? EffectiveAlertState = null);
+    string RecoveryState = "none", string? EffectiveAlertState = null, bool PendingRestart = false, string ActivationStatus = "active");
 public sealed record SiteHealthSummaryDto(int WindowSize, int TotalSites, int CriticalSites, int DegradedSites,
     int HealthySites, int NoDataSites, int StaleSites, SiteHealthComparisonDto[] Sites,
     int ExpiredAcknowledgementsRemoved = 0, DateTimeOffset? GeneratedAt = null, int QueryDurationMs = 0,
     int QueryBudgetMs = 2_000, bool WithinBudget = true, string Status = "ready",
     long SummaryFailureCount = 0, long SummaryConsecutiveFailures = 0, int RecoveredSites = 0,
     int StaleCriticalSites = 0, int StaleDegradedSites = 0, int ReturnedSites = 0, bool Truncated = false,
-    bool HistoryPersisted = true, string? HistoryRetention = null, string CountsScope = "all-enabled-sites");
+    bool HistoryPersisted = true, string? HistoryRetention = null, string CountsScope = "all-enabled-sites", int PendingRestartSites = 0);
 public sealed record AuditEntryDto(DateTimeOffset OccurredAt, string Action, string Target, string? Actor, string? ClientIp, string Outcome)
 {
     public string LocalTime => OccurredAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");

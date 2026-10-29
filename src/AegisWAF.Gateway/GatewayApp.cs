@@ -827,7 +827,7 @@ public static class GatewayApp
             if (mutationLease is not null) await mutationLease.DisposeAsync();
         }
     }).Require(Roles.Operator);
-    app.MapGet("/api/sites/health/summary", async (SiteDatabaseStore store, SiteHealthHistory history, SiteHealthSummaryFailureTelemetry summaryTelemetry, int? window, int? limit, HttpContext ctx, CancellationToken ct) =>
+    app.MapGet("/api/sites/health/summary", async (SiteDatabaseStore store, SiteHealthHistory history, SiteHealthSummaryFailureTelemetry summaryTelemetry, SiteRegistry registry, int? window, int? limit, HttpContext ctx, CancellationToken ct) =>
     {
         var summaryGeneratedAt = DateTimeOffset.UtcNow;
         var summaryTimer = Stopwatch.StartNew();
@@ -856,6 +856,11 @@ public static class GatewayApp
             ctx.Response.Headers["X-Aegis-Health-Summary-Failures"] = failure.ConsecutiveFailures.ToString();
             return SiteDatabaseUnavailable(ctx, "health-summary-timeout", "site_health_summary_timeout");
         }
+        var activeById = registry.Current.Sites.ToDictionary(site => site.Id, StringComparer.OrdinalIgnoreCase);
+        var pendingSiteIds = storedSites
+            .Where(site => !activeById.TryGetValue(site.Id, out var active) || SiteRuntimeState.IsPendingRestart(site, active))
+            .Select(site => site.Id)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var siteIds = storedSites.Select(x => x.Id).ToArray();
         IReadOnlyDictionary<string, IReadOnlyList<SiteHealthObservation>> histories;
         IReadOnlyDictionary<string, IReadOnlyList<SiteHealthAlertAcknowledgement>> acknowledgements;
@@ -934,7 +939,7 @@ public static class GatewayApp
                 : (IReadOnlyList<SiteHealthObservation>)[]));
         var expectedUpstreamCounts = storedSites.ToDictionary(x => x.Id, x => x.Upstreams.Count, StringComparer.OrdinalIgnoreCase);
         var comparison = SiteHealthComparisonCalculator.Calculate(inputs, boundedWindow, boundedLimit, DateTimeOffset.UtcNow, expectedUpstreamCounts);
-        var alertCounts = SiteHealthSummaryAlertCounts.Calculate(comparison);
+        var alertCounts = SiteHealthSummaryAlertCounts.Calculate(comparison.Where(item => !pendingSiteIds.Contains(item.SiteId)));
         var now = DateTimeOffset.UtcNow;
         summaryTimer.Stop();
         var queryDurationMs = (int)Math.Min(int.MaxValue, summaryTimer.ElapsedMilliseconds);
@@ -942,27 +947,30 @@ public static class GatewayApp
         var telemetry = summaryTelemetry.RecordSuccess();
         var projected = comparison.Select(item =>
         {
-            var acknowledgement = acknowledgements.TryGetValue(item.SiteId, out var states)
+            var pendingRestart = pendingSiteIds.Contains(item.SiteId);
+            var acknowledgement = !pendingRestart && acknowledgements.TryGetValue(item.SiteId, out var states)
                 ? states.FirstOrDefault(x => string.Equals(x.AlertState, item.Trend.AlertState, StringComparison.OrdinalIgnoreCase))
                 : null;
-            var suppressed = HealthAlertLifecycle.IsActionable(item) && acknowledgement is not null && HealthAlertLifecycle.IsSuppressed(item.Trend.AlertState, acknowledgement.AlertState, acknowledgement.AcknowledgedUntil, now);
+            var suppressed = !pendingRestart && HealthAlertLifecycle.IsActionable(item) && acknowledgement is not null && HealthAlertLifecycle.IsSuppressed(item.Trend.AlertState, acknowledgement.AlertState, acknowledgement.AcknowledgedUntil, now);
             return new
             {
                 siteId = item.SiteId,
-                total = item.Trend.Total,
-                healthy = item.Trend.Healthy,
-                unhealthy = item.Trend.Unhealthy,
-                unknown = item.Trend.Unknown,
-                healthyPercent = item.Trend.HealthyPercent,
-                consecutiveUnhealthy = item.Trend.ConsecutiveUnhealthy,
-                alertState = item.Trend.AlertState,
-                recoveryState = item.Trend.RecoveryState,
-                effectiveAlertState = HealthAlertLifecycle.EffectiveAlertState(item),
-                isStale = item.IsStale,
-                lastCheckedAt = item.Trend.LastCheckedAt,
-                acknowledgedUntil = acknowledgement?.AcknowledgedUntil,
-                acknowledgedBy = acknowledgement?.AcknowledgedBy,
-                alertSuppressed = suppressed
+                total = pendingRestart ? 0 : item.Trend.Total,
+                healthy = pendingRestart ? 0 : item.Trend.Healthy,
+                unhealthy = pendingRestart ? 0 : item.Trend.Unhealthy,
+                unknown = pendingRestart ? 0 : item.Trend.Unknown,
+                healthyPercent = pendingRestart ? 0d : item.Trend.HealthyPercent,
+                consecutiveUnhealthy = pendingRestart ? 0 : item.Trend.ConsecutiveUnhealthy,
+                alertState = pendingRestart ? "pending-restart" : item.Trend.AlertState,
+                recoveryState = pendingRestart ? "none" : item.Trend.RecoveryState,
+                effectiveAlertState = pendingRestart ? "pending-restart" : HealthAlertLifecycle.EffectiveAlertState(item),
+                isStale = pendingRestart ? false : item.IsStale,
+                lastCheckedAt = pendingRestart ? (DateTimeOffset?)null : item.Trend.LastCheckedAt,
+                acknowledgedUntil = pendingRestart ? (DateTimeOffset?)null : acknowledgement?.AcknowledgedUntil,
+                acknowledgedBy = pendingRestart ? null : acknowledgement?.AcknowledgedBy,
+                alertSuppressed = suppressed,
+                pendingRestart = pendingRestart,
+                activationStatus = pendingRestart ? "pending-restart" : "active"
             };
         }).ToArray();
         return Results.Ok(new
@@ -990,6 +998,7 @@ public static class GatewayApp
             summaryConsecutiveFailures = telemetry.ConsecutiveFailures,
             historyPersisted,
             historyRetention,
+            pendingRestartSites = pendingSiteIds.Count,
             sites = projected
         });
     }).Require(Roles.Viewer);
