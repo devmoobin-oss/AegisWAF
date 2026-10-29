@@ -10,6 +10,15 @@
   "releaseBuild": "Release passed: 0 warnings, 0 errors",
   "strictUiAudit": "29 pre-existing affordance.actionless-button findings in dynamic Browser/Index markup; no retention-specific finding",
   "browserSmoke": "not available in this environment",
-  "artifact": "pending-publish",
+  "auditEvidence": "premium-audit.json",
+  "artifact": {
+    "path": "D:\\AegisWAF\\dist\\AegisWAF-Desktop-CompletedModules\\AegisWAF.exe",
+    "sha256": "85BEA2E6F2B1E5417FF6A2698715AD8F5EC6FBE9804AF838AF62B07A962546D2",
+    "sizeBytes": 170723179,
+    "sourceCommit": "d3b0e9b57c6c83ffcc76782f45c4f8acb3d42df0",
+    "manifest": "files=6, signed=false, workingTreeClean=true",
+    "peHeader": "MZ",
+    "authenticode": "NotSigned"
+  },
   "boundary": "No live authenticated browser/published-EXE smoke claim; existing dynamic-button audit findings remain recorded for a separate hardening module."
 }
