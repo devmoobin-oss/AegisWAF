@@ -1,0 +1,52 @@
+{
+  "module": 147,
+  "title": "Add immutable O(1) active Site lookup for Multi-Site health operations",
+  "progress": {
+    "before": 0,
+    "after": 100,
+    "target": 100
+  },
+  "opportunity": {
+    "rootCause": "The active Site lookup in POST /api/sites/{id}/health scanned registry.Current.Sites with FirstOrDefault on every request, producing O(S) work as the number of configured Sites grew.",
+    "scope": "SiteRegistry and the Multi-Site health endpoint"
+  },
+  "implementation": [
+    "Added an immutable per-runtime-snapshot, case-insensitive Site ID dictionary held in an atomically replaced registry state.",
+    "Changed the health endpoint to use TryGetById instead of scanning all active Sites.",
+    "Kept snapshot replacement and Resolve behavior consistent while preserving the existing invalid-activation rollback boundary."
+  ],
+  "verification": {
+    "tddRed": {
+      "tests": 1,
+      "failed": 1,
+      "reason": "The health endpoint still used FirstOrDefault and had no registry index contract."
+    },
+    "focused": {
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "class": "SiteRuntimeRegistryLookupContractTests"
+    },
+    "multiSiteRegression": {
+      "passed": 115,
+      "failed": 0,
+      "skipped": 0,
+      "runner": "in-process xUnit"
+    },
+    "releaseBuild": {
+      "warnings": 0,
+      "errors": 0,
+      "solution": "AegisWAF.slnx"
+    },
+    "javascriptSyntax": "passed",
+    "gitDiffCheck": "passed"
+  },
+  "boundaries": [
+    "Large live Site-count latency benchmark",
+    "Live PostgreSQL and concurrent multi-instance mutation execution",
+    "Authenticated browser/published-EXE smoke",
+    "Visual responsive and screen-reader verification",
+    "CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification"
+  ],
+  "recordedAt": "2026-10-30"
+}

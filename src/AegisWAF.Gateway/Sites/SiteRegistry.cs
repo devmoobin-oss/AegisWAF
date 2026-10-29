@@ -5,24 +5,58 @@ namespace AegisWAF.Gateway.Sites;
 
 public sealed class SiteRegistry
 {
-    private SiteConfigurationSnapshot _current;
+    private RegistryState _state;
 
-    public SiteRegistry(SiteConfigurationSnapshot snapshot) => _current = snapshot;
+    public SiteRegistry(SiteConfigurationSnapshot snapshot) => _state = new RegistryState(snapshot);
 
-    public SiteConfigurationSnapshot Current => Volatile.Read(ref _current);
+    public SiteConfigurationSnapshot Current => Volatile.Read(ref _state).Snapshot;
 
-    internal void Replace(SiteConfigurationSnapshot snapshot) => Volatile.Write(ref _current, snapshot);
+    public bool TryGetById(string? siteId, out GatewaySite? site)
+    {
+        if (string.IsNullOrWhiteSpace(siteId))
+        {
+            site = null;
+            return false;
+        }
+
+        return Volatile.Read(ref _state).ById.TryGetValue(siteId.Trim(), out site);
+    }
+
+    internal void Replace(SiteConfigurationSnapshot snapshot) => Volatile.Write(ref _state, new RegistryState(snapshot));
 
     public SiteMatchResult? Resolve(string? hostHeader, string? path)
     {
-        var match = SiteMatcher.Match(Current, hostHeader, path);
-        if (match is null && Current.UsedLegacyConfiguration)
+        var snapshot = Current;
+        var match = SiteMatcher.Match(snapshot, hostHeader, path);
+        if (match is null && snapshot.UsedLegacyConfiguration)
         {
-            var fallback = Current.Sites.SingleOrDefault(x => x.Id == "default-site");
+            var fallback = snapshot.Sites.SingleOrDefault(x => x.Id == "default-site");
             if (fallback is not null)
                 return new SiteMatchResult(fallback, hostHeader?.Split(':')[0].Trim().ToLowerInvariant() ?? "", "/");
         }
         return match;
+    }
+
+    private sealed class RegistryState
+    {
+        public RegistryState(SiteConfigurationSnapshot snapshot)
+        {
+            Snapshot = snapshot ?? throw new ArgumentNullException(nameof(snapshot));
+            ById = BuildIndex(snapshot.Sites);
+        }
+
+        public SiteConfigurationSnapshot Snapshot { get; }
+        public IReadOnlyDictionary<string, GatewaySite> ById { get; }
+
+        private static IReadOnlyDictionary<string, GatewaySite> BuildIndex(IReadOnlyList<GatewaySite> sites)
+        {
+            var index = new Dictionary<string, GatewaySite>(StringComparer.OrdinalIgnoreCase);
+            foreach (var site in sites)
+            {
+                if (!string.IsNullOrWhiteSpace(site.Id)) index.TryAdd(site.Id, site);
+            }
+            return index;
+        }
     }
 }
 

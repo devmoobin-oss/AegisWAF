@@ -561,7 +561,7 @@ public static class GatewayApp
         catch (OperationCanceledException) when (SiteHealthReadBudget.IsBudgetCancellation(ct, readCt))
         { return SiteDatabaseUnavailable(ctx, "health-check-timeout", "site_health_read_timeout"); }
         if (site is null) return Results.NotFound(new { error = $"Site '{id}' was not found" });
-        var active = registry.Current.Sites.FirstOrDefault(x => x.Id.Equals(site.Id, StringComparison.OrdinalIgnoreCase));
+        registry.TryGetById(site.Id, out var active);
         if (active is null || active.Version != site.Version || !SiteConfigurationEditor.AreEquivalent(active, site))
             return Results.Ok(new { siteId = site.Id, health = "pending-restart", pendingRestart = true, activationStatus = "pending-restart", version = site.Version, activeVersion = active?.Version, etag = SiteConcurrency.ToEtag(site.Version), fresh = false, source = "pending-restart", checkedAt = DateTimeOffset.UtcNow, upstreams = site.Upstreams.Select(x => new { id = x.Id, address = x.Address.ToString(), health = "pending-restart", reason = (string?)null }) });
 
