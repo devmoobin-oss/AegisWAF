@@ -124,7 +124,7 @@ async function loadSitesCrud(){
   const el=$('sectionContent');
   $('sectionTitle').textContent='Multi-Site Gateway';
   $('sectionNote').textContent='AegisWAF v0.10.2 · Health Check enabled';
-  let editing=null, editingVersion=null, mutationInFlight=false, deleteInFlight=new Set(), siteMap=new Map(), summaryMap=new Map(), summaryMeta={totalSites:0,returnedSites:0,truncated:false}, summaryLoadState='loading';
+  let editing=null, editingVersion=null, mutationInFlight=false, deleteInFlight=new Set(), siteMap=new Map(), summaryMap=new Map(), summaryMeta={totalSites:0,returnedSites:0,truncated:false,historyPersisted:true,historyRetention:'postgresql'}, summaryLoadState='loading';
   const split=value=>String(value||'').split(/[,;\n\r]+/).map(x=>x.trim()).filter(Boolean);
   const status=(message,tone='info')=>{if(!isCurrent())return;const node=$('siteStatus');if(node){node.textContent=message;node.className=`notice ${tone}`;}};
   const parseUpstreams=value=>{
@@ -175,7 +175,8 @@ async function loadSitesCrud(){
   const render=items=>{if(!isCurrent())return;
     const summaryStatus=$('siteHealthSummaryStatus');
     const summaryTruncated=summaryLoadState==='ready'&&summaryMeta.truncated;
-    if(summaryStatus){summaryStatus.hidden=summaryLoadState==='ready'&&!summaryTruncated;summaryStatus.className=`notice ${summaryLoadState==='unavailable'?'error':''}`;summaryStatus.textContent=summaryLoadState==='unavailable'?'ข้อมูลสรุป Health ยังไม่พร้อม — สถานะในตารางอิงการตรวจล่าสุดเท่านั้น':summaryTruncated?`สรุป Health แสดง ${summaryMeta.returnedSites} จาก ${summaryMeta.totalSites} Site — รายการที่เหลือใช้สถานะ runtime เท่านั้น`:'กำลังโหลดข้อมูลสรุป Health...';}
+    const summaryDegraded=summaryLoadState==='ready'&&summaryMeta.historyPersisted===false;
+    if(summaryStatus){summaryStatus.hidden=summaryLoadState==='ready'&&!summaryTruncated&&!summaryDegraded;summaryStatus.className=`notice ${summaryLoadState==='unavailable'?'error':summaryDegraded?'warning':''}`;summaryStatus.textContent=summaryLoadState==='unavailable'?'ข้อมูลสรุป Health ยังไม่พร้อม — สถานะในตารางอิงการตรวจล่าสุดเท่านั้น':summaryDegraded?(summaryMeta.historyRetention==='process-memory'?'ข้อมูลสรุป Health ใช้ข้อมูลหน่วยความจำชั่วคราว — ยังไม่ยืนยันการบันทึก PostgreSQL':'ข้อมูลสรุป Health ใช้ PostgreSQL ร่วมกับหน่วยความจำชั่วคราว — การบันทึกบางรายการยังไม่สมบูรณ์'):summaryTruncated?`สรุป Health แสดง ${summaryMeta.returnedSites} จาก ${summaryMeta.totalSites} Site — รายการที่เหลือใช้สถานะ runtime เท่านั้น`:'กำลังโหลดข้อมูลสรุป Health...';}
     siteMap=new Map(items.map(item=>[item.siteId,item]));
     $('siteTable').innerHTML=items.map(site=>{
       const upstreams=(site.upstreams||[]).map(up=>`${escapeHtml(up.address||`${up.scheme}://${up.id}:${up.port}/`)} (${escapeHtml(up.health)})`).join('<br>');
@@ -189,7 +190,7 @@ async function loadSitesCrud(){
     const items=await response.json();
     if(!isCurrent())return;
     summaryMap.clear();
-    summaryMeta={totalSites:0,returnedSites:0,truncated:false};
+    summaryMeta={totalSites:0,returnedSites:0,truncated:false,historyPersisted:true,historyRetention:'postgresql'};
     summaryLoadState='loading';
     render(items);
     try{
@@ -198,7 +199,7 @@ async function loadSitesCrud(){
       else{
         const summary=await summaryResponse.json();
         if(!isCurrent())return;
-        summaryMeta={totalSites:Number(summary.totalSites)||0,returnedSites:Number(summary.returnedSites)||0,truncated:summary.truncated===true};
+        summaryMeta={totalSites:Number(summary.totalSites)||0,returnedSites:Number(summary.returnedSites)||0,truncated:summary.truncated===true,historyPersisted:summary.historyPersisted!==false,historyRetention:String(summary.historyRetention||'postgresql')};
         summaryMap=new Map((summary.sites||[]).map(item=>[item.siteId,item]));
         summaryLoadState='ready';
       }

@@ -1,0 +1,15 @@
+{
+  "module": 170,
+  "title": "Multi-Site health retention UI visibility",
+  "beforePercent": 0,
+  "afterPercent": 100,
+  "targetPercent": 100,
+  "red": "BrowserMultiSiteHealthSummaryRetentionContractTests and DesktopMultiSiteHealthSummaryRetentionContractTests failed 2/2 before the UI change.",
+  "focusedTests": "37/37 passed",
+  "javascriptSyntax": "node --check passed",
+  "releaseBuild": "Release passed: 0 warnings, 0 errors",
+  "strictUiAudit": "29 pre-existing affordance.actionless-button findings in dynamic Browser/Index markup; no retention-specific finding",
+  "browserSmoke": "not available in this environment",
+  "artifact": "pending-publish",
+  "boundary": "No live authenticated browser/published-EXE smoke claim; existing dynamic-button audit findings remain recorded for a separate hardening module."
+}

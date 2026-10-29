@@ -50,7 +50,7 @@ table{width:100%;border-collapse:collapse;text-align:left;font-size:12px}th{colo
 .badge{border-radius:4px;padding:4px 10px;font-weight:700;font-size:10.5px;display:inline-block;letter-spacing:.3px}.block{background:#4c2029;color:#ff6878;border:1px solid #6d2a37}.limit{background:#4a3410;color:#ffb830;border:1px solid #6b4d14}
 .text-btn{border:0;background:transparent;color:var(--blue);font-size:13px}.secondary-panel{min-height:430px}.secondary-panel .panel-title{margin-bottom:18px}
 .toggle{accent-color:#25c69a;width:18px;height:18px}.empty{color:#7e97b3;text-align:center;padding:24px}
-.notice{padding:15px 16px;background:#0f2742;border:1px solid #23466b;border-radius:8px;color:#a9c2d9;line-height:1.8;margin:10px 0;font-size:13px}
+.notice{padding:15px 16px;background:#0f2742;border:1px solid #23466b;border-radius:8px;color:#a9c2d9;line-height:1.8;margin:10px 0;font-size:13px}.notice.warning{background:rgba(255,189,85,.12);border-color:rgba(255,189,85,.42);color:#ffd58a}
 footer{text-align:center;color:#5f7c97;font-size:11px;padding:20px}
 .policy-form{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}.policy-form input,.policy-form select{background:#0b1e35;color:var(--text);border:1px solid var(--line2);border-radius:7px;padding:10px;min-width:150px;font:inherit;font-size:13px}.policy-form button,.secondary-panel td button{background:#1670c4;color:#fff;border:0;border-radius:7px;padding:9px 16px;font-size:12.5px}
 :focus-visible{outline:2px solid var(--blue);outline-offset:2px}
