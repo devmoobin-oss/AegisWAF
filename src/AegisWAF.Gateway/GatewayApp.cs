@@ -468,7 +468,7 @@ public static class GatewayApp
         var result = storedSites.Select(site =>
         {
             activeById.TryGetValue(site.Id, out var active);
-            var pendingRestart = active is null || active.Version != site.Version || !SiteConfigurationEditor.AreEquivalent(active, site);
+            var pendingRestart = SiteRuntimeState.IsPendingRestart(site, active);
             if (pendingRestart)
             {
                 var pendingUpstreams = site.Upstreams.Select(upstream => new
@@ -563,7 +563,7 @@ public static class GatewayApp
         { return SiteDatabaseUnavailable(ctx, "health-check-timeout", "site_health_read_timeout"); }
         if (site is null) return Results.NotFound(new { error = $"Site '{id}' was not found" });
         registry.TryGetById(site.Id, out var active);
-        if (active is null || active.Version != site.Version || !SiteConfigurationEditor.AreEquivalent(active, site))
+        if (SiteRuntimeState.IsPendingRestart(site, active))
             return Results.Ok(new { siteId = site.Id, health = "pending-restart", pendingRestart = true, activationStatus = "pending-restart", version = site.Version, activeVersion = active?.Version, etag = SiteConcurrency.ToEtag(site.Version), fresh = false, source = "pending-restart", checkedAt = DateTimeOffset.UtcNow, upstreams = site.Upstreams.Select(x => new { id = x.Id, address = x.Address.ToString(), health = "pending-restart", reason = (string?)null }) });
 
         using var probeBudget = SiteHealthProbeBudget.Create(ct);
@@ -706,7 +706,7 @@ public static class GatewayApp
             historyRetention
         });
     }).Require(Roles.Viewer);
-    app.MapPost("/api/sites/{id}/health/alerts/acknowledge", async (string id, SiteHealthAlertAcknowledgeRequest? input, SiteDatabaseStore store, SiteHealthHistory history, HttpContext ctx, CancellationToken ct) =>
+    app.MapPost("/api/sites/{id}/health/alerts/acknowledge", async (string id, SiteHealthAlertAcknowledgeRequest? input, SiteDatabaseStore store, SiteHealthHistory history, SiteRegistry registry, HttpContext ctx, CancellationToken ct) =>
     {
         using var readBudget = SiteHealthReadBudget.Create(ct);
         var readCt = readBudget.Token;
@@ -720,6 +720,20 @@ public static class GatewayApp
         catch (OperationCanceledException) when (SiteHealthReadBudget.IsBudgetCancellation(ct, readCt))
         { return SiteDatabaseUnavailable(ctx, "health-alert-read-timeout", "site_health_read_timeout"); }
         if (site is null) return Results.NotFound(new { error = $"Site '{id}' was not found" });
+        registry.TryGetById(site.Id, out var active);
+        if (SiteRuntimeState.IsPendingRestart(site, active))
+            return Results.Conflict(new
+            {
+                error = "Site บันทึกแล้ว แต่ route ยังไม่ active จึงยังรับทราบ Alert ไม่ได้ กรุณาตรวจสอบสถานะ Gateway และโหลดข้อมูลใหม่",
+                code = "site_runtime_pending_restart",
+                alertState = "pending-restart",
+                recoveryState = "none",
+                effectiveAlertState = "pending-restart",
+                isStale = false,
+                pendingRestart = true,
+                version = site.Version,
+                activeVersion = active?.Version
+            });
         IReadOnlyList<SiteHealthObservation> persisted;
         try { persisted = await store.ListHealthHistoryAsync(site.Id, SiteHealthTrendCalculator.MaxWindow, readCt); }
         catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
