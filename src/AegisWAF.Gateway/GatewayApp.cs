@@ -706,7 +706,7 @@ public static class GatewayApp
             historyRetention
         });
     }).Require(Roles.Viewer);
-    app.MapPost("/api/sites/{id}/health/alerts/acknowledge", async (string id, SiteHealthAlertAcknowledgeRequest? input, SiteDatabaseStore store, HttpContext ctx, CancellationToken ct) =>
+    app.MapPost("/api/sites/{id}/health/alerts/acknowledge", async (string id, SiteHealthAlertAcknowledgeRequest? input, SiteDatabaseStore store, SiteHealthHistory history, HttpContext ctx, CancellationToken ct) =>
     {
         using var readBudget = SiteHealthReadBudget.Create(ct);
         var readCt = readBudget.Token;
@@ -720,12 +720,15 @@ public static class GatewayApp
         catch (OperationCanceledException) when (SiteHealthReadBudget.IsBudgetCancellation(ct, readCt))
         { return SiteDatabaseUnavailable(ctx, "health-alert-read-timeout", "site_health_read_timeout"); }
         if (site is null) return Results.NotFound(new { error = $"Site '{id}' was not found" });
-        IReadOnlyList<SiteHealthObservation> observations;
-        try { observations = await store.ListHealthHistoryAsync(site.Id, SiteHealthTrendCalculator.MaxWindow, readCt); }
+        IReadOnlyList<SiteHealthObservation> persisted;
+        try { persisted = await store.ListHealthHistoryAsync(site.Id, SiteHealthTrendCalculator.MaxWindow, readCt); }
         catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
         { return SiteDatabaseUnavailable(ctx, "health-alert-acknowledged", ex is InvalidDataException ? "site_persistence_invalid" : "site_database_unavailable"); }
         catch (OperationCanceledException) when (SiteHealthReadBudget.IsBudgetCancellation(ct, readCt))
         { return SiteDatabaseUnavailable(ctx, "health-alert-read-timeout", "site_health_read_timeout"); }
+        var processMemory = history.Read(site.Id, SiteHealthTrendCalculator.MaxWindow);
+        var hasPendingHistory = history.HasPending(site.Id);
+        var observations = SiteHealthHistory.Merge(persisted, processMemory, SiteHealthTrendCalculator.MaxWindow);
         observations = SiteHealthTrendCalculator.FilterToCurrentUpstreams(observations, site.Upstreams.Select(x => x.Id));
         var trend = SiteHealthTrendCalculator.Calculate(observations, SiteHealthTrendCalculator.MaxWindow, site.Upstreams.Count);
         var trendNow = DateTimeOffset.UtcNow;
@@ -755,7 +758,9 @@ public static class GatewayApp
                 lastCheckedAt = trend.LastCheckedAt,
                 acknowledgedUntil = acknowledgement.AcknowledgedUntil,
                 acknowledgedBy = acknowledgement.AcknowledgedBy,
-                alertSuppressed = true
+                alertSuppressed = true,
+                historyPersisted = !hasPendingHistory,
+                historyRetention = hasPendingHistory ? "postgresql+process-memory" : "postgresql"
             });
         }
         catch (OperationCanceledException) when (writeBudget is not null && SiteHealthWriteBudget.IsBudgetCancellation(ct, writeBudget.Token))
