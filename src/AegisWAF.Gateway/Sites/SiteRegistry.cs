@@ -24,13 +24,19 @@ public sealed class SiteRegistry
 
     internal void Replace(SiteConfigurationSnapshot snapshot) => Volatile.Write(ref _state, new RegistryState(snapshot));
 
+    public SiteMatchResult? MatchHostname(string? hostHeader)
+    {
+        var state = Volatile.Read(ref _state);
+        return SiteMatcher.MatchHostname(state.ByHostname, hostHeader);
+    }
+
     public SiteMatchResult? Resolve(string? hostHeader, string? path)
     {
-        var snapshot = Current;
-        var match = SiteMatcher.Match(snapshot, hostHeader, path);
-        if (match is null && snapshot.UsedLegacyConfiguration)
+        var state = Volatile.Read(ref _state);
+        var match = SiteMatcher.Match(state.ByHostname, hostHeader, path);
+        if (match is null && state.Snapshot.UsedLegacyConfiguration)
         {
-            var fallback = snapshot.Sites.SingleOrDefault(x => x.Id == "default-site");
+            var fallback = state.Snapshot.Sites.SingleOrDefault(x => x.Id == "default-site");
             if (fallback is not null)
                 return new SiteMatchResult(fallback, hostHeader?.Split(':')[0].Trim().ToLowerInvariant() ?? "", "/");
         }
@@ -43,10 +49,12 @@ public sealed class SiteRegistry
         {
             Snapshot = snapshot ?? throw new ArgumentNullException(nameof(snapshot));
             ById = BuildIndex(snapshot.Sites);
+            ByHostname = BuildHostnameIndex(snapshot.Sites);
         }
 
         public SiteConfigurationSnapshot Snapshot { get; }
         public IReadOnlyDictionary<string, GatewaySite> ById { get; }
+        public IReadOnlyDictionary<string, GatewaySite> ByHostname { get; }
 
         private static IReadOnlyDictionary<string, GatewaySite> BuildIndex(IReadOnlyList<GatewaySite> sites)
         {
@@ -54,6 +62,21 @@ public sealed class SiteRegistry
             foreach (var site in sites)
             {
                 if (!string.IsNullOrWhiteSpace(site.Id)) index.TryAdd(site.Id, site);
+            }
+            return index;
+        }
+
+        private static IReadOnlyDictionary<string, GatewaySite> BuildHostnameIndex(IReadOnlyList<GatewaySite> sites)
+        {
+            var index = new Dictionary<string, GatewaySite>(StringComparer.OrdinalIgnoreCase);
+            foreach (var site in sites)
+            {
+                if (!site.Enabled) continue;
+                foreach (var hostname in site.Hostnames)
+                {
+                    var normalized = SiteConfigurationValidator.NormalizeHostname(hostname);
+                    if (normalized.Length > 0) index.TryAdd(normalized, site);
+                }
             }
             return index;
         }

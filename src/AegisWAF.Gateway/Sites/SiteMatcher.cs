@@ -4,6 +4,37 @@ public sealed record SiteMatchResult(GatewaySite Site, string Hostname, string P
 
 public static class SiteMatcher
 {
+    internal static SiteMatchResult? Match(
+        IReadOnlyDictionary<string, GatewaySite> byHostname,
+        string? hostHeader,
+        string? requestPath)
+    {
+        var hostname = NormalizeRequestHost(hostHeader);
+        if (hostname.Length == 0 || !byHostname.TryGetValue(hostname, out var site)) return null;
+
+        var path = NormalizeRequestPath(requestPath);
+        var bestPrefix = string.Empty;
+        foreach (var prefix in site.PathPrefixes
+            .Select(SiteConfigurationValidator.NormalizePath)
+            .Distinct(StringComparer.Ordinal))
+        {
+            if (PathMatches(path, prefix) && prefix.Length > bestPrefix.Length)
+                bestPrefix = prefix;
+        }
+
+        return bestPrefix.Length == 0 ? null : new SiteMatchResult(site, hostname, bestPrefix);
+    }
+
+    internal static SiteMatchResult? MatchHostname(
+        IReadOnlyDictionary<string, GatewaySite> byHostname,
+        string? hostHeader)
+    {
+        var hostname = NormalizeRequestHost(hostHeader);
+        return hostname.Length > 0 && byHostname.TryGetValue(hostname, out var site)
+            ? new SiteMatchResult(site, hostname, "")
+            : null;
+    }
+
     public static SiteMatchResult? Match(SiteConfigurationSnapshot snapshot, string? hostHeader, string? requestPath)
     {
         var hostname = NormalizeRequestHost(hostHeader);

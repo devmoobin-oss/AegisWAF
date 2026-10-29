@@ -344,9 +344,10 @@ public static class GatewayApp
             var site = SiteContext.Get(ctx);
             // Keep hostname-level attribution for diagnostics when the host is known but
             // the path is outside that site's configured prefix (for example /favicon.ico).
+            var registry = ctx.RequestServices.GetRequiredService<SiteRegistry>();
             var telemetrySite = site is not null
                 ? new SiteMatchResult(site.Site, site.Hostname, site.PathPrefix)
-                : SiteMatcher.MatchHostname(ctx.RequestServices.GetRequiredService<SiteRegistry>().Current, ctx.Request.Host.Value);
+                : registry.MatchHostname(ctx.Request.Host.Value);
             var proxied = ctx.Features.Get<Yarp.ReverseProxy.Model.IReverseProxyFeature>()?.ProxiedDestination;
             var upstreamId = proxied?.DestinationId;
             var upstreamAddress = proxied?.Model.Config.Address;
