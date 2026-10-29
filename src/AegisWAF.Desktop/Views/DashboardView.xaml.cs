@@ -80,7 +80,7 @@ public partial class DashboardView : UserControl, IPage
 
         MethodList.Children.Clear();
         var mSum = d.Methods.Sum(m => m.Count); var mMax = Math.Max(1, d.Methods.Select(m => m.Count).DefaultIfEmpty(1).Max());
-        if (d.Methods.Count == 0) MethodList.Children.Add(new TextBlock { Text = "ยังไม่มีข้อมูลคำขอ", Style = (Style)FindResource("MutedText"), Margin = new Thickness(0, 20, 0, 0) });
+        if (d.Methods.Count == 0) MethodList.Children.Add(new TextBlock { Text = "ยังไม่มีข้อมูลคำขอ", Style = (Style)Application.Current.FindResource("MutedText"), Margin = new Thickness(0, 20, 0, 0) });
         var i = 0;
         foreach (var m in d.Methods.Take(7))
         {
@@ -172,7 +172,7 @@ public partial class DashboardView : UserControl, IPage
         if (sum == 0)
         {
             Donut.Children.Add(new Ellipse { Width = size - thick, Height = size - thick, Stroke = B("#22374F"), StrokeThickness = thick, Margin = new Thickness(thick / 2) });
-            ThreatList.Children.Add(new TextBlock { Text = "ยังไม่มีเหตุการณ์โจมตี", Style = (Style)FindResource("MutedText"), Margin = new Thickness(0, 60, 0, 0), TextWrapping = TextWrapping.Wrap });
+            ThreatList.Children.Add(new TextBlock { Text = "ยังไม่มีเหตุการณ์โจมตี", Style = (Style)Application.Current.FindResource("MutedText"), Margin = new Thickness(0, 60, 0, 0), TextWrapping = TextWrapping.Wrap });
             return;
         }
         double angle = -90; var idx = 0;
