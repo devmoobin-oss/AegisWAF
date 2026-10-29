@@ -1,0 +1,37 @@
+{
+  "module": 155,
+  "title": "Validate configured Multi-Site identifiers before runtime binding",
+  "progress": {
+    "beforePercent": 0,
+    "afterPercent": 100,
+    "targetPercent": 100
+  },
+  "opportunity": {
+    "rootCause": "The IConfiguration validation path normalized Site IDs but did not enforce the Site ID grammar and skipped disabled Sites before validation. The typed snapshot path enforced the grammar for every Site, creating inconsistent startup behavior.",
+    "risk": "An invalid configured Site ID could reach binding and produce an inconsistent registry, persistence lookup, or generated route key instead of failing at the configuration boundary."
+  },
+  "implementation": {
+    "behavior": "Configuration validation now applies the same Site ID pattern to every configured Site before checking Enabled, matching ValidateSnapshot and preventing invalid IDs from reaching runtime route binding."
+  },
+  "tdd": {
+    "red": {
+      "test": "SiteConfigurationTests.Rejects_invalid_site_id_before_binding_runtime_routes_even_when_disabled",
+      "result": "failed 1/1 because configuration validation returned no invalid-ID error"
+    },
+    "green": {
+      "focused": "SiteConfigurationTests passed 20/20"
+    }
+  },
+  "verification": {
+    "multiSiteRegression": "passed 260/260 across 99 executable test classes; external PostgreSQL fault-injection and non-test filename placeholders were not executable suite classes",
+    "releaseBuild": "passed with 0 warnings and 0 errors",
+    "javascriptSyntax": "node --check passed",
+    "gitDiffCheck": "passed",
+    "sourceCommit": "907908a"
+  },
+  "boundary": [
+    "PostgreSQL-backed integration and live configuration reload were not run in this environment",
+    "Authenticated browser and published-EXE smoke were not run",
+    "Visual responsive, screen-reader, CodeQL/SARIF, external penetration, load/SLO, SIEM, Authenticode, and production certification remain unverified"
+  ]
+}
