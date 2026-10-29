@@ -30,7 +30,14 @@
     "relatedRegression": "passed 78/78 across configuration, editor, persistence, activation, security, health-trend, UI-contract, and handoff classes",
     "releaseBuild": "passed with 0 warnings and 0 errors",
     "javascriptSyntax": "node --check passed",
-    "gitDiffCheck": "passed"
+    "gitDiffCheck": "passed",
+    "publishedArtifact": {
+      "path": "D:\\AegisWAF\\dist\\AegisWAF-Desktop-CompletedModules\\AegisWAF.exe",
+      "sha256": "BF98814371A0BECFAD545594B1001AFE9A11AF9C1C8159C8C37C9FE101A44834",
+      "bytes": 170714987,
+      "sourceCommit": "655105fb5cdc827f6df1ebb0125fbd8c8cac1cd9",
+      "manifest": "passed files=6 signed=false workingTreeClean=true"
+    }
   },
   "boundary": [
     "Live PostgreSQL malformed-row execution was not available",
