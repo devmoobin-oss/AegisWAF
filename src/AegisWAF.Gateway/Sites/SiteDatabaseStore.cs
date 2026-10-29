@@ -6,6 +6,7 @@ namespace AegisWAF.Gateway.Sites;
 public sealed class SiteDatabaseStore(IConfiguration configuration)
 {
     private readonly string _connectionString = configuration.GetConnectionString("Postgres") ?? "";
+    private readonly int _maxSites = SiteConfigurationValidator.ResolveMaxSites(configuration);
     private const string SiteMutationLockKey = "aegiswaf.site_mutation.v1";
 
     private const string SelectSql = """
@@ -19,10 +20,16 @@ public sealed class SiteDatabaseStore(IConfiguration configuration)
     public async Task<IReadOnlyList<GatewaySite>> ListAsync(CancellationToken ct)
     {
         await using var db = await OpenAsync(ct);
-        await using var cmd = new NpgsqlCommand(SelectSql + " ORDER BY site_id", db);
+        await using var cmd = new NpgsqlCommand(SelectSql + " ORDER BY site_id LIMIT @max_sites_plus_one", db);
+        cmd.Parameters.AddWithValue("max_sites_plus_one", _maxSites + 1);
         await using var reader = await cmd.ExecuteReaderAsync(ct);
-        var result = new List<GatewaySite>();
-        while (await reader.ReadAsync(ct)) result.Add(ReadSite(reader));
+        var result = new List<GatewaySite>(Math.Min(_maxSites, 256));
+        while (await reader.ReadAsync(ct))
+        {
+            if (result.Count >= _maxSites)
+                throw new InvalidDataException($"Site configuration contains more than {_maxSites} Sites");
+            result.Add(ReadSite(reader));
+        }
         return result;
     }
 
@@ -49,6 +56,8 @@ public sealed class SiteDatabaseStore(IConfiguration configuration)
             result.Add(ReadSite(reader));
             totalSites = reader.GetInt64(20);
         }
+        if (totalSites > _maxSites)
+            throw new InvalidDataException($"Site configuration contains more than {_maxSites} Sites");
         return new SiteSummaryPage(result, totalSites);
     }
 
@@ -397,17 +406,24 @@ public sealed class SiteDatabaseStore(IConfiguration configuration)
         return new SiteDeleteResult(SiteDeleteStatus.Deleted);
     }
 
-    public static SiteConfigurationSnapshot? TryLoadSnapshot(string? connectionString)
+    public static SiteConfigurationSnapshot? TryLoadSnapshot(string? connectionString, int maxSites = SiteConfigurationValidator.DefaultMaxSites)
     {
         if (string.IsNullOrWhiteSpace(connectionString)) return null;
+        maxSites = Math.Clamp(maxSites, 1, SiteConfigurationValidator.MaximumAllowedSites);
         try
         {
             using var db = new NpgsqlConnection(connectionString);
             db.Open();
-            using var cmd = new NpgsqlCommand(SelectSql + " ORDER BY site_id", db);
+            using var cmd = new NpgsqlCommand(SelectSql + " ORDER BY site_id LIMIT @max_sites_plus_one", db);
+            cmd.Parameters.AddWithValue("max_sites_plus_one", maxSites + 1);
             using var reader = cmd.ExecuteReader();
-            var sites = new List<GatewaySite>();
-            while (reader.Read()) sites.Add(ReadSite(reader));
+            var sites = new List<GatewaySite>(Math.Min(maxSites, 256));
+            while (reader.Read())
+            {
+                if (sites.Count >= maxSites)
+                    throw new InvalidDataException($"Site configuration contains more than {maxSites} Sites");
+                sites.Add(ReadSite(reader));
+            }
             return sites.Count == 0 ? null : new SiteConfigurationSnapshot(sites, false);
         }
         catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.UndefinedTable)

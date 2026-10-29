@@ -7,6 +7,8 @@ namespace AegisWAF.Gateway.Sites;
 public static class SiteConfigurationValidator
 {
     private static readonly IdnMapping HostnameIdn = new() { UseStd3AsciiRules = true };
+    public const int DefaultMaxSites = 10_000;
+    public const int MaximumAllowedSites = 100_000;
     private const int MaxHostnamesPerSite = 32;
     private const int MaxPathPrefixesPerSite = 64;
     private const int MaxUpstreamsPerSite = 32;
@@ -24,6 +26,10 @@ public static class SiteConfigurationValidator
                 errors.Add("Production requires an explicit Sites configuration");
             return errors;
         }
+
+        var maxSites = ResolveMaxSites(configuration);
+        if (siteSections.Length > maxSites)
+            errors.Add($"Configuration may contain at most {maxSites} Sites");
 
         var activeHostnames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var configuredPolicies = configuration.GetSection("Waf:Policies").GetChildren()
@@ -148,6 +154,9 @@ public static class SiteConfigurationValidator
             .Select(x => x.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var activeHostnames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var sites = snapshot.Sites ?? [];
+        var maxSites = ResolveMaxSites(configuration);
+        if (sites.Count > maxSites)
+            errors.Add($"Site snapshot may contain at most {maxSites} Sites");
 
         foreach (var site in sites)
         {
@@ -284,6 +293,9 @@ public static class SiteConfigurationValidator
             errors.Add("Production requires at least one active Site");
         return errors;
     }
+
+    public static int ResolveMaxSites(IConfiguration configuration) =>
+        Math.Clamp(configuration.GetValue("Waf:Sites:MaxSites", DefaultMaxSites), 1, MaximumAllowedSites);
 
     internal static string NormalizeId(string value) =>
         value.Trim().ToLowerInvariant();

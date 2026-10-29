@@ -196,7 +196,7 @@ public static class GatewayApp
     private static SiteConfigurationSnapshot LoadSiteSnapshot(IConfiguration configuration)
     {
         var snapshot = configuration.GetValue("Waf:Sites:UseDatabase", true)
-            ? SiteDatabaseStore.TryLoadSnapshot(configuration.GetConnectionString("Postgres"))
+            ? SiteDatabaseStore.TryLoadSnapshot(configuration.GetConnectionString("Postgres"), SiteConfigurationValidator.ResolveMaxSites(configuration))
             : null;
         snapshot ??= SiteConfigurationLoader.Load(configuration);
         var errors = SiteConfigurationValidator.ValidateSnapshot(snapshot, configuration);

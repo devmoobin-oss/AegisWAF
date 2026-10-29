@@ -1,0 +1,58 @@
+{
+  "module": 152,
+  "title": "Bound Multi-Site configuration cardinality and database snapshot materialization",
+  "progress": {
+    "before": 0,
+    "after": 100,
+    "target": 100
+  },
+  "opportunity": {
+    "rootCause": "Multi-Site validation had per-Site limits but no global Site-count limit, while startup/runtime database loaders materialized every waf_sites row without a bound.",
+    "scope": "SiteConfigurationValidator, SiteDatabaseStore snapshot reads, startup snapshot loading, and the default Waf:Sites configuration"
+  },
+  "implementation": [
+    "Added configurable Waf:Sites:MaxSites with a default of 10000 and a hard configuration ceiling of 100000.",
+    "Rejected oversized configuration and typed database snapshots before runtime route activation.",
+    "Bounded ListAsync and bootstrap TryLoadSnapshot with LIMIT max+1 and fail-closed InvalidDataException when the database contains more Sites than allowed.",
+    "Made the bounded summary read reject an invalid database total instead of silently presenting a partial operational state."
+  ],
+  "verification": {
+    "tddRed": {
+      "tests": 3,
+      "failed": 3,
+      "reason": "The new cardinality tests initially failed because configuration/snapshot validation had no global Site limit and database loading had no MaxSites/LIMIT contract."
+    },
+    "focused": {
+      "passed": 25,
+      "failed": 0,
+      "skipped": 0,
+      "classes": [
+        "SiteConfigurationCardinalityTests",
+        "SiteConfigurationTests",
+        "SitePersistenceCodecTests"
+      ]
+    },
+    "multiSiteRegressionWithoutPostgres": {
+      "passed": 257,
+      "failed": 0,
+      "skipped": 0,
+      "classes": 94,
+      "runner": "in-process xUnit"
+    },
+    "releaseBuild": {
+      "warnings": 0,
+      "errors": 0,
+      "solution": "AegisWAF.slnx"
+    },
+    "javascriptSyntax": "passed",
+    "gitDiffCheck": "passed"
+  },
+  "boundaries": [
+    "Live PostgreSQL oversized-table execution and query-plan/latency benchmark",
+    "Concurrent multi-instance activation against an oversized or changing database",
+    "Authenticated browser/published-EXE smoke",
+    "Visual responsive and screen-reader verification",
+    "CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification"
+  ],
+  "recordedAt": "2026-10-30"
+}
