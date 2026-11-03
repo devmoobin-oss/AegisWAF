@@ -22,14 +22,6 @@ public static class ProductionReadinessPolicy
             "Database:AutoMigrate must be false; run reviewed migrations separately", errors);
         Require(configuration.GetValue("Admin:RequireHttps", true),
             "Admin:RequireHttps must be true", errors);
-        Require(configuration.GetValue("Auth:SessionIdleMinutes", 30) is >= 1 and <= 1_440,
-            "Auth:SessionIdleMinutes must be between 1 and 1440 minutes", errors);
-        Require(configuration.GetValue("Auth:SessionAbsoluteHours", 8) is >= 1 and <= 168,
-            "Auth:SessionAbsoluteHours must be between 1 and 168 hours", errors);
-        Require(configuration.GetValue("Auth:MaxFailedAttempts", 5) is >= 1 and <= 100,
-            "Auth:MaxFailedAttempts must be between 1 and 100", errors);
-        Require(configuration.GetValue("Auth:LockoutMinutes", 15) is >= 1 and <= 1_440,
-            "Auth:LockoutMinutes must be between 1 and 1440 minutes", errors);
         var keyRingPath = configuration["Security:DataProtection:KeyRingPath"];
         Require(!string.IsNullOrWhiteSpace(keyRingPath) && Path.IsPathFullyQualified(keyRingPath),
             "Security:DataProtection:KeyRingPath must be an absolute persistent path", errors);
@@ -64,14 +56,6 @@ public static class ProductionReadinessPolicy
             "Waf:RateLimit:GlobalRequests must be between 1 and 10000000 for botnet-wide protection", errors);
         Require(string.Equals(configuration["Waf:RateLimit:Store"], "postgres", StringComparison.OrdinalIgnoreCase),
             "Waf:RateLimit:Store must be postgres for multi-instance shared enforcement", errors);
-        Require(string.Equals(configuration["Auth:Throttle:Store"], "postgres", StringComparison.OrdinalIgnoreCase),
-            "Auth:Throttle:Store must be postgres for distributed login protection", errors);
-        Require(configuration.GetValue("Auth:Throttle:MaxFailures", 0) is >= 1 and <= 1_000,
-            "Auth:Throttle:MaxFailures must be between 1 and 1000", errors);
-        Require(configuration.GetValue("Auth:Throttle:WindowMinutes", 0) is >= 1 and <= 1_440,
-            "Auth:Throttle:WindowMinutes must be between 1 and 1440 minutes", errors);
-        Require(configuration.GetValue("Auth:Throttle:MaxEntries", 0) is >= 100 and <= 1_000_000,
-            "Auth:Throttle:MaxEntries must be between 100 and 1000000", errors);
         Require(!string.IsNullOrWhiteSpace(configuration.GetConnectionString("Postgres")),
             "ConnectionStrings:Postgres is required for the shared rate limiter", errors);
         Require(configuration.GetValue("Waf:Events:StructuredLogging", false),

@@ -32,10 +32,6 @@ public sealed class ProductionReadinessPolicyTests
         ["Waf:RateLimit:MaxEntries"] = "10000",
         ["Waf:RateLimit:GlobalRequests"] = "10000",
         ["Waf:RateLimit:Store"] = "postgres",
-        ["Auth:Throttle:Store"] = "postgres",
-        ["Auth:Throttle:MaxFailures"] = "10",
-        ["Auth:Throttle:WindowMinutes"] = "15",
-        ["Auth:Throttle:MaxEntries"] = "10000",
         ["ConnectionStrings:Postgres"] = "Host=db;Database=aegiswaf;Username=aegiswaf_runtime",
         ["Security:DataProtection:KeyRingPath"] = Path.Combine(Path.GetTempPath(), "AegisWAF", "keys"),
         ["Waf:Inspection:MaxCompressedBytes"] = "131072",
@@ -301,38 +297,6 @@ public sealed class ProductionReadinessPolicyTests
         Assert.Contains(errors, e => e.Contains("RateLimit:WindowSeconds", StringComparison.Ordinal));
         Assert.Contains(errors, e => e.Contains("RateLimit:MaxEntries", StringComparison.Ordinal));
         Assert.Contains(errors, e => e.Contains("RateLimit:GlobalRequests", StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public void Production_rejects_auth_throttle_values_outside_runtime_bounds()
-    {
-        var values = SecureValues();
-        values["Auth:Throttle:MaxFailures"] = "1001";
-        values["Auth:Throttle:WindowMinutes"] = "1441";
-        values["Auth:Throttle:MaxEntries"] = "1000001";
-
-        var errors = ProductionReadinessPolicy.Validate(Config(values));
-
-        Assert.Contains(errors, e => e.Contains("Auth:Throttle:MaxFailures", StringComparison.Ordinal));
-        Assert.Contains(errors, e => e.Contains("Auth:Throttle:WindowMinutes", StringComparison.Ordinal));
-        Assert.Contains(errors, e => e.Contains("Auth:Throttle:MaxEntries", StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public void Production_rejects_unsafe_session_and_lockout_windows()
-    {
-        var values = SecureValues();
-        values["Auth:SessionIdleMinutes"] = "0";
-        values["Auth:SessionAbsoluteHours"] = "169";
-        values["Auth:MaxFailedAttempts"] = "0";
-        values["Auth:LockoutMinutes"] = "1441";
-
-        var errors = ProductionReadinessPolicy.Validate(Config(values));
-
-        Assert.Contains(errors, e => e.Contains("SessionIdleMinutes", StringComparison.Ordinal));
-        Assert.Contains(errors, e => e.Contains("SessionAbsoluteHours", StringComparison.Ordinal));
-        Assert.Contains(errors, e => e.Contains("MaxFailedAttempts", StringComparison.Ordinal));
-        Assert.Contains(errors, e => e.Contains("LockoutMinutes", StringComparison.Ordinal));
     }
 
     [Fact]

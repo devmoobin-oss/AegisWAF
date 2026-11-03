@@ -26,12 +26,6 @@ internal sealed class PostgresHealthCheck(IConfiguration configuration) : IHealt
                 var table = await limiterTable.ExecuteScalarAsync(cancellationToken);
                 if (table is null or DBNull) return HealthCheckResult.Unhealthy("Shared rate-limit migration is not installed");
             }
-            if (string.Equals(configuration["Auth:Throttle:Store"], "postgres", StringComparison.OrdinalIgnoreCase))
-            {
-                await using var authTable = new NpgsqlCommand("SELECT to_regclass('public.waf_auth_throttle_buckets')", db);
-                var table = await authTable.ExecuteScalarAsync(cancellationToken);
-                if (table is null or DBNull) return HealthCheckResult.Unhealthy("Shared authentication throttle migration is not installed");
-            }
             return HealthCheckResult.Healthy();
         }
         catch (Exception ex) when (ex is NpgsqlException or TimeoutException or InvalidOperationException)

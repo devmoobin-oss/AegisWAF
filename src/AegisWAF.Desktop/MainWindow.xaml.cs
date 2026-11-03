@@ -32,7 +32,7 @@ public partial class MainWindow : Window
         _pages[NavProtect] = ("ระบบป้องกันอะไรได้บ้าง", "สิ่งที่ป้องกันได้ ป้องกันได้บางส่วน และยังไม่ป้องกัน — พร้อมตัวอย่างจริงที่ลองได้", () => new ProtectionView(api));
         _pages[NavSites] = ("Multi-Site Gateway", "Manage routing, upstream health and OWASP policy per Site", () => new SitesView(api));
         _pages[NavIps] = ("IP ที่บล็อก / อนุญาต", "กำหนดว่า IP ไหนถูกกันออกตลอด หรือได้รับการยกเว้นจากการตรวจ", () => new IpView(api));
-        _pages[NavAudit] = ("ประวัติการใช้งาน", "ใครเข้าสู่ระบบและเปลี่ยนแปลงอะไรบ้าง", () => new AuditView(api));
+        _pages[NavAudit] = ("ประวัติการใช้งาน", "การเปลี่ยนแปลงล่าสุดในระบบ", () => new AuditView(api));
         _pages[NavSettings] = ("ตั้งค่า", "ฐานข้อมูล เว็บที่ปกป้อง และพอร์ต — แก้ไขได้ที่นี่", () => new SettingsView(api, () => { RestartRequested = true; Close(); }, () => { ResetRequested = true; Close(); }));
 
         _pages[NavOwasp] = ("OWASP Top 10", "Coverage ของระบบป้องกันตาม OWASP Top 10:2021 — badge เป็น mapping ไม่ใช่ certification", () => new OwaspCoverageView(api));
