@@ -4992,3 +4992,54 @@
 - Evidence: `artifacts/module-verification/module217-remove-dead-auth-config-gates.json`.
 - Boundary: live Browser/EXE smoke, external penetration/load/SLO/SIEM/CodeQL validation, and Authenticode signing were not performed. Database migrations `006_auth_rbac.sql` and `009_distributed_security_limits.sql` still create the now-unused `users`/`waf_auth_throttle_buckets` tables; migration files are append-only/checksum-verified and were intentionally left untouched. The Desktop AuditView's "ผู้ใช้" (Actor) column will now always render blank since `AdminGuard.Actor()` returns `null`; left as a known cosmetic gap rather than redesigning the audit UI in this module.
 - Next action: continue the source audit for the next Multi-Site security or reliability opportunity; consider a follow-up module for the always-blank AuditView Actor column, and validate the Access-model documentation against the authenticated Browser/EXE on the target machine when Gateway/PostgreSQL are running.
+
+#### Module 179–217 before/after percentage ledger (requested follow-up to the /goal audit)
+
+The three commits made in this session (`75a4157`, `32c21fa`, `90b4630`) landed Modules 179–217 together because the backlog had accumulated uncommitted; each module below already has its own full "opportunity/implementation/TDD" record earlier in this file (search `Module <N> opportunity/root cause` or `Module <N> TDD`). This table restates each one's percentage explicitly, as requested:
+
+| Module | Before | After | Defect fixed |
+|---|---|---|---|
+| 179 | 0% | 100% | Health history/trend could read persisted history for a pending-restart Site as if it were the active route. |
+| 180 | 0% | 100% | Health summary could count a pending-restart Site's persisted history as current critical/degraded. |
+| 181 | 0% | 100% | Health summary read PostgreSQL history/acknowledgements for pending-restart Sites as if they were active. |
+| 182 | 0% | 100% | Browser/Desktop summary conflated a page-scoped pending count with the all-enabled-Site pending count. |
+| 183 | 0% | 100% | Upstream URL could carry a query string/fragment, breaking the stable reverse-proxy destination boundary. |
+| 184 | 0% | 100% | Browser/Desktop accepted Upstream URLs (query/fragment) the Gateway boundary already rejected — inconsistent validation. |
+| 185 | 0% | 100% | `SitePersistenceCodec.FromRow` could materialize a persisted Upstream URL with query/fragment despite validator rejection. |
+| 186 | 0% | 100% | `SitePersistenceCodec.ToRow` could write an internally built Site's Upstream URL (with query/fragment) to the DB row. |
+| 187 | 0% | 100% | `ToRow` enforced fewer invariants than `FromRow`, letting bad schemes/credentials/weights reach persistence. |
+| 188 | 0% | 100% | `ToRow` could serialize empty/duplicate collections or invalid policies/version that `FromRow` would reject. |
+| 189 | 0% | 100% | `ToRow` could throw `NullReferenceException` on a null upstream/Egress element instead of a controlled error. |
+| 190 | 0% | 100% | `FromRow` dereferenced a null persistence row before validation, leaking `NullReferenceException`. |
+| 191 | 0% | 100% | `handoff.md` pointer blocks could end up out of chronological order undetected. |
+| 192 | 0% | 100% | Login endpoint mapped only `NpgsqlException`, leaking other DB-unavailability failures as opaque errors (login itself was removed later in this backlog; kept as historical record of the fix at the time). |
+| 193 | 0% | 100% | `ApiClient` discarded the stable RFC7807 `code`, breaking Desktop localization of DB-unavailable errors (same historical note as 192). |
+| 194 | 0% | 100% | `SiteHealthProbe` reflected the raw upstream address in every probe result — credential-reflection risk. |
+| 195 | 0% | 100% | `BuildProbeUri` preserved `Uri.UserInfo`, risking credential leakage to upstream probe requests. |
+| 196 | 0% | 100% | `SiteConfigurationEditor.TryNormalize` silently dropped malformed Hostname/Egress values instead of erroring. |
+| 197 | 0% | 100% | File-based validator enforced upstream-weight bounds only in Production; Development silently clamped bad values. |
+| 198 | 0% | 100% | Typed `SiteConfigurationSnapshot` validation did not reject duplicate Site IDs after normalization. |
+| 199 | 0% | 100% | `SiteRegistry.BuildIndex` used first-wins `TryAdd` silently on duplicate normalized Site IDs. |
+| 200 | 0% | 100% | `SiteRegistry.BuildHostnameIndex` used first-wins `TryAdd` silently on duplicate normalized hostnames. |
+| 201 | 0% | 100% | `SiteHealthRegistry.Select` silently clamped weights to 1,000 while config/API/persistence allowed up to 10,000. |
+| 202 | 0% | 100% | `SiteHealthRegistry` did not normalize Site IDs, causing case/whitespace key mismatches. |
+| 203 | 0% | 100% | `SiteHealthHistory` did not trim/normalize Site IDs, risking duplicate history buckets for equivalent IDs. |
+| 204 | 0% | 100% | `FilterToCurrentUpstreams` compared raw Upstream IDs, dropping valid health observations on whitespace variants. |
+| 205 | 0% | 100% | Trend distinct-count/recovery logic compared raw Upstream IDs, miscounting batch completeness. |
+| 206 | 0% | 100% | `SiteHealthComparisonCalculator` looked up expected counts with a raw (unnormalized) Site ID. |
+| 207 | 0% | 100% | Upstream IDs were only checked for non-empty uniqueness, allowing unsafe/ambiguous whitespace or case variants. |
+| 208 | 0% | 100% | `SitePersistenceCodec.ToRow` wrote the raw, non-canonical Site ID into the persisted row. |
+| 209 | 0% | 100% | `ReplaceHostnamesAsync` used the raw Site ID while the primary row used the canonical ID, risking divergence. |
+| 210 | 0% | 100% | Direct `SiteDatabaseStore` methods did not canonicalize Site IDs at read/write boundaries. |
+| 211 | 0% | 100% | Advisory-lock lease could outlive its transaction on a pooled connection, leaving a stale lock after disposal. |
+| 212 | 0% | 100% | File-backed Egress host/scheme validation compared raw values instead of the runtime-canonicalized form. |
+| 213 | 0% | 100% | Production Egress coverage validation compared raw upstream/allowlist hosts instead of normalized forms. |
+| 214 | 0% | 100% | `SiteConfigurationEditor` duplicated the Site ID regex instead of delegating to the shared validator. |
+| 215 | 0% | 100% | Concurrent `EmbeddedGateway.StartAsync` calls could race Bootstrap/hostname seeding against Kestrel startup. |
+| 216 | 0% | 100% | File configuration validation did not reject Site IDs that collide only after trim/lowercase normalization. |
+| 217 | 0% | 100% | `ProductionReadinessPolicy`/`ProductionHealth` still gated on `Auth:Session*`/`Auth:Throttle:*`, a login subsystem already deleted; README/SECURITY/PRODUCTION_READINESS still described that deleted login system as current. |
+
+**Modules that remain below 100% and why, honestly:** `Module 41 = 90%` and `Module 60 = 90%` are explicitly, consistently recorded throughout this file (see the many "pending GitHub Code scanning/Advanced Security and fresh Hosted SARIF evidence" lines) as blocked on two things neither git nor this sandbox controls: (1) a hosted Actions run actually executing for this work, and (2) GitHub's **Code scanning / Advanced Security** feature being enabled for this repository, which is a GitHub.com repository-settings action the repository owner must take (or the repo being public, where CodeQL is free). Everything that was actually fixable from inside this sandbox (179–217) is at 100% with build/test evidence above; 41 and 60 are infrastructure/authorization gates, not unfinished code.
+
+**2026-11-04 follow-up — push attempted, did not trigger hosted CI:** with the user's explicit confirmation, pushed commits `75a4157`/`32c21fa`/`90b4630` to the real `origin` remote (`https://github.com/devmoobin-oss/AegisWAF.git`, branch `codex/modular-development-handoff`; `git push --dry-run` had already shown credentials were present). The push itself succeeded (`967167f..90b4630`), but `.github/workflows/security-verification.yml` only triggers on `push` to `main`/`feature/multi-site-gateway`, on `pull_request`, or on manual `workflow_dispatch` — a push to `codex/modular-development-handoff` matches none of those, so **no hosted run was started**. Closing Module 41/60 still needs one of: (a) opening a pull request from this branch to `main` (the `pull_request` trigger has no branch filter), (b) pushing directly to `main`/`feature/multi-site-gateway`, or (c) a manual `workflow_dispatch` run from the GitHub Actions UI. This session has no `gh` CLI installed and intentionally did not search the environment for a GitHub API token (credential discovery is outside what this assistant does on its own initiative), so (a)/(c) need either `gh` to be installed or the user to do it from github.com directly; (b) is a materially bigger/riskier action (pushing to `main`) that was not taken without separate explicit approval.
+**Also discovered this follow-up:** PostgreSQL is reachable at `127.0.0.1:5432` in this environment (`Test-NetConnection` succeeded), which is new — many earlier module records cite "PostgreSQL not listening" as why live integration/smoke boundaries were unverified. The `dotnet test` runs in this session (628/628, 0 skipped) therefore likely already exercised real PostgreSQL integration, not a stub. Starting the standalone Gateway or Desktop app directly for a live HTTP/Browser smoke check was attempted and **denied by the auto-mode permission classifier** (starting a network-listening server process); this is a live boundary gate the user can close by granting that permission explicitly, not something resolved by code or docs.
