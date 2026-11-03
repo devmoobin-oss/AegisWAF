@@ -96,6 +96,38 @@ public sealed class SiteHealthTrendTests
     }
 
     [Fact]
+    public void Trend_filter_normalizes_current_upstream_ids()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var observations = new SiteHealthObservation[]
+        {
+            new("primary", "healthy", null, now),
+            new("retired-backup", "unhealthy", "timeout", now.AddMinutes(-1))
+        };
+
+        var filtered = SiteHealthTrendCalculator.FilterToCurrentUpstreams(observations, [" PRIMARY "]);
+
+        Assert.Single(filtered);
+        Assert.Equal("primary", filtered[0].UpstreamId);
+    }
+
+    [Fact]
+    public void Trend_does_not_count_whitespace_variants_as_distinct_upstreams()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var observations = new SiteHealthObservation[]
+        {
+            new("primary", "unhealthy", "timeout", now),
+            new(" primary ", "unhealthy", "timeout", now)
+        };
+
+        var trend = SiteHealthTrendCalculator.Calculate(observations, 20, expectedUpstreamCount: 2);
+
+        Assert.Equal(0, trend.ConsecutiveUnhealthy);
+        Assert.Equal("degraded", trend.AlertState);
+    }
+
+    [Fact]
     public void Three_newest_unhealthy_observations_raise_a_critical_alert()
     {
         var newest = DateTimeOffset.UtcNow;

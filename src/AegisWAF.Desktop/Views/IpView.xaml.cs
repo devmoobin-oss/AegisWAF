@@ -13,13 +13,10 @@ public partial class IpView : UserControl, IPage
     {
         InitializeComponent();
         _api = api;
-        // Controls mirror the server's rule (SECURITY_OPERATOR+); the server enforces it regardless.
-        CanEdit = api.Session!.Level >= 3;
         Form.IsEnabled = CanEdit;
-        if (!Form.IsEnabled) Msg.Text = "สิทธิ์ของคุณดูข้อมูลได้อย่างเดียว (ต้องใช้ SECURITY_OPERATOR ขึ้นไปเพื่อแก้ไข)";
     }
 
-    public bool CanEdit { get; }
+    public bool CanEdit => true;
     public bool AutoRefresh => false;
 
     private void Show(string text, bool ok) { Msg.Text = text; Msg.Foreground = Ui.Brush(ok ? "Green" : "Red"); }

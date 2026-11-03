@@ -14,7 +14,7 @@ public sealed class BrowserSecurityActionDialogContractTests
         var sitesStart = source.IndexOf("if(active==='sites')", StringComparison.Ordinal);
         Assert.True(rulesStart >= 0 && ipsStart > rulesStart && sitesStart > ipsStart, "Could not isolate the rules and IP policy workflows.");
 
-        var helpers = source[..source.IndexOf("const ROLE_LEVEL", StringComparison.Ordinal)];
+        var helpers = source[..source.IndexOf("const titles=", StringComparison.Ordinal)];
         var rules = source[rulesStart..ipsStart];
         var ips = source[ipsStart..sitesStart];
 

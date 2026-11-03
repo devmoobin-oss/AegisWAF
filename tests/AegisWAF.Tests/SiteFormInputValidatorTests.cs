@@ -52,4 +52,16 @@ public sealed class SiteFormInputValidatorTests
 
         Assert.Null(error);
     }
+
+    [Fact]
+    public void Rejects_upstream_query_strings_and_fragments_before_sending_the_request()
+    {
+        var error = SiteFormInputValidator.Validate(
+            "affiliateiq",
+            ["affiliateiq.localhost"],
+            "/",
+            "http://localhost:4000/?tenant=secret#fragment");
+
+        Assert.Contains("query หรือ fragment", error, StringComparison.Ordinal);
+    }
 }

@@ -34,7 +34,6 @@
                     <RadioButton x:Name="NavProtect" Style="{StaticResource NavButton}" Tag="&#xE946;" Content="ระบบป้องกันอะไรได้บ้าง" GroupName="nav" Checked="OnNav"/>
                     <RadioButton x:Name="NavSites" Style="{StaticResource NavButton}" Tag="&#xE8FD;" Content="Multi-Site Gateway" GroupName="nav" Checked="OnNav"/>
                     <RadioButton x:Name="NavIps" Style="{StaticResource NavButton}" Tag="&#xE774;" Content="IP ที่บล็อก / อนุญาต" GroupName="nav" Checked="OnNav"/>
-                    <RadioButton x:Name="NavUsers" Style="{StaticResource NavButton}" Tag="&#xE716;" Content="ผู้ใช้งานระบบ" GroupName="nav" Checked="OnNav"/>
                     <RadioButton x:Name="NavAudit" Style="{StaticResource NavButton}" Tag="&#xE8A5;" Content="ประวัติการใช้งาน" GroupName="nav" Checked="OnNav"/>
                     <RadioButton x:Name="NavSettings" Style="{StaticResource NavButton}" Tag="&#xE713;" Content="ตั้งค่า" GroupName="nav" Checked="OnNav"/>
                 </StackPanel>
@@ -62,19 +61,7 @@
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                         <Ellipse x:Name="StatusDot" Width="10" Height="10" Fill="{StaticResource Green}" Margin="0,0,8,0"/>
-                        <TextBlock x:Name="StatusText" Text="กำลังเชื่อมต่อ" Foreground="{StaticResource Green}" FontSize="13" Margin="0,0,24,0" VerticalAlignment="Center"/>
-                        <Border Width="38" Height="38" CornerRadius="19" Margin="0,0,10,0">
-                            <Border.Background>
-                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#9CC8FF" Offset="0"/><GradientStop Color="#5A98E8" Offset="1"/></LinearGradientBrush>
-                            </Border.Background>
-                            <TextBlock x:Name="AvatarText" Foreground="#0E2744" FontWeight="Bold" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <StackPanel Margin="0,0,18,0" VerticalAlignment="Center">
-                            <TextBlock x:Name="UserText" FontWeight="SemiBold" FontSize="13"/>
-                            <TextBlock x:Name="RoleText" Style="{StaticResource MutedText}" FontSize="11"/>
-                        </StackPanel>
-                        <Button Content="เปลี่ยนรหัสผ่าน" Style="{StaticResource Ghost}" Margin="0,0,8,0" Click="OnChangePassword"/>
-                        <Button Content="ออกจากระบบ" Style="{StaticResource Ghost}" Click="OnLogout"/>
+                        <TextBlock x:Name="StatusText" Text="กำลังเชื่อมต่อ" Foreground="{StaticResource Green}" FontSize="13" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Grid>
             </Border>

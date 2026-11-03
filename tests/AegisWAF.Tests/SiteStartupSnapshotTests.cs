@@ -11,6 +11,7 @@ public sealed class SiteStartupSnapshotTests
     {
         var builder = GatewayApp.CreateBuilder([], overrides: new Dictionary<string, string?>
         {
+            ["Waf:Sites:UseDatabase"] = "false",
             ["Sites:shop:Enabled"] = "true",
             ["Sites:shop:Hostnames:0"] = "shop.example.test",
             ["Sites:shop:PathPrefixes:0"] = "/",

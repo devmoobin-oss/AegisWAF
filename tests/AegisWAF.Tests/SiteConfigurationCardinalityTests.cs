@@ -52,6 +52,45 @@ public sealed class SiteConfigurationCardinalityTests
     }
 
     [Fact]
+    public void Database_hostname_replacement_uses_the_canonical_site_id()
+    {
+        var root = FindRepoRoot();
+        var store = File.ReadAllText(Path.Combine(root, "src", "AegisWAF.Gateway", "Sites", "SiteDatabaseStore.cs"));
+
+        Assert.Contains("var siteId = SiteConfigurationValidator.NormalizeId(site.Id);", store, StringComparison.Ordinal);
+        Assert.Contains("delete.Parameters.AddWithValue(\"site_id\", siteId)", store, StringComparison.Ordinal);
+        Assert.Contains("insert.Parameters.AddWithValue(\"site_id\", siteId)", store, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Database_site_id_inputs_are_canonicalized_at_the_store_boundary()
+    {
+        var root = FindRepoRoot();
+        var store = File.ReadAllText(Path.Combine(root, "src", "AegisWAF.Gateway", "Sites", "SiteDatabaseStore.cs"));
+
+        foreach (var method in new[]
+        {
+            "public async Task<GatewaySite?> FindByIdAsync",
+            "public async Task RecordHealthHistoryAsync",
+            "public async Task<IReadOnlyList<SiteHealthObservation>> ListHealthHistoryAsync",
+            "public async Task<SiteHealthAlertAcknowledgement?> GetHealthAlertAcknowledgementAsync",
+            "public async Task<SiteHealthAlertAcknowledgement> AcknowledgeHealthAlertAsync",
+            "public async Task<bool> DeleteAsync",
+            "public async Task<SiteDeleteResult> DeleteWithConcurrencyAsync"
+        })
+        {
+            var start = store.IndexOf($"{method}", StringComparison.Ordinal);
+            Assert.True(start >= 0, $"Could not locate {method}.");
+            var end = store.IndexOf('\n', start);
+            var next = store.IndexOf("public ", end, StringComparison.Ordinal);
+            var body = store[start..(next > start ? next : store.Length)];
+            Assert.Contains("SiteConfigurationValidator.NormalizeId", body, StringComparison.Ordinal);
+        }
+
+        Assert.Contains("siteIds.Select(SiteConfigurationValidator.NormalizeId)", store, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Rejects_oversized_per_site_collections_before_binding_runtime_routes()
     {
         var values = new Dictionary<string, string?>

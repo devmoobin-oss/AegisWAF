@@ -33,7 +33,7 @@ public sealed class SiteMutationWriteBudgetTests
         var source = File.ReadAllText(Path.Combine(root, "src", "AegisWAF.Gateway", "GatewayApp.cs"), Encoding.UTF8);
         var create = Endpoint(source, "app.MapPost(\"/api/sites\"", "app.MapPut(\"/api/sites/{id}\"");
         var update = Endpoint(source, "app.MapPut(\"/api/sites/{id}\"", "app.MapDelete(\"/api/sites/{id}\"");
-        var delete = Endpoint(source, "app.MapDelete(\"/api/sites/{id}\"", "app.MapAuth()");
+        var delete = Endpoint(source, "app.MapDelete(\"/api/sites/{id}\"", "app.MapGet(\"/api/ip-policies\"");
 
         foreach (var endpoint in new[] { create, update, delete })
         {

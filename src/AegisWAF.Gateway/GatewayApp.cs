@@ -161,15 +161,6 @@ public static class GatewayApp
     builder.Services.AddHostedService<IpPolicyLoader>();
     builder.Services.AddHostedService<EventWriter>();
     builder.Services.AddHostedService<SecurityEventRetentionWorker>();
-    builder.Services.AddSingleton<AuthStore>();
-    builder.Services.AddSingleton<DistributedAuthThrottle>();
-    builder.Services.AddSingleton(sp =>
-    {
-        var cfg = sp.GetRequiredService<IConfiguration>();
-        return new AuthThrottle(cfg.GetValue("Auth:Throttle:MaxFailures", 10),
-            TimeSpan.FromMinutes(cfg.GetValue("Auth:Throttle:WindowMinutes", 15)),
-            cfg.GetValue("Auth:Throttle:MaxEntries", 10_000));
-    });
     }
 
     private static async Task<IResult> DeleteIpPolicy(string? ip, IpAccessPolicy policies, IConfiguration cfg, HttpContext ctx, CancellationToken ct)
@@ -862,6 +853,7 @@ public static class GatewayApp
             .Select(site => site.Id)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var siteIds = storedSites.Select(x => x.Id).ToArray();
+        var activeSiteIds = siteIds.Where(siteId => !pendingSiteIds.Contains(siteId)).ToArray();
         IReadOnlyDictionary<string, IReadOnlyList<SiteHealthObservation>> histories;
         IReadOnlyDictionary<string, IReadOnlyList<SiteHealthAlertAcknowledgement>> acknowledgements;
         int expiredAcknowledgementsRemoved;
@@ -884,7 +876,9 @@ public static class GatewayApp
         var historyPersisted = true;
         try
         {
-            histories = await store.ListHealthHistoryBySiteAsync(siteIds, SiteHealthTrendCalculator.MaxWindow, summaryCt);
+            histories = activeSiteIds.Length == 0
+                ? new Dictionary<string, IReadOnlyList<SiteHealthObservation>>(StringComparer.OrdinalIgnoreCase)
+                : await store.ListHealthHistoryBySiteAsync(activeSiteIds, SiteHealthTrendCalculator.MaxWindow, summaryCt);
         }
         catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException)
         {
@@ -908,7 +902,9 @@ public static class GatewayApp
         }
         try
         {
-            acknowledgements = await store.ListHealthAlertAcknowledgementsAsync(siteIds, summaryCt);
+            acknowledgements = activeSiteIds.Length == 0
+                ? new Dictionary<string, IReadOnlyList<SiteHealthAlertAcknowledgement>>(StringComparer.OrdinalIgnoreCase)
+                : await store.ListHealthAlertAcknowledgementsAsync(activeSiteIds, summaryCt);
         }
         catch (Exception ex) when (ex is NpgsqlException or InvalidOperationException or InvalidDataException)
         {
@@ -924,12 +920,14 @@ public static class GatewayApp
         }
         histories = storedSites.ToDictionary(
             site => site.Id,
-            site => SiteHealthHistory.Merge(
-                histories.TryGetValue(site.Id, out var persisted) ? persisted : [],
-                history.Read(site.Id, SiteHealthTrendCalculator.MaxWindow),
-                SiteHealthTrendCalculator.MaxWindow),
+            site => pendingSiteIds.Contains(site.Id)
+                ? (IReadOnlyList<SiteHealthObservation>)[]
+                : SiteHealthHistory.Merge(
+                    histories.TryGetValue(site.Id, out var persisted) ? persisted : [],
+                    history.Read(site.Id, SiteHealthTrendCalculator.MaxWindow),
+                    SiteHealthTrendCalculator.MaxWindow),
             StringComparer.OrdinalIgnoreCase);
-        var hasPendingHistory = storedSites.Any(site => history.HasPending(site.Id));
+        var hasPendingHistory = activeSiteIds.Any(history.HasPending);
         var databaseHistoryAvailable = historyPersisted;
         historyPersisted = databaseHistoryAvailable && !hasPendingHistory;
         var historyRetention = !databaseHistoryAvailable ? "process-memory" : hasPendingHistory ? "postgresql+process-memory" : "postgresql";
@@ -1159,7 +1157,6 @@ public static class GatewayApp
         finally
         { writeBudget?.Dispose(); }
     }).Require(Roles.SecurityAdmin);
-    app.MapAuth();
     app.MapGet("/api/ip-policies", (IpAccessPolicy policies) => Results.Ok(policies.List())).Require(Roles.Viewer);
     app.MapPut("/api/ip-policies", async (IpPolicyInput input, IpAccessPolicy policies, IConfiguration cfg, HttpContext ctx, CancellationToken ct) =>
     {

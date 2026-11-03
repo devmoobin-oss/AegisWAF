@@ -14,7 +14,7 @@ public sealed class BrowserMultiSiteDeleteDialogContractTests
         Assert.True(start >= 0 && end > start, "Could not isolate the browser Multi-Site workflow.");
         var sites = source[start..end];
 
-        var helperEnd = source.IndexOf("const ROLE_LEVEL", StringComparison.Ordinal);
+        var helperEnd = source.IndexOf("const titles=", StringComparison.Ordinal);
         Assert.True(helperEnd > 0, "Could not isolate the shared browser dialog helper.");
         var helpers = source[..helperEnd];
 

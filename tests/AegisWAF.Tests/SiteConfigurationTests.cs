@@ -5,6 +5,48 @@ namespace AegisWAF.Tests;
 
 public sealed class SiteConfigurationTests
 {
+    [Fact]
+    public void Loader_canonicalizes_explicit_egress_hosts_and_schemes_before_runtime_use()
+    {
+        var config = Config(new Dictionary<string, string?>
+        {
+            ["Sites:shop:Hostnames:0"] = "shop.example.com",
+            ["Sites:shop:Upstreams:primary:Address"] = "https://origin.example.com/",
+            ["Sites:shop:Egress:AllowedHosts:0"] = " ORIGIN.EXAMPLE.COM. ",
+            ["Sites:shop:Egress:AllowedPorts:0"] = "443",
+            ["Sites:shop:Egress:AllowedSchemes:0"] = "HTTPS"
+        });
+
+        var site = SiteConfigurationLoader.Load(config).Sites.Single();
+
+        Assert.Equal(["origin.example.com"], site.Egress.AllowedHosts);
+        Assert.Equal(["https"], site.Egress.AllowedSchemes);
+    }
+
+    [Fact]
+    public void Production_egress_coverage_uses_canonical_hosts_in_configuration_and_snapshot_validation()
+    {
+        var config = Config(new Dictionary<string, string?>
+        {
+            ["Waf:Deployment:Enforce"] = "true",
+            ["Sites:shop:Hostnames:0"] = "shop.example.com",
+            ["Sites:shop:Upstreams:primary:Address"] = "https://origin.example.com/",
+            ["Sites:shop:Egress:AllowedHosts:0"] = "ORIGIN.EXAMPLE.COM.",
+            ["Sites:shop:Egress:AllowedPorts:0"] = "443",
+            ["Sites:shop:Egress:AllowedSchemes:0"] = "HTTPS"
+        });
+
+        var configurationErrors = SiteConfigurationValidator.Validate(config);
+        var site = new GatewaySite("shop", true, ["shop.example.com"], ["/"],
+            [new SiteUpstream("primary", new Uri("https://origin.example.com/"))], "default",
+            new SiteRateLimitPolicy(), new SiteEgressPolicy(["ORIGIN.EXAMPLE.COM."], [443], ["HTTPS"]));
+        var snapshotErrors = SiteConfigurationValidator.ValidateSnapshot(
+            new SiteConfigurationSnapshot([site], false), config);
+
+        Assert.DoesNotContain(configurationErrors, error => error.Contains("cover", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(snapshotErrors, error => error.Contains("cover", StringComparison.OrdinalIgnoreCase));
+    }
+
     private static IConfiguration Config(Dictionary<string, string?> values) =>
         new ConfigurationBuilder().AddInMemoryCollection(values).Build();
 
@@ -30,6 +72,37 @@ public sealed class SiteConfigurationTests
         Assert.Equal("app-a.example.com", snapshot.Sites[0].Hostnames.Single());
         Assert.Equal("/api", snapshot.Sites[0].PathPrefixes.Single());
         Assert.Equal("https://origin-b.example.com/", snapshot.Sites[1].Upstreams.Single().Address.ToString());
+    }
+
+    [Fact]
+    public void Normalizes_upstream_ids_from_file_configuration_before_runtime_use()
+    {
+        var config = Config(new Dictionary<string, string?>
+        {
+            ["Sites:site-a:Enabled"] = "true",
+            ["Sites:site-a:Hostnames:0"] = "app-a.example.com",
+            ["Sites:site-a:Upstreams: PRIMARY :Address"] = "https://origin-a.example.com/"
+        });
+
+        var snapshot = SiteConfigurationLoader.Load(config);
+
+        Assert.Equal("primary", snapshot.Sites.Single().Upstreams.Single().Id);
+    }
+
+    [Fact]
+    public void Rejects_upstream_ids_that_are_not_safe_runtime_keys()
+    {
+        var config = Config(new Dictionary<string, string?>
+        {
+            ["Sites:site-a:Enabled"] = "true",
+            ["Sites:site-a:Hostnames:0"] = "app-a.example.com",
+            ["Sites:site-a:Upstreams:primary/one:Address"] = "https://origin-a.example.com/"
+        });
+
+        var errors = SiteConfigurationValidator.Validate(config);
+
+        Assert.Contains(errors, error => error.Contains("upstream", StringComparison.OrdinalIgnoreCase) &&
+                                         error.Contains("invalid ID", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -112,6 +185,20 @@ public sealed class SiteConfigurationTests
 
         Assert.Contains(errors, error => error.Contains("HTTP(S)", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(errors, error => error.Contains("credentials", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Rejects_upstream_query_strings_and_fragments_before_runtime_binding()
+    {
+        var config = Config(new Dictionary<string, string?>
+        {
+            ["Sites:site-a:Hostnames:0"] = "app.example.com",
+            ["Sites:site-a:Upstreams:0:Address"] = "https://origin.example.com/base?tenant=secret#fragment"
+        });
+
+        var errors = SiteConfigurationValidator.Validate(config);
+
+        Assert.Contains(errors, error => error.Contains("query or fragment", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -310,6 +397,25 @@ public sealed class SiteConfigurationTests
     }
 
     [Fact]
+    public void Development_rejects_upstream_weight_outside_bounded_range_before_binding()
+    {
+        var config = Config(new Dictionary<string, string?>
+        {
+            ["Sites:site-a:Hostnames:0"] = "app.example.com",
+            ["Sites:site-a:Upstreams:primary:Address"] = "https://origin.example.com/",
+            ["Sites:site-a:Upstreams:primary:Weight"] = "0",
+            ["Sites:site-a:Egress:AllowedHosts:0"] = "origin.example.com",
+            ["Sites:site-a:Egress:AllowedPorts:0"] = "443",
+            ["Sites:site-a:Egress:AllowedSchemes:0"] = "https"
+        });
+
+        var errors = SiteConfigurationValidator.Validate(config);
+
+        Assert.Contains(errors, error => error.Contains("weight", StringComparison.OrdinalIgnoreCase));
+        Assert.Throws<InvalidOperationException>(() => SiteConfigurationLoader.Load(config));
+    }
+
+    [Fact]
     public void Production_rejects_private_literal_upstream_before_startup()
     {
         var config = Config(new Dictionary<string, string?>
@@ -385,6 +491,46 @@ public sealed class SiteConfigurationTests
             new SiteConfigurationSnapshot(sites, false), configuration);
 
         Assert.Contains(errors, error => error.Contains("hostname", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Typed_snapshot_rejects_duplicate_site_ids_after_normalization()
+    {
+        var configuration = Config(new Dictionary<string, string?>());
+        var sites = new[]
+        {
+            new GatewaySite(" Shop ", true, ["shop-one.example.com"], ["/"],
+                [new SiteUpstream("primary", new Uri("https://one.example.com/"))], "default",
+                new SiteRateLimitPolicy(), new SiteEgressPolicy(["one.example.com"], [443], ["https"])),
+            new GatewaySite("shop", true, ["shop-two.example.com"], ["/"],
+                [new SiteUpstream("primary", new Uri("https://two.example.com/"))], "default",
+                new SiteRateLimitPolicy(), new SiteEgressPolicy(["two.example.com"], [443], ["https"]))
+        };
+
+        var errors = SiteConfigurationValidator.ValidateSnapshot(
+            new SiteConfigurationSnapshot(sites, false), configuration);
+
+        Assert.Contains(errors, error => error.Contains("site", StringComparison.OrdinalIgnoreCase) &&
+                                         error.Contains("duplicat", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void File_configuration_rejects_duplicate_site_ids_after_normalization()
+    {
+        var configuration = Config(new Dictionary<string, string?>
+        {
+            ["Sites: Shop :Enabled"] = "true",
+            ["Sites: Shop :Hostnames:0"] = "shop-one.example.com",
+            ["Sites: Shop :Upstreams:primary:Address"] = "https://one.example.com/",
+            ["Sites:shop:Enabled"] = "true",
+            ["Sites:shop:Hostnames:0"] = "shop-two.example.com",
+            ["Sites:shop:Upstreams:primary:Address"] = "https://two.example.com/"
+        });
+
+        var errors = SiteConfigurationValidator.Validate(configuration);
+
+        Assert.Contains(errors, error => error.Contains("site", StringComparison.OrdinalIgnoreCase) &&
+                                         error.Contains("duplicat", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

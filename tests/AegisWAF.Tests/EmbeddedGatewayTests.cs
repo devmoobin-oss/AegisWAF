@@ -21,6 +21,31 @@ public class EmbeddedGatewayTests(GatewayFixture fx)
     }
 
     [Fact]
+    public async Task Concurrent_start_calls_share_one_embedded_gateway_startup()
+    {
+        await using var gw = new EmbeddedGateway();
+        var gatewayUrl = FreeUrl();
+        var options = new EmbeddedGatewayOptions(
+            gatewayUrl,
+            fx.ConnectionString,
+            null,
+            "http://127.0.0.1:9/",
+            null,
+            new Dictionary<string, string?> { ["AllowedHosts"] = "*" });
+
+        var starts = Enumerable.Range(0, 4)
+            .Select(_ => Task.Run(() => gw.StartAsync(options)))
+            .ToArray();
+
+        await Task.WhenAll(starts);
+
+        Assert.True(gw.Running);
+        using var client = new HttpClient { BaseAddress = gatewayUrl };
+        using var response = await client.GetAsync("health");
+        Assert.True(response.IsSuccessStatusCode);
+    }
+
+    [Fact]
     public async Task Login_base_path_health_probe_and_public_prefix_reach_exact_upstream_paths()
     {
         await using var upstream = await LoopbackUpstream.StartAsync(onlyLogin: true);
@@ -46,7 +71,6 @@ public class EmbeddedGatewayTests(GatewayFixture fx)
             }
             else await Task.Delay(1000);
             using var api = new ApiClient(gatewayUrl);
-            await api.LoginAsync(GatewayFixture.AdminUser, GatewayFixture.AdminPassword);
             var health = await api.CheckSiteHealthAsync(siteId);
             Assert.Equal("unhealthy", health.Health);
             Assert.True(health.Fresh);
@@ -181,7 +205,6 @@ public class EmbeddedGatewayTests(GatewayFixture fx)
             Assert.Equal("site-upstream", body);
 
             using var api = new ApiClient(gatewayUrl);
-            await api.LoginAsync(GatewayFixture.AdminUser, GatewayFixture.AdminPassword);
             var health = await api.CheckSiteHealthAsync(siteId);
             Assert.False(health.PendingRestart);
             Assert.NotEqual("invalid", health.Health);
@@ -203,8 +226,6 @@ public class EmbeddedGatewayTests(GatewayFixture fx)
 
         using var api = new ApiClient(url);
         Assert.True(await api.IsHealthyAsync());
-        var s = await api.LoginAsync(GatewayFixture.AdminUser, GatewayFixture.AdminPassword); // user already bootstrapped in the shared DB
-        Assert.Equal("SUPER_ADMIN", s.Role);
         Assert.NotNull(await api.GetOverviewAsync());
 
         await gw.StopAsync();
@@ -416,7 +437,6 @@ public class EmbeddedGatewayTests(GatewayFixture fx)
             new Dictionary<string, string?> { ["AllowedHosts"] = "*" }));
 
         using var api = new ApiClient(url);
-        await api.LoginAsync(GatewayFixture.AdminUser, GatewayFixture.AdminPassword);
         try
         {
             await api.AddSiteAsync(new SiteCreateDto(siteId, [firstHost], ["/"], firstUpstream.Url.ToString(), "default",

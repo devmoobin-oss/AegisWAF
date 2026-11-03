@@ -33,7 +33,8 @@ public sealed class SiteMutationLockBudgetTests
         var store = File.ReadAllText(Path.Combine(root, "src", "AegisWAF.Gateway", "Sites", "SiteDatabaseStore.cs"), Encoding.UTF8);
         var gateway = File.ReadAllText(Path.Combine(root, "src", "AegisWAF.Gateway", "GatewayApp.cs"), Encoding.UTF8);
 
-        Assert.Contains("pg_try_advisory_lock", store, StringComparison.Ordinal);
+        Assert.Contains("pg_try_advisory_xact_lock", store, StringComparison.Ordinal);
+        Assert.DoesNotContain("pg_try_advisory_lock(", store, StringComparison.Ordinal);
         Assert.Contains("SiteMutationLockTimeoutException", store, StringComparison.Ordinal);
         Assert.Equal(4, Count(gateway, "SiteMutationLockTimeoutException"));
         Assert.Contains("site_mutation_busy", gateway, StringComparison.Ordinal);

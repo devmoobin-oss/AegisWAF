@@ -15,7 +15,7 @@ public partial class SettingsView : UserControl, IPage
         InitializeComponent();
         _restart = restart; _reset = reset;
         var info = App.Info;
-        About.Text = $"AegisWAF v{typeof(SettingsView).Assembly.GetName().Version?.ToString(3)} • Connected to {info?.Url.GetLeftPart(UriPartial.Authority)} • User {api.Session?.Username} ({api.Session?.Role})";
+        About.Text = $"AegisWAF v{typeof(SettingsView).Assembly.GetName().Version?.ToString(3)} • Connected to {info?.Url.GetLeftPart(UriPartial.Authority)}";
         if (info is not { Embedded: true } || _current is null)
         {
             LocalPanel.Visibility = Visibility.Collapsed;
@@ -55,7 +55,7 @@ public partial class SettingsView : UserControl, IPage
             // The protected website is intentionally preserved here for legacy startup compatibility;
             // all new routing changes belong to Multi-Site Gateway.
             SettingsStore.Save(GatewaySettings.Create(Db, port, _current!.UpstreamUrl));
-            Set(SaveResult, "Saved. Restarting Gateway — please sign in again.", "Green");
+            Set(SaveResult, "Saved. Restarting Gateway...", "Green");
             await App.Gateway.StopAsync();
             _restart();
         }
@@ -64,6 +64,6 @@ public partial class SettingsView : UserControl, IPage
 
     private void OnReset(object sender, RoutedEventArgs e)
     {
-        if (Ui.Confirm(Window.GetWindow(this), "Reset local settings and start setup again? Database data, users and rules will not be deleted.")) _reset();
+        if (Ui.Confirm(Window.GetWindow(this), "Reset local settings and start setup again? Database data and rules will not be deleted.")) _reset();
     }
 }

@@ -10,7 +10,7 @@ public sealed class BrowserMultiSiteDialogLifecycleContractTests
         var root = FindRepoRoot();
         var source = File.ReadAllText(Path.Combine(root, "src", "AegisWAF.Gateway", "wwwroot", "assets", "app.js"), Encoding.UTF8);
         var start = source.IndexOf("function showAppDialog", StringComparison.Ordinal);
-        var roleEnd = source.IndexOf("const ROLE_LEVEL", start, StringComparison.Ordinal);
+        var roleEnd = source.IndexOf("const titles=", start, StringComparison.Ordinal);
         var sitesStart = source.IndexOf("async function loadSitesCrud", StringComparison.Ordinal);
         var sitesEnd = source.IndexOf("const loadSectionWithSiteCrud", sitesStart, StringComparison.Ordinal);
         Assert.True(start >= 0 && roleEnd > start && sitesStart >= 0 && sitesEnd > sitesStart, "Could not isolate the browser dialog and Multi-Site workflows.");

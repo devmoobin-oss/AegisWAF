@@ -14,14 +14,11 @@ public partial class RulesView : UserControl, IPage
     {
         InitializeComponent();
         _api = api;
-        // Mirrors server rules: rule changes need SECURITY_ADMIN, the sandbox needs SECURITY_ANALYST.
-        CanEdit = api.Session!.Level >= 4;
         CustomForm.IsEnabled = CanEdit;
-        TestButton.IsEnabled = Sample.IsEnabled = api.Session.Level >= 2;
-        if (!CanEdit) Show("สิทธิ์ของคุณดูข้อมูลได้อย่างเดียว (แก้ไขกฎต้องใช้ SECURITY_ADMIN ขึ้นไป)", false);
+        TestButton.IsEnabled = Sample.IsEnabled = true;
     }
 
-    public bool CanEdit { get; }
+    public bool CanEdit => true;
     public bool AutoRefresh => false;
 
     private void Show(string text, bool ok) { Msg.Text = text; Msg.Foreground = Ui.Brush(ok ? "Green" : "Red"); }

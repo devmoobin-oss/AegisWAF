@@ -21,7 +21,7 @@ public sealed class BrowserMultiSiteProblemDetailsContractTests
         Assert.Contains("resize:none", sites, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("await readApiError(response", sites, StringComparison.Ordinal);
         Assert.DoesNotContain("detail.error||`HTTP ${response.status}`", sites, StringComparison.Ordinal);
-        Assert.DoesNotContain("traceId", source[source.IndexOf("function readApiError", StringComparison.Ordinal)..source.IndexOf("const ROLE_LEVEL", StringComparison.Ordinal)], StringComparison.Ordinal);
+        Assert.DoesNotContain("traceId", source[source.IndexOf("function readApiError", StringComparison.Ordinal)..source.IndexOf("const titles=", StringComparison.Ordinal)], StringComparison.Ordinal);
     }
 
     private static string FindRepoRoot()

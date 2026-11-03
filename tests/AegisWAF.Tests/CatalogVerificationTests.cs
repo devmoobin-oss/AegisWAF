@@ -123,7 +123,6 @@ public class CatalogVerificationTests(GatewayFixture fx)
         await using var run = await StartAsync();
         var url = run.Url;
         using var api = new ApiClient(url);
-        await api.LoginAsync(GatewayFixture.AdminUser, GatewayFixture.AdminPassword);
         var failures = new List<string>();
         foreach (var item in ProtectionCatalog.Items)
             foreach (var ex in item.Examples)
@@ -167,7 +166,6 @@ public class CatalogVerificationTests(GatewayFixture fx)
         await using var run = await StartAsync();
         var url = run.Url;
         using var api = new ApiClient(url);
-        await api.LoginAsync(GatewayFixture.AdminUser, GatewayFixture.AdminPassword);
         var attack = new ProbeRequest("GET", "/s?q=sleep(5)");
         var harmless = new ProbeRequest("GET", "/products?id=42");
         try

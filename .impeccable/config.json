@@ -73,7 +73,7 @@
           "src/AegisWAF.Gateway/wwwroot/index.html"
         ],
         "createdAt": "2026-10-29T17:58:05.058Z",
-        "reason": "Agent: index.html uses centered flex layout and nested controls/panels with their own padding; the detector lacks layout/computed-style context and reports no visible cramped edge in the rendered console."
+        "reason": "Agent: manual detector re-run reports no cramped-padding; bordered auth and panel containers have 16–32px padding, and index.html is intentionally minified"
       }
     ]
   }

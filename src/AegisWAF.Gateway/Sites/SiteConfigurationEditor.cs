@@ -1,6 +1,5 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using System.Text.RegularExpressions;
 
 namespace AegisWAF.Gateway.Sites;
 
@@ -27,17 +26,19 @@ public sealed record SiteUpstreamManagementRequest(string Id, string Address, in
 /// <summary>Validates and edits only the local Site configuration document. Secrets are never copied to it.</summary>
 public static class SiteConfigurationEditor
 {
-    private static readonly Regex IdPattern = new("^[a-z0-9][a-z0-9_-]{0,63}$", RegexOptions.CultureInvariant);
-
     public static bool TryNormalize(SiteManagementRequest input, out SiteManagementRequest normalized, out string error)
     {
         normalized = input;
         error = "";
         var id = (input.Id ?? "").Trim().ToLowerInvariant();
-        if (!IdPattern.IsMatch(id)) { error = "Site ID must use 1-64 lowercase letters, numbers, hyphen, or underscore"; return false; }
+        if (!SiteConfigurationValidator.IsValidSiteId(id)) { error = "Site ID must use 1-64 lowercase letters, numbers, hyphen, or underscore"; return false; }
         if (input.ExpectedVersion is < 1) { error = "Expected Site version must be a positive integer"; return false; }
 
-        var hosts = (input.Hostnames ?? []).Select(NormalizeHostname).Where(x => x.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        var rawHosts = input.Hostnames ?? [];
+        var normalizedHosts = rawHosts.Select(NormalizeHostname).ToArray();
+        if (normalizedHosts.Any(x => x.Length == 0))
+        { error = "Site contains an invalid hostname"; return false; }
+        var hosts = normalizedHosts.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         if (hosts.Length == 0) { error = "At least one hostname is required"; return false; }
         if (hosts.Length > 32) { error = "A Site may contain at most 32 hostnames"; return false; }
 
@@ -49,25 +50,47 @@ public static class SiteConfigurationEditor
         var upstreamIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var candidate in upstreamInputs)
         {
-            var upstreamId = (candidate.Id ?? "").Trim().ToLowerInvariant();
-            if (upstreamId.Length == 0 || !upstreamIds.Add(upstreamId))
+            var upstreamId = SiteConfigurationValidator.NormalizeUpstreamId(candidate.Id);
+            if (!SiteConfigurationValidator.IsValidUpstreamId(upstreamId))
+            { error = "Upstream ID must use 1-64 lowercase letters, numbers, hyphen, or underscore"; return false; }
+            if (!upstreamIds.Add(upstreamId))
             { error = "Upstream IDs must be non-empty and unique"; return false; }
             if (!Uri.TryCreate(candidate.Address?.Trim(), UriKind.Absolute, out var address) ||
                 (address.Scheme != Uri.UriSchemeHttp && address.Scheme != Uri.UriSchemeHttps) ||
                 !string.IsNullOrEmpty(address.UserInfo))
             { error = "Every upstream must be an absolute HTTP(S) URL without credentials"; return false; }
-            if (candidate.Weight is < 1 or > 10_000)
-            { error = "Upstream weight must be between 1 and 10000"; return false; }
+            if (!string.IsNullOrEmpty(address.Query) || !string.IsNullOrEmpty(address.Fragment))
+            { error = "Every upstream must not contain a query or fragment; put health/path data in the base path only"; return false; }
+            if (candidate.Weight is < 1 or > SiteConfigurationValidator.MaxUpstreamWeight)
+            { error = $"Upstream weight must be between 1 and {SiteConfigurationValidator.MaxUpstreamWeight}"; return false; }
             upstreams.Add(new SiteUpstreamManagementRequest(upstreamId, address.ToString(), candidate.Weight));
         }
         var firstUri = new Uri(upstreams[0].Address, UriKind.Absolute);
 
         var paths = (input.PathPrefixes ?? ["/"]).Select(SiteConfigurationValidator.NormalizePath).Distinct(StringComparer.Ordinal).ToArray();
-        var allowedHosts = (input.AllowedHosts ?? []).Select(NormalizeHostname).Where(x => x.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        var rawAllowedHosts = input.AllowedHosts ?? [];
+        var normalizedAllowedHosts = rawAllowedHosts.Select(NormalizeHostname).ToArray();
+        if (rawAllowedHosts.Length > 0 &&
+            (normalizedAllowedHosts.Any(x => x.Length == 0) ||
+             normalizedAllowedHosts.Distinct(StringComparer.OrdinalIgnoreCase).Count() != normalizedAllowedHosts.Length))
+        { error = "Egress host entries must be valid, explicit, and unique hostnames"; return false; }
+        var allowedHosts = normalizedAllowedHosts.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         if (allowedHosts.Length == 0) allowedHosts = upstreams.Select(x => NormalizeHostname(new Uri(x.Address).Host)).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
-        var allowedPorts = (input.AllowedPorts ?? []).Distinct().ToArray();
+
+        var rawAllowedPorts = input.AllowedPorts ?? [];
+        if (rawAllowedPorts.Length > 0 &&
+            (rawAllowedPorts.Any(x => x is < 1 or > 65535) || rawAllowedPorts.Distinct().Count() != rawAllowedPorts.Length))
+        { error = "Egress ports must be between 1 and 65535 and unique"; return false; }
+        var allowedPorts = rawAllowedPorts.Distinct().ToArray();
         if (allowedPorts.Length == 0) allowedPorts = upstreams.Select(x => new Uri(x.Address).Port).Distinct().ToArray();
-        var schemes = (input.AllowedSchemes ?? []).Select(x => (x ?? "").Trim().ToLowerInvariant()).Where(x => x.Length > 0).Distinct().ToArray();
+
+        var rawAllowedSchemes = input.AllowedSchemes ?? [];
+        var normalizedSchemes = rawAllowedSchemes.Select(x => (x ?? "").Trim().ToLowerInvariant()).ToArray();
+        if (rawAllowedSchemes.Length > 0 &&
+            (normalizedSchemes.Any(x => x != Uri.UriSchemeHttp && x != Uri.UriSchemeHttps) ||
+             normalizedSchemes.Distinct(StringComparer.Ordinal).Count() != normalizedSchemes.Length))
+        { error = "Egress schemes must be HTTP or HTTPS and unique"; return false; }
+        var schemes = normalizedSchemes.Distinct(StringComparer.Ordinal).ToArray();
         if (schemes.Length == 0) schemes = upstreams.Select(x => new Uri(x.Address).Scheme.ToLowerInvariant()).Distinct().ToArray();
 
         normalized = new SiteManagementRequest(id, hosts, paths, firstUri.ToString(), string.IsNullOrWhiteSpace(input.WafPolicy) ? "default" : input.WafPolicy.Trim(), allowedHosts, allowedPorts, schemes, input.Enabled)

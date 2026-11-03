@@ -76,7 +76,8 @@ public static class SiteHealthComparisonCalculator
             .Where(x => !string.IsNullOrWhiteSpace(x.SiteId))
             .Select(x =>
             {
-                var expected = expectedUpstreamCounts is not null && expectedUpstreamCounts.TryGetValue(x.SiteId, out var count)
+                var normalizedSiteId = SiteConfigurationValidator.NormalizeId(x.SiteId);
+                var expected = expectedUpstreamCounts is not null && expectedUpstreamCounts.TryGetValue(normalizedSiteId, out var count)
                     ? count
                     : 0;
                 var trend = SiteHealthTrendCalculator.Calculate(x.Observations, window, expected);

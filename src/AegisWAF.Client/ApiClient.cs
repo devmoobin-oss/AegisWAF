@@ -4,17 +4,13 @@ using System.Text.Json;
 
 namespace AegisWAF.Client;
 
-/// <summary>
-/// Typed client for the AegisWAF admin API. Authentication is the server's HttpOnly session cookie (held in the
-/// HttpClient's cookie container) plus the per-session CSRF token, which is kept in memory only.
-/// </summary>
+/// <summary>Typed client for the AegisWAF admin API. There is no login: every request is sent as-is.</summary>
 public sealed class ApiClient : IDisposable
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
     private const int MaxApiErrorMessageLength = 512;
     private readonly HttpClient _http;
     private readonly bool _ownsHttp;
-    private string _csrf = "";
 
     public ApiClient(Uri baseAddress)
     {
@@ -26,33 +22,7 @@ public sealed class ApiClient : IDisposable
     /// <summary>For tests / hosting: the supplied client must keep cookies between calls.</summary>
     public ApiClient(HttpClient http) { _http = http; }
 
-    public SessionDto? Session { get; private set; }
     public Uri? BaseAddress => _http.BaseAddress;
-    /// <summary>Raised when the server rejects a call because the session is no longer valid.</summary>
-    public event Action? SessionExpired;
-
-    public async Task<SessionDto> LoginAsync(string username, string password, CancellationToken ct = default)
-    {
-        var s = await SendAsync<SessionDto>(HttpMethod.Post, "api/auth/login", new { username, password }, ct, isLogin: true);
-        Apply(s);
-        return s;
-    }
-
-    public async Task<SessionDto> RefreshSessionAsync(CancellationToken ct = default)
-    {
-        var s = await SendAsync<SessionDto>(HttpMethod.Get, "api/auth/session", null, ct);
-        Apply(s);
-        return s;
-    }
-
-    public async Task LogoutAsync(CancellationToken ct = default)
-    {
-        try { await SendAsync(HttpMethod.Post, "api/auth/logout", null, ct); }
-        finally { Session = null; _csrf = ""; }
-    }
-
-    public Task ChangePasswordAsync(string current, string next, CancellationToken ct = default) =>
-        SendAsync(HttpMethod.Post, "api/auth/change-password", new { currentPassword = current, newPassword = next }, ct);
 
     public Task<OverviewDto> GetOverviewAsync(CancellationToken ct = default) => SendAsync<OverviewDto>(HttpMethod.Get, "api/overview", null, ct);
     public Task<List<RuleDto>> GetRulesAsync(CancellationToken ct = default) => SendAsync<List<RuleDto>>(HttpMethod.Get, "api/rules", null, ct);
@@ -108,16 +78,6 @@ public sealed class ApiClient : IDisposable
         return SendAsync<List<CommandCenterTrafficDto>>(HttpMethod.Get, "api/command-center/traffic?" + string.Join('&', parameters), null, ct);
     }
 
-    public Task<List<UserDto>> GetUsersAsync(CancellationToken ct = default) => SendAsync<List<UserDto>>(HttpMethod.Get, "api/users", null, ct);
-    public Task CreateUserAsync(string username, string displayName, string password, string role, CancellationToken ct = default) =>
-        SendAsync(HttpMethod.Post, "api/users", new { username, displayName, password, role }, ct);
-    public Task UpdateUserAsync(Guid id, string? role, bool? enabled, CancellationToken ct = default) =>
-        SendAsync(HttpMethod.Patch, $"api/users/{id}", new { role, enabled }, ct);
-    public Task ResetPasswordAsync(Guid id, string newPassword, CancellationToken ct = default) =>
-        SendAsync(HttpMethod.Post, $"api/users/{id}/reset-password", new { newPassword }, ct);
-    public Task RevokeSessionsAsync(Guid id, CancellationToken ct = default) =>
-        SendAsync(HttpMethod.Post, $"api/users/{id}/revoke-sessions", null, ct);
-
     /// <summary>
     /// Sends one harmless, clearly labelled SQL-injection-style request through the gateway's protected path and reports
     /// whether it was blocked (HTTP 403). It never reaches the protected site when the protection works.
@@ -140,24 +100,21 @@ public sealed class ApiClient : IDisposable
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { return false; }
     }
 
-    private void Apply(SessionDto s) { Session = s; _csrf = s.CsrfToken; }
-
-    private async Task<T> SendAsync<T>(HttpMethod method, string url, object? body, CancellationToken ct, bool isLogin = false)
+    private async Task<T> SendAsync<T>(HttpMethod method, string url, object? body, CancellationToken ct)
     {
-        using var resp = await RawAsync(method, url, body, ct, isLogin);
+        using var resp = await RawAsync(method, url, body, ct);
         return (await resp.Content.ReadFromJsonAsync<T>(Json, ct)) ?? throw new ApiException((int)resp.StatusCode, "Empty response");
     }
 
     private async Task SendAsync(HttpMethod method, string url, object? body, CancellationToken ct, string? ifMatch = null)
     {
-        using var _ = await RawAsync(method, url, body, ct, false, ifMatch);
+        using var _ = await RawAsync(method, url, body, ct, ifMatch);
     }
 
-    private async Task<HttpResponseMessage> RawAsync(HttpMethod method, string url, object? body, CancellationToken ct, bool isLogin, string? ifMatch = null)
+    private async Task<HttpResponseMessage> RawAsync(HttpMethod method, string url, object? body, CancellationToken ct, string? ifMatch = null)
     {
         var req = new HttpRequestMessage(method, url);
         if (body is not null) req.Content = JsonContent.Create(body, options: Json);
-        if (method != HttpMethod.Get && _csrf.Length > 0) req.Headers.Add("X-CSRF-Token", _csrf);
         if (!string.IsNullOrWhiteSpace(ifMatch)) req.Headers.TryAddWithoutValidation("If-Match", ifMatch);
         HttpResponseMessage resp;
         try { resp = await _http.SendAsync(req, ct); }
@@ -166,11 +123,13 @@ public sealed class ApiClient : IDisposable
         if (resp.IsSuccessStatusCode) return resp;
 
         var message = $"HTTP {(int)resp.StatusCode}";
+        string? code = null;
         try
         {
             var doc = await resp.Content.ReadFromJsonAsync<JsonElement>(Json, ct);
             if (doc.ValueKind == JsonValueKind.Object)
             {
+                code = ReadString(doc, "code");
                 if (doc.TryGetProperty("error", out var error) && error.ValueKind == JsonValueKind.String &&
                     !string.IsNullOrWhiteSpace(error.GetString()))
                     message = error.GetString()!;
@@ -187,12 +146,7 @@ public sealed class ApiClient : IDisposable
         catch (Exception ex) when (ex is JsonException or NotSupportedException or InvalidOperationException) { /* non-JSON body */ }
         var status = (int)resp.StatusCode;
         resp.Dispose();
-        if (status == 401 && !isLogin && Session is not null)
-        {
-            Session = null; _csrf = "";
-            SessionExpired?.Invoke();
-        }
-        throw new ApiException(status, BoundErrorMessage(message));
+        throw new ApiException(status, BoundErrorMessage(message), code);
     }
 
     private static string? ReadString(JsonElement document, string property) =>

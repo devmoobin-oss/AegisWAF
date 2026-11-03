@@ -27,9 +27,10 @@ public sealed class SiteHealthHistory
     public void Record(string siteId, IReadOnlyList<SiteHealthProbeResult> results)
     {
         if (string.IsNullOrWhiteSpace(siteId) || results.Count == 0) return;
+        var siteKey = NormalizeSiteId(siteId);
         lock (_gate)
         {
-            if (!_observations.TryGetValue(siteId, out var bucket))
+            if (!_observations.TryGetValue(siteKey, out var bucket))
             {
                 if (_observations.Count >= _maxSites)
                 {
@@ -39,7 +40,7 @@ public sealed class SiteHealthHistory
                     _observations.Remove(leastRecentlyUsed);
                 }
 
-                _observations[siteId] = bucket = new HistoryBucket(_maxObservationsPerSite);
+                _observations[siteKey] = bucket = new HistoryBucket(_maxObservationsPerSite);
             }
 
             bucket.LastTouched = NextTouch();
@@ -61,9 +62,10 @@ public sealed class SiteHealthHistory
     public void MarkPersisted(string siteId, IReadOnlyList<SiteHealthObservation> observations)
     {
         if (string.IsNullOrWhiteSpace(siteId) || observations.Count == 0) return;
+        var siteKey = NormalizeSiteId(siteId);
         lock (_gate)
         {
-            if (!_observations.TryGetValue(siteId, out var bucket)) return;
+            if (!_observations.TryGetValue(siteKey, out var bucket)) return;
             bucket.LastTouched = NextTouch();
             foreach (var observation in observations) bucket.Pending.Remove(ObservationKey.From(observation));
         }
@@ -72,9 +74,10 @@ public sealed class SiteHealthHistory
     public bool HasPending(string siteId)
     {
         if (string.IsNullOrWhiteSpace(siteId)) return false;
+        var siteKey = NormalizeSiteId(siteId);
         lock (_gate)
         {
-            if (!_observations.TryGetValue(siteId, out var bucket)) return false;
+            if (!_observations.TryGetValue(siteKey, out var bucket)) return false;
             bucket.LastTouched = NextTouch();
             return bucket.Pending.Count > 0;
         }
@@ -83,9 +86,10 @@ public sealed class SiteHealthHistory
     public IReadOnlyList<SiteHealthObservation> Read(string siteId, int limit = 20)
     {
         limit = Math.Clamp(limit, 1, 100);
+        var siteKey = NormalizeSiteId(siteId);
         lock (_gate)
         {
-            if (!_observations.TryGetValue(siteId, out var bucket)) return [];
+            if (!_observations.TryGetValue(siteKey, out var bucket)) return [];
             bucket.LastTouched = NextTouch();
             return bucket.Observations.Reverse().Take(limit).ToArray();
         }
@@ -119,6 +123,9 @@ public sealed class SiteHealthHistory
     }
 
     private long NextTouch() => _touchSequence == long.MaxValue ? long.MaxValue : ++_touchSequence;
+
+    private static string NormalizeSiteId(string? siteId) =>
+        SiteConfigurationValidator.NormalizeId(siteId ?? string.Empty);
 
     private sealed class HistoryBucket(int capacity)
     {

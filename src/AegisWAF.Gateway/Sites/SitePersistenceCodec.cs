@@ -26,13 +26,36 @@ internal static class SitePersistenceCodec
 {
     internal static SitePersistenceRow ToRow(GatewaySite site)
     {
+        ArgumentNullException.ThrowIfNull(site);
+        if (site.Hostnames is null || site.PathPrefixes is null || site.Upstreams is null ||
+            site.RateLimit is null || site.Egress is null)
+            throw new InvalidDataException($"Site {site.Id} contains null required configuration");
+        if (site.Upstreams.Any(x => x is null))
+            throw new InvalidDataException($"Site {site.Id} contains a null upstream");
+        if (site.Egress.AllowedHosts is null || site.Egress.AllowedPorts is null || site.Egress.AllowedSchemes is null)
+            throw new InvalidDataException($"Site {site.Id} contains a null egress collection");
+        foreach (var upstream in site.Upstreams)
+        {
+            var upstreamId = SiteConfigurationValidator.NormalizeUpstreamId(upstream.Id);
+            if (!SiteConfigurationValidator.IsValidUpstreamId(upstreamId))
+                throw new InvalidDataException($"Site {site.Id} upstream {upstream.Id} has an invalid ID");
+            if (!upstream.Address.IsAbsoluteUri ||
+                (upstream.Address.Scheme != Uri.UriSchemeHttp && upstream.Address.Scheme != Uri.UriSchemeHttps))
+                throw new InvalidDataException($"Site {site.Id} upstream {upstream.Id} must be an absolute HTTP(S) URL");
+            if (!string.IsNullOrEmpty(upstream.Address.UserInfo))
+                throw new InvalidDataException($"Site {site.Id} upstream {upstream.Id} must not contain credentials");
+            if (!string.IsNullOrEmpty(upstream.Address.Query) || !string.IsNullOrEmpty(upstream.Address.Fragment))
+                throw new InvalidDataException($"Site {site.Id} upstream {upstream.Id} must not contain a query or fragment; use the base path only");
+            if (upstream.Weight is < 1 or > SiteConfigurationValidator.MaxUpstreamWeight)
+                throw new InvalidDataException($"Site {site.Id} upstream {upstream.Id} weight is outside the allowed range");
+        }
         var health = site.Health ?? new SiteHealthPolicy();
-        return new SitePersistenceRow(
-            site.Id,
+        var row = new SitePersistenceRow(
+            SiteConfigurationValidator.NormalizeId(site.Id),
             site.Enabled,
             site.Hostnames.ToArray(),
             site.PathPrefixes.ToArray(),
-            site.Upstreams.Select(x => x.Id).ToArray(),
+            site.Upstreams.Select(x => SiteConfigurationValidator.NormalizeUpstreamId(x.Id)).ToArray(),
             site.Upstreams.Select(x => x.Address.ToString()).ToArray(),
             site.Upstreams.Select(x => x.Weight).ToArray(),
             site.WafPolicy,
@@ -48,10 +71,15 @@ internal static class SitePersistenceCodec
             site.RateLimit.WindowSeconds,
             site.RateLimit.GlobalRequests,
             site.Version);
+
+        _ = FromRow(row);
+        return row;
     }
 
     internal static GatewaySite FromRow(SitePersistenceRow row)
     {
+        if (row is null)
+            throw new InvalidDataException("Persisted Site row is null");
         var siteId = SiteConfigurationValidator.NormalizeId(row.SiteId ?? "");
         if (!SiteConfigurationValidator.IsValidSiteId(siteId))
             throw new InvalidDataException($"Persisted Site {row.SiteId} has an invalid ID");
@@ -101,15 +129,19 @@ internal static class SitePersistenceCodec
         var upstreams = new SiteUpstream[row.UpstreamIds.Length];
         for (var i = 0; i < row.UpstreamIds.Length; i++)
         {
-            var id = row.UpstreamIds[i]?.Trim() ?? "";
-            if (id.Length == 0 || !ids.Add(id))
+            var id = SiteConfigurationValidator.NormalizeUpstreamId(row.UpstreamIds[i]);
+            if (!SiteConfigurationValidator.IsValidUpstreamId(id))
+                throw new InvalidDataException($"Persisted Site {row.SiteId} upstream {row.UpstreamIds[i]} has an invalid ID");
+            if (!ids.Add(id))
                 throw new InvalidDataException($"Persisted Site {row.SiteId} upstream IDs must be non-empty and unique");
             if (!Uri.TryCreate(row.UpstreamAddresses[i], UriKind.Absolute, out var address) ||
                 (address.Scheme != Uri.UriSchemeHttp && address.Scheme != Uri.UriSchemeHttps))
                 throw new InvalidDataException($"Persisted Site {row.SiteId} upstream {id} must be an absolute HTTP(S) URL");
             if (!string.IsNullOrEmpty(address.UserInfo))
                 throw new InvalidDataException($"Persisted Site {row.SiteId} upstream {id} must not contain credentials");
-            if (row.UpstreamWeights[i] is < 1 or > 10_000)
+            if (!string.IsNullOrEmpty(address.Query) || !string.IsNullOrEmpty(address.Fragment))
+                throw new InvalidDataException($"Persisted Site {row.SiteId} upstream {id} must not contain a query or fragment; use the base path only");
+            if (row.UpstreamWeights[i] is < 1 or > SiteConfigurationValidator.MaxUpstreamWeight)
                 throw new InvalidDataException($"Persisted Site {row.SiteId} upstream {id} weight is outside the allowed range");
             upstreams[i] = new SiteUpstream(id, address, row.UpstreamWeights[i]);
         }

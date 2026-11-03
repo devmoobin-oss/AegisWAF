@@ -61,7 +61,11 @@ public sealed class SiteRegistry
             var index = new Dictionary<string, GatewaySite>(StringComparer.OrdinalIgnoreCase);
             foreach (var site in sites)
             {
-                if (!string.IsNullOrWhiteSpace(site.Id)) index.TryAdd(site.Id, site);
+                if (string.IsNullOrWhiteSpace(site.Id)) continue;
+
+                var normalizedId = SiteConfigurationValidator.NormalizeId(site.Id);
+                if (!index.TryAdd(normalizedId, site))
+                    throw new InvalidDataException($"Site ID {normalizedId} is duplicated in the registry snapshot");
             }
             return index;
         }
@@ -75,7 +79,9 @@ public sealed class SiteRegistry
                 foreach (var hostname in site.Hostnames)
                 {
                     var normalized = SiteConfigurationValidator.NormalizeHostname(hostname);
-                    if (normalized.Length > 0) index.TryAdd(normalized, site);
+                    if (normalized.Length == 0) continue;
+                    if (!index.TryAdd(normalized, site))
+                        throw new InvalidDataException($"Site hostname {normalized} is duplicated in the registry snapshot");
                 }
             }
             return index;

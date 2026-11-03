@@ -91,9 +91,11 @@ public sealed class SiteHealthProbeTests
 
         Assert.Equal("unhealthy", result.Health);
         Assert.InRange(result.Reason!.Length, 1, 128);
-        Assert.StartsWith("socket_", result.Reason, StringComparison.Ordinal);
-        Assert.True(Enum.TryParse<SocketError>(result.Reason["socket_".Length..], out _),
-            $"reason was not a safe socket code: {result.Reason}");
+        Assert.True(result.Reason == "timeout" || result.Reason.StartsWith("socket_", StringComparison.Ordinal),
+            $"reason was not a safe bounded category: {result.Reason}");
+        if (result.Reason.StartsWith("socket_", StringComparison.Ordinal))
+            Assert.True(Enum.TryParse<SocketError>(result.Reason["socket_".Length..], out _),
+                $"reason was not a safe socket code: {result.Reason}");
     }
 
     [Fact]

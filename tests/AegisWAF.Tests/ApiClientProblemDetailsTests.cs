@@ -16,8 +16,22 @@ public sealed class ApiClientProblemDetailsTests
         var error = await Assert.ThrowsAsync<ApiException>(() => client.GetOverviewAsync());
 
         Assert.Equal(503, error.Status);
+        Assert.Equal("site_database_unavailable", error.Code);
         Assert.Equal("Site database unavailable: The Site configuration could not be saved.", error.Message);
         Assert.DoesNotContain("traceId", error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ApiClient_preserves_a_safe_machine_code_for_localized_client_recovery_copy()
+    {
+        using var client = NewClient("""
+            {"title":"Site database unavailable","status":503,"detail":"ตรวจสอบ PostgreSQL","code":"site_database_unavailable"}
+            """);
+
+        var error = await Assert.ThrowsAsync<ApiException>(() => client.GetOverviewAsync());
+
+        Assert.Equal(503, error.Status);
+        Assert.Equal("site_database_unavailable", error.Code);
     }
 
     [Fact]

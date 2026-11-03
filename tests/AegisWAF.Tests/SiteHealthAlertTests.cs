@@ -66,4 +66,31 @@ public sealed class SiteHealthAlertTests
         Assert.Equal("stale-site", comparison[1].SiteId);
         Assert.True(comparison[1].IsStale);
     }
+
+    [Fact]
+    public void Comparison_normalizes_site_ids_before_expected_upstream_count_lookup()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var inputs = new[]
+        {
+            (" SHOP ", (IReadOnlyList<SiteHealthObservation>)[
+                new("primary", "unhealthy", "timeout", now),
+                new("backup", "unhealthy", "timeout", now)])
+        };
+        var expectedUpstreamCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["shop"] = 3
+        };
+
+        var comparison = SiteHealthComparisonCalculator.Calculate(
+            inputs,
+            window: 20,
+            limit: 10,
+            now,
+            expectedUpstreamCounts);
+
+        Assert.Equal(" SHOP ", comparison[0].SiteId);
+        Assert.Equal("degraded", comparison[0].Trend.AlertState);
+        Assert.Equal(0, comparison[0].Trend.ConsecutiveUnhealthy);
+    }
 }

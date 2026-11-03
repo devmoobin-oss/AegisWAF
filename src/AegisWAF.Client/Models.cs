@@ -1,6 +1,5 @@
 namespace AegisWAF.Client;
 
-public sealed record SessionDto(string Username, string Role, int Level, string CsrfToken, bool MustChangePassword);
 public sealed record NameCount(string Name, long Count);
 public sealed record TimelinePoint(string Time, long Requests, long Blocked);
 public sealed record TopIp(string Ip, long Blocked);
@@ -81,20 +80,11 @@ public sealed record CommandCenterTrafficDto(DateTimeOffset Time, string TraceId
     public string SecurityDisplay => string.Join(" • ", new[] { Rule, OwaspCodes.Length == 0 ? null : string.Join(", ", OwaspCodes) }.Where(x => !string.IsNullOrWhiteSpace(x)));
 }
 public sealed record RuleTestResult(bool Matched, string? Rule, string Action, bool DryRun);
-public sealed record UserDto(Guid Id, string Username, string DisplayName, string Role, bool Enabled, bool Locked, bool MustChangePassword,
-    DateTimeOffset CreatedAt, DateTimeOffset? LastLoginAt)
-{
-    public string LastLogin => LastLoginAt?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? "—";
-    public string Status => !Enabled ? "ปิดใช้งาน" : Locked ? "ล็อกชั่วคราว" : "เปิดใช้งาน";
-}
-
-public static class RoleNames
-{
-    public static readonly string[] All = ["VIEWER", "SECURITY_ANALYST", "SECURITY_OPERATOR", "SECURITY_ADMIN", "SUPER_ADMIN"];
-}
 
 /// <summary>Raised for any non-success API response. <see cref="Message"/> is the server's error text when available.</summary>
-public sealed class ApiException(int status, string message) : Exception(message)
+public sealed class ApiException(int status, string message, string? code = null) : Exception(message)
 {
     public int Status { get; } = status;
+    /// <summary>Optional stable server code used by clients for localized recovery guidance.</summary>
+    public string? Code { get; } = string.IsNullOrWhiteSpace(code) ? null : code.Trim();
 }

@@ -7,6 +7,16 @@ namespace AegisWAF.Tests;
 public sealed class SiteConfigurationEditorTests
 {
     [Fact]
+    public void Management_editor_uses_the_shared_site_id_validation_rule()
+    {
+        var root = FindRepoRoot();
+        var source = File.ReadAllText(Path.Combine(root, "src", "AegisWAF.Gateway", "Sites", "SiteConfigurationEditor.cs"));
+
+        Assert.Contains("SiteConfigurationValidator.IsValidSiteId(id)", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("private static readonly Regex IdPattern", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Normalizes_multiple_upstreams_with_weights_and_preserves_policy_fields()
     {
         var request = new SiteManagementRequest(
@@ -80,6 +90,82 @@ public sealed class SiteConfigurationEditorTests
         var site = SiteConfigurationEditor.ToJson(request);
 
         Assert.Equal("/login", site["Health"]!["Path"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void Rejects_upstream_query_strings_and_fragments_at_the_api_boundary()
+    {
+        var request = new SiteManagementRequest(
+            "shop", ["shop.example.com"], ["/"],
+            "https://origin.example.com/base?tenant=secret#fragment", "default",
+            ["origin.example.com"], [443], ["https"], true);
+
+        Assert.False(SiteConfigurationEditor.TryNormalize(request, out _, out var error));
+        Assert.Contains("query or fragment", error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Rejects_unsafe_upstream_ids_at_the_api_boundary()
+    {
+        var request = new SiteManagementRequest(
+            "shop", ["shop.example.com"], ["/"],
+            "https://origin.example.com/", "default",
+            ["origin.example.com"], [443], ["https"], true)
+        {
+            Upstreams = [new SiteUpstreamManagementRequest("primary/one", "https://origin.example.com/")]
+        };
+
+        Assert.False(SiteConfigurationEditor.TryNormalize(request, out _, out var error));
+        Assert.Contains("upstream", error, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("ID", error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Rejects_invalid_hostname_instead_of_silently_dropping_it()
+    {
+        var request = new SiteManagementRequest(
+            "shop", ["shop.example.com", "not a hostname"], ["/"],
+            "https://origin.example.com/", "default",
+            ["origin.example.com"], [443], ["https"], true);
+
+        Assert.False(SiteConfigurationEditor.TryNormalize(request, out _, out var error));
+        Assert.Contains("invalid hostname", error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Rejects_invalid_explicit_egress_entries_instead_of_filtering_them()
+    {
+        var request = new SiteManagementRequest(
+            "shop", ["shop.example.com"], ["/"],
+            "https://origin.example.com/", "default",
+            ["origin.example.com", "*"], [443], ["https"], true);
+
+        Assert.False(SiteConfigurationEditor.TryNormalize(request, out _, out var error));
+        Assert.Contains("egress host", error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Rejects_out_of_range_or_duplicate_egress_ports_at_the_input_boundary()
+    {
+        var request = new SiteManagementRequest(
+            "shop", ["shop.example.com"], ["/"],
+            "https://origin.example.com/", "default",
+            ["origin.example.com"], [443, 443], ["https"], true);
+
+        Assert.False(SiteConfigurationEditor.TryNormalize(request, out _, out var error));
+        Assert.Contains("egress ports", error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Rejects_non_http_egress_schemes_at_the_input_boundary()
+    {
+        var request = new SiteManagementRequest(
+            "shop", ["shop.example.com"], ["/"],
+            "https://origin.example.com/", "default",
+            ["origin.example.com"], [443], ["ftp"], true);
+
+        Assert.False(SiteConfigurationEditor.TryNormalize(request, out _, out var error));
+        Assert.Contains("egress schemes", error, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -189,5 +275,17 @@ public sealed class SiteConfigurationEditorTests
             new SiteConfigurationSnapshot([SiteDatabaseStore.ToGatewaySite(normalized)], false), configuration);
 
         Assert.Contains(errors, error => error.Contains("private egress exceptions", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string FindRepoRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null)
+        {
+            if (File.Exists(Path.Combine(directory.FullName, "AegisWAF.slnx"))) return directory.FullName;
+            directory = directory.Parent;
+        }
+
+        throw new DirectoryNotFoundException("Could not locate the repository root.");
     }
 }

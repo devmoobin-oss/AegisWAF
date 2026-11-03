@@ -51,7 +51,7 @@ public sealed class SiteHealthEffectiveStateTests
         var summaryStart = source.IndexOf("app.MapGet(\"/api/sites/health/summary\"", StringComparison.Ordinal);
         var summaryEnd = source.IndexOf("app.MapPost(\"/api/sites", summaryStart, StringComparison.Ordinal);
         Assert.True(summaryStart >= 0 && summaryEnd > summaryStart);
-        Assert.Contains("effectiveAlertState = HealthAlertLifecycle.EffectiveAlertState(item)", source[summaryStart..summaryEnd], StringComparison.Ordinal);
+        Assert.Contains("effectiveAlertState = pendingRestart ? \"pending-restart\" : HealthAlertLifecycle.EffectiveAlertState(item)", source[summaryStart..summaryEnd], StringComparison.Ordinal);
 
         var acknowledgeStart = source.IndexOf("app.MapPost(\"/api/sites/{id}/health/alerts/acknowledge\"", StringComparison.Ordinal);
         var acknowledgeEnd = source.IndexOf("app.MapGet(\"/api/sites/health/summary\"", acknowledgeStart, StringComparison.Ordinal);

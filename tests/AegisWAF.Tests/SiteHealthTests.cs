@@ -32,6 +32,45 @@ public sealed class SiteHealthTests
     }
 
     [Fact]
+    public void Honors_the_configured_weight_above_the_legacy_thousand_limit()
+    {
+        var site = Site(
+            new SiteUpstream("primary", new Uri("https://primary.example.com/"), 10_000),
+            new SiteUpstream("secondary", new Uri("https://secondary.example.com/"), 1));
+        var health = new SiteHealthRegistry();
+        health.MarkHealthy(site.Id, "primary");
+        health.MarkHealthy(site.Id, "secondary");
+
+        var selected = Enumerable.Range(0, 1_001)
+            .Select(_ => health.Select(site)!.Id)
+            .ToArray();
+
+        Assert.All(selected, id => Assert.Equal("primary", id));
+    }
+
+    [Fact]
+    public void Normalizes_site_and_upstream_health_state_keys()
+    {
+        var site = Site(new SiteUpstream("primary", new Uri("https://primary.example.com/")));
+        var health = new SiteHealthRegistry();
+
+        health.MarkUnhealthy(" SITE-A ", " PRIMARY ", "timeout");
+
+        Assert.Equal("timeout", health.Get("site-a", "primary")?.Reason);
+        Assert.Null(health.Select(site));
+    }
+
+    [Fact]
+    public void Select_normalizes_the_site_upstream_id_before_health_state_lookup()
+    {
+        var site = Site(new SiteUpstream(" PRIMARY ", new Uri("https://primary.example.com/")));
+        var health = new SiteHealthRegistry();
+        health.MarkUnhealthy(site.Id, "primary", "timeout");
+
+        Assert.Null(health.Select(site));
+    }
+
+    [Fact]
     public void Returns_no_upstream_when_all_are_unhealthy()
     {
         var site = Site(new SiteUpstream("primary", new Uri("https://primary.example.com/")));

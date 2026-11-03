@@ -16,9 +16,12 @@ public static class SiteConfigurationValidator
     internal const int MaxHostnamesPerSite = 32;
     internal const int MaxPathPrefixesPerSite = 64;
     internal const int MaxUpstreamsPerSite = 32;
+    internal const int MaxUpstreamWeight = 10_000;
     internal const int MaxEgressHostsPerSite = 64;
     internal const int MaxEgressPortsPerSite = 32;
     internal const int MaxEgressSchemesPerSite = 4;
+    private static readonly System.Text.RegularExpressions.Regex UpstreamIdPattern =
+        new("^[a-z0-9][a-z0-9_-]{0,63}$", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
 
     public static IReadOnlyList<string> Validate(IConfiguration configuration)
     {
@@ -43,6 +46,7 @@ public static class SiteConfigurationValidator
             errors.Add($"Configuration may contain at most {maxSites} Sites");
 
         var activeHostnames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var siteIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var configuredPolicies = configuration.GetSection("Waf:Policies").GetChildren()
             .Select(x => x.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var activeSites = 0;
@@ -51,6 +55,8 @@ public static class SiteConfigurationValidator
             var id = NormalizeId(site.Key);
             if (!RegexPatterns.SiteId.IsMatch(id))
                 errors.Add($"Site {site.Key} has an invalid ID");
+            else if (!siteIds.Add(id))
+                errors.Add($"Site ID {id} is duplicated after normalization");
             var enabled = site.GetValue("Enabled", true);
             if (!enabled) continue;
             activeSites++;
@@ -83,16 +89,24 @@ public static class SiteConfigurationValidator
             else if (upstreamSections.Length > MaxUpstreamsPerSite)
                 errors.Add($"Site {id} may contain at most {MaxUpstreamsPerSite} upstreams");
 
+            var upstreamIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var upstream in upstreamSections)
             {
+                var upstreamId = NormalizeUpstreamId(upstream["Id"] ?? upstream.Key);
+                if (!UpstreamIdPattern.IsMatch(upstreamId))
+                    errors.Add($"Site {id} upstream {upstream["Id"] ?? upstream.Key} has an invalid ID");
+                else if (!upstreamIds.Add(upstreamId))
+                    errors.Add($"Site {id} upstream IDs must be non-empty and unique");
                 var address = upstream["Address"];
                 if (!Uri.TryCreate(address, UriKind.Absolute, out var uri) ||
                     (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
                     errors.Add($"Site {id} upstream {upstream.Key} must be an absolute HTTP(S) URL");
                 if (uri is not null && !string.IsNullOrEmpty(uri.UserInfo))
                     errors.Add($"Site {id} upstream {upstream.Key} must not contain credentials");
-                if (enforcing && upstream.GetValue("Weight", 100) is < 1 or > 10_000)
-                    errors.Add($"Site {id} upstream {upstream.Key} weight must be between 1 and 10000");
+                if (uri is not null && (!string.IsNullOrEmpty(uri.Query) || !string.IsNullOrEmpty(uri.Fragment)))
+                    errors.Add($"Site {id} upstream {upstream.Key} must not contain a query or fragment; use the base path only");
+                if (upstream.GetValue("Weight", 100) is < 1 or > MaxUpstreamWeight)
+                    errors.Add($"Site {id} upstream {upstream.Key} weight must be between 1 and {MaxUpstreamWeight}");
                 if (enforcing && uri is not null && IPAddress.TryParse(uri.Host, out var literal) && IsDisallowedLiteral(literal))
                     errors.Add($"Site {id} upstream {upstream.Key} must not target a private, loopback, metadata, multicast, or special-use IP literal");
             }
@@ -150,7 +164,7 @@ public static class SiteConfigurationValidator
                     if (!Uri.TryCreate(upstream["Address"], UriKind.Absolute, out var uri)) continue;
                     if (!string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
                         errors.Add($"Site {id} upstream {upstream.Key} must use HTTPS in Production");
-                    if (!allowedHosts.Contains(uri.Host, StringComparer.OrdinalIgnoreCase) || !allowedPorts.Contains(uri.Port) ||
+                    if (!normalizedEgressHosts.Contains(NormalizeHostname(uri.Host), StringComparer.OrdinalIgnoreCase) || !allowedPorts.Contains(uri.Port) ||
                         !allowedSchemes.Contains(uri.Scheme, StringComparer.OrdinalIgnoreCase))
                         errors.Add($"Site {id} egress policy must cover upstream {upstream.Key}");
                 }
@@ -209,6 +223,7 @@ public static class SiteConfigurationValidator
         var configuredPolicies = configuration.GetSection("Waf:Policies").GetChildren()
             .Select(x => x.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var activeHostnames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var siteIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var sites = snapshot.Sites ?? [];
         var maxSites = ResolveMaxSites(configuration);
         var maxGeneratedRoutes = ResolveMaxGeneratedRoutes(configuration);
@@ -223,6 +238,8 @@ public static class SiteConfigurationValidator
             var id = NormalizeId(site.Id ?? "");
             if (!RegexPatterns.SiteId.IsMatch(id))
                 errors.Add($"Site {site.Id} has an invalid ID");
+            else if (!siteIds.Add(id))
+                errors.Add($"Site ID {id} is duplicated after normalization");
 
             if (!site.Enabled)
                 continue;
@@ -269,7 +286,10 @@ public static class SiteConfigurationValidator
             var upstreamIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var upstream in site.Upstreams ?? [])
             {
-                if (string.IsNullOrWhiteSpace(upstream.Id) || !upstreamIds.Add(upstream.Id.Trim()))
+                var upstreamId = NormalizeUpstreamId(upstream.Id);
+                if (!UpstreamIdPattern.IsMatch(upstreamId))
+                    errors.Add($"Site {id} upstream {upstream.Id} has an invalid ID");
+                else if (!upstreamIds.Add(upstreamId))
                     errors.Add($"Site {id} upstream IDs must be non-empty and unique");
                 var address = upstream.Address;
                 if (address is null || !address.IsAbsoluteUri ||
@@ -279,8 +299,10 @@ public static class SiteConfigurationValidator
                 {
                     if (!string.IsNullOrEmpty(address.UserInfo))
                         errors.Add($"Site {id} upstream {upstream.Id} must not contain credentials");
-                    if (upstream.Weight is < 1 or > 10_000)
-                        errors.Add($"Site {id} upstream {upstream.Id} weight must be between 1 and 10000");
+                    if (!string.IsNullOrEmpty(address.Query) || !string.IsNullOrEmpty(address.Fragment))
+                        errors.Add($"Site {id} upstream {upstream.Id} must not contain a query or fragment; use the base path only");
+                    if (upstream.Weight is < 1 or > MaxUpstreamWeight)
+                        errors.Add($"Site {id} upstream {upstream.Id} weight must be between 1 and {MaxUpstreamWeight}");
                     if (enforcing && IPAddress.TryParse(address.Host, out var literal) && IsDisallowedLiteral(literal))
                         errors.Add($"Site {id} upstream {upstream.Id} must not target a private, loopback, metadata, multicast, or special-use IP literal");
                 }
@@ -336,7 +358,7 @@ public static class SiteConfigurationValidator
                         if (upstream.Address is null) continue;
                         if (!string.Equals(upstream.Address.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
                             errors.Add($"Site {id} upstream {upstream.Id} must use HTTPS in Production");
-                        if (!allowedHosts.Contains(upstream.Address.Host, StringComparer.OrdinalIgnoreCase) ||
+                        if (!normalizedEgressHosts.Contains(NormalizeHostname(upstream.Address.Host), StringComparer.OrdinalIgnoreCase) ||
                             !allowedPorts.Contains(upstream.Address.Port) ||
                             !allowedSchemes.Contains(upstream.Address.Scheme, StringComparer.OrdinalIgnoreCase))
                             errors.Add($"Site {id} egress policy must cover upstream {upstream.Id}");
@@ -391,6 +413,12 @@ public static class SiteConfigurationValidator
 
     internal static string NormalizeId(string value) =>
         value.Trim().ToLowerInvariant();
+
+    internal static string NormalizeUpstreamId(string? value) =>
+        (value ?? string.Empty).Trim().ToLowerInvariant();
+
+    internal static bool IsValidUpstreamId(string? value) =>
+        UpstreamIdPattern.IsMatch(NormalizeUpstreamId(value));
 
     internal static bool IsValidSiteId(string value) =>
         RegexPatterns.SiteId.IsMatch(NormalizeId(value));
@@ -472,12 +500,18 @@ public static class SiteConfigurationLoader
         var upstreams = section.GetSection("Upstreams").GetChildren().Select(x =>
         {
             var address = new Uri(x["Address"]!, UriKind.Absolute);
-            return new SiteUpstream(x.Key, address, Math.Clamp(x.GetValue("Weight", 100), 1, 10_000));
+            return new SiteUpstream(SiteConfigurationValidator.NormalizeUpstreamId(x["Id"] ?? x.Key), address, x.GetValue("Weight", 100));
         }).ToArray();
+        var configuredEgressHosts = section.GetSection("Egress:AllowedHosts").Get<string[]>();
+        var configuredEgressSchemes = section.GetSection("Egress:AllowedSchemes").Get<string[]>();
         var egress = new SiteEgressPolicy(
-            section.GetSection("Egress:AllowedHosts").Get<string[]>() ?? upstreams.Select(x => x.Address.Host).Distinct(StringComparer.OrdinalIgnoreCase).ToArray(),
+            configuredEgressHosts is null
+                ? upstreams.Select(x => x.Address.Host).Distinct(StringComparer.OrdinalIgnoreCase).ToArray()
+                : configuredEgressHosts.Select(SiteConfigurationValidator.NormalizeHostname).ToArray(),
             section.GetSection("Egress:AllowedPorts").Get<int[]>() ?? upstreams.Select(x => x.Address.Port).Distinct().ToArray(),
-            section.GetSection("Egress:AllowedSchemes").Get<string[]>() ?? upstreams.Select(x => x.Address.Scheme).Distinct(StringComparer.OrdinalIgnoreCase).ToArray(),
+            configuredEgressSchemes is null
+                ? upstreams.Select(x => x.Address.Scheme).Distinct(StringComparer.OrdinalIgnoreCase).ToArray()
+                : configuredEgressSchemes.Select(x => (x ?? string.Empty).Trim().ToLowerInvariant()).ToArray(),
             section.GetValue("Egress:AllowPrivateExceptions", false));
         return new GatewaySite(
             SiteConfigurationValidator.NormalizeId(section.Key),

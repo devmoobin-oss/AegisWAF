@@ -71,16 +71,16 @@ public sealed class SiteHealthProbe : IDisposable
                     using var request = new HttpRequestMessage(HttpMethod.Get, probeUri);
                     using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
                     var healthy = response.IsSuccessStatusCode;
-                    return new SiteHealthProbeResult(upstream.Id, upstream.Address.ToString(), healthy ? "healthy" : "unhealthy",
+                    return new SiteHealthProbeResult(upstream.Id, SafeDisplayAddress(upstream.Address), healthy ? "healthy" : "unhealthy",
                         healthy ? null : "http_" + (int)response.StatusCode, checkedAt);
                 }
                 catch (OperationCanceledException) when (!ct.IsCancellationRequested)
                 {
-                    return new SiteHealthProbeResult(upstream.Id, upstream.Address.ToString(), "unhealthy", "timeout", checkedAt);
+                    return new SiteHealthProbeResult(upstream.Id, SafeDisplayAddress(upstream.Address), "unhealthy", "timeout", checkedAt);
                 }
                 catch (HttpRequestException ex)
                 {
-                    return new SiteHealthProbeResult(upstream.Id, upstream.Address.ToString(), "unhealthy", SafeFailureReason(ex), checkedAt);
+                    return new SiteHealthProbeResult(upstream.Id, SafeDisplayAddress(upstream.Address), "unhealthy", SafeFailureReason(ex), checkedAt);
                 }
             }
             finally
@@ -95,7 +95,14 @@ public sealed class SiteHealthProbe : IDisposable
     internal static Uri BuildProbeUri(Uri upstream, string path)
     {
         var normalizedPath = string.IsNullOrWhiteSpace(path) ? "/" : path.StartsWith('/') ? path : "/" + path;
-        return new Uri(upstream.GetLeftPart(UriPartial.Authority) + normalizedPath, UriKind.Absolute);
+        return new Uri($"{upstream.Scheme}://{upstream.Authority}{normalizedPath}", UriKind.Absolute);
+    }
+
+    /// <summary>Returns the route address without user-info, query, or fragment data.</summary>
+    internal static string SafeDisplayAddress(Uri address)
+    {
+        ArgumentNullException.ThrowIfNull(address);
+        return $"{address.Scheme}://{address.Authority}{address.AbsolutePath}";
     }
 
     internal static string SafeFailureReason(HttpRequestException ex)

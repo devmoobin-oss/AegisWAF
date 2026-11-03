@@ -24,7 +24,7 @@ public sealed class SiteHealthRegistry
         {
             var bucket = GetOrCreateSite(siteId);
             bucket.LastTouched = NextTouch();
-            bucket.States[upstreamId ?? string.Empty] = new(true, DateTimeOffset.UtcNow, null);
+            bucket.States[NormalizeUpstreamId(upstreamId)] = new(true, DateTimeOffset.UtcNow, null);
         }
     }
 
@@ -34,7 +34,7 @@ public sealed class SiteHealthRegistry
         {
             var bucket = GetOrCreateSite(siteId);
             bucket.LastTouched = NextTouch();
-            bucket.States[upstreamId ?? string.Empty] = new(false, DateTimeOffset.UtcNow, reason.Length > 128 ? reason[..128] : reason);
+            bucket.States[NormalizeUpstreamId(upstreamId)] = new(false, DateTimeOffset.UtcNow, reason.Length > 128 ? reason[..128] : reason);
         }
     }
 
@@ -42,8 +42,8 @@ public sealed class SiteHealthRegistry
     {
         lock (_gate)
         {
-            if (!_sites.TryGetValue(siteId ?? string.Empty, out var bucket) ||
-                !bucket.States.TryGetValue(upstreamId ?? string.Empty, out var state)) return null;
+            if (!_sites.TryGetValue(NormalizeSiteId(siteId), out var bucket) ||
+                !bucket.States.TryGetValue(NormalizeUpstreamId(upstreamId), out var state)) return null;
             bucket.LastTouched = NextTouch();
             return state;
         }
@@ -56,16 +56,16 @@ public sealed class SiteHealthRegistry
             var bucket = GetOrCreateSite(site.Id);
             bucket.LastTouched = NextTouch();
             var healthy = site.Upstreams
-                .Where(upstream => !bucket.States.TryGetValue(upstream.Id, out var state) || state.Healthy)
+                .Where(upstream => !bucket.States.TryGetValue(SiteConfigurationValidator.NormalizeUpstreamId(upstream.Id), out var state) || state.Healthy)
                 .ToArray();
             if (healthy.Length == 0) return null;
 
-            var totalWeight = healthy.Sum(x => Math.Clamp(x.Weight, 1, 1_000));
+            var totalWeight = healthy.Sum(x => Math.Clamp(x.Weight, 1, SiteConfigurationValidator.MaxUpstreamWeight));
             var offset = bucket.Cursor % totalWeight;
             bucket.Cursor = (offset + 1) % totalWeight;
             foreach (var upstream in healthy)
             {
-                var weight = Math.Clamp(upstream.Weight, 1, 1_000);
+                var weight = Math.Clamp(upstream.Weight, 1, SiteConfigurationValidator.MaxUpstreamWeight);
                 if (offset < weight) return upstream;
                 offset -= weight;
             }
@@ -75,7 +75,7 @@ public sealed class SiteHealthRegistry
 
     private SiteBucket GetOrCreateSite(string siteId)
     {
-        var key = siteId ?? string.Empty;
+        var key = NormalizeSiteId(siteId);
         if (_sites.TryGetValue(key, out var existing)) return existing;
 
         if (_sites.Count >= _maxSites)
@@ -93,8 +93,14 @@ public sealed class SiteHealthRegistry
 
     private sealed class SiteBucket
     {
-        public Dictionary<string, SiteHealthState> States { get; } = new(StringComparer.Ordinal);
+        public Dictionary<string, SiteHealthState> States { get; } = new(StringComparer.OrdinalIgnoreCase);
         public long LastTouched { get; set; }
         public int Cursor { get; set; }
     }
+
+    private static string NormalizeSiteId(string? siteId) =>
+        SiteConfigurationValidator.NormalizeId(siteId ?? string.Empty);
+
+    private static string NormalizeUpstreamId(string? upstreamId) =>
+        (upstreamId ?? string.Empty).Trim().ToLowerInvariant();
 }

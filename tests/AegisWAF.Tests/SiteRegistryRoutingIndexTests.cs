@@ -31,6 +31,31 @@ public sealed class SiteRegistryRoutingIndexTests
     }
 
     [Fact]
+    public void Registry_rejects_duplicate_site_ids_instead_of_silently_dropping_one()
+    {
+        var first = Site(" Site-A ", "app-a.example.test", ["/"]);
+        var second = Site("site-a", "app-b.example.test", ["/"]);
+
+        var exception = Assert.Throws<InvalidDataException>(() =>
+            new SiteRegistry(new SiteConfigurationSnapshot([first, second], false)));
+
+        Assert.Contains("duplicate", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Registry_rejects_duplicate_active_hostnames_instead_of_silently_dropping_one()
+    {
+        var first = Site("site-a", " APP-A.example.test. ", ["/"]);
+        var second = Site("site-b", "app-a.example.test", ["/"]);
+
+        var exception = Assert.Throws<InvalidDataException>(() =>
+            new SiteRegistry(new SiteConfigurationSnapshot([first, second], false)));
+
+        Assert.Contains("hostname", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("duplicate", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void Registry_source_builds_and_consumes_a_hostname_index()
     {
         var root = FindRepoRoot();

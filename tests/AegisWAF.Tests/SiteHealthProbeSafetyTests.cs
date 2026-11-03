@@ -7,6 +7,25 @@ namespace AegisWAF.Tests;
 public sealed class SiteHealthProbeSafetyTests
 {
     [Fact]
+    public void Probe_display_address_omits_upstream_credentials()
+    {
+        var safe = SiteHealthProbe.SafeDisplayAddress(new Uri("https://health-user:health-password@example.test:8443/ready"));
+
+        Assert.Equal("https://example.test:8443/ready", safe);
+        Assert.DoesNotContain("health-user", safe, StringComparison.Ordinal);
+        Assert.DoesNotContain("health-password", safe, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Probe_request_uri_omits_upstream_credentials()
+    {
+        var probe = SiteHealthProbe.BuildProbeUri(new Uri("https://health-user:health-password@example.test:8443/base"), "/ready");
+
+        Assert.Equal("https://example.test:8443/ready", probe.AbsoluteUri);
+        Assert.Empty(probe.UserInfo);
+    }
+
+    [Fact]
     public void Generic_failure_reason_never_echoes_exception_details()
     {
         var exception = new HttpRequestException(

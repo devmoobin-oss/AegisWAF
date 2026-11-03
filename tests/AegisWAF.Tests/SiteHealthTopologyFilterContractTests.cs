@@ -23,7 +23,7 @@ public sealed class SiteHealthTopologyFilterContractTests
 
         Assert.Contains("FilterToCurrentUpstreams", acknowledge, StringComparison.Ordinal);
         Assert.Contains("FilterToCurrentUpstreams", summary, StringComparison.Ordinal);
-        Assert.Contains("ListHealthHistoryBySiteAsync(siteIds, SiteHealthTrendCalculator.MaxWindow", summary, StringComparison.Ordinal);
+        Assert.Contains("ListHealthHistoryBySiteAsync(activeSiteIds, SiteHealthTrendCalculator.MaxWindow", summary, StringComparison.Ordinal);
     }
 
     private static string Endpoint(string startMarker, string endMarker)

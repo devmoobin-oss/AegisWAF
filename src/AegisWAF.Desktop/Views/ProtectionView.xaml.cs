@@ -12,13 +12,12 @@ namespace AegisWAF.Desktop.Views;
 public partial class ProtectionView : UserControl, IPage
 {
     private readonly ApiClient _api;
-    private readonly bool _canTest;
+    private const bool _canTest = true;
 
     public ProtectionView(ApiClient api)
     {
         InitializeComponent();
         _api = api;
-        _canTest = api.Session!.Level >= 2; // the sandbox endpoint requires SECURITY_ANALYST on the server
         Build();
     }
 

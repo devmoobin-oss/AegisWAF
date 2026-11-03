@@ -106,4 +106,20 @@ public sealed class SiteHealthHistoryTests
         history.MarkPersisted("shop", [observation]);
         Assert.False(history.HasPending("shop"));
     }
+
+    [Fact]
+    public void Normalizes_site_ids_for_history_and_pending_state()
+    {
+        var history = new SiteHealthHistory();
+        var now = DateTimeOffset.UtcNow;
+        var probe = new SiteHealthProbeResult("primary", "origin", "unhealthy", "timeout", now);
+        var observation = new SiteHealthObservation("primary", "unhealthy", "timeout", now);
+
+        history.Record(" SHOP ", [probe]);
+
+        Assert.True(history.HasPending("shop"));
+        Assert.Single(history.Read("shop"));
+        history.MarkPersisted(" shop ", [observation]);
+        Assert.False(history.HasPending("SHOP"));
+    }
 }

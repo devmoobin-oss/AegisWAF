@@ -24,10 +24,11 @@ public static class SiteHealthTrendCalculator
         ArgumentNullException.ThrowIfNull(observations);
         ArgumentNullException.ThrowIfNull(currentUpstreamIds);
         var current = currentUpstreamIds
-            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(NormalizeUpstreamId)
+            .Where(x => x.Length > 0)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         return observations
-            .Where(x => current.Contains(x.UpstreamId))
+            .Where(x => current.Contains(NormalizeUpstreamId(x.UpstreamId)))
             .ToArray();
     }
 
@@ -46,7 +47,7 @@ public static class SiteHealthTrendCalculator
         var unknown = selected.Length - healthy - unhealthy;
         var expected = expectedUpstreamCount > 0
             ? expectedUpstreamCount
-            : selected.Select(x => x.UpstreamId).Distinct(StringComparer.OrdinalIgnoreCase).Count();
+            : selected.Select(x => NormalizeUpstreamId(x.UpstreamId)).Distinct(StringComparer.OrdinalIgnoreCase).Count();
         var batches = selected
             .GroupBy(x => NormalizeBatchTimestamp(x.CheckedAt))
             .OrderByDescending(x => x.Key)
@@ -73,12 +74,12 @@ public static class SiteHealthTrendCalculator
             .Where(x => NormalizeBatchTimestamp(x.CheckedAt) < latestBatchKey &&
             (string.Equals(x.Health, "unhealthy", StringComparison.OrdinalIgnoreCase) ||
              string.Equals(x.Health, "unknown", StringComparison.OrdinalIgnoreCase)))
-            .Select(x => x.UpstreamId)
+            .Select(x => NormalizeUpstreamId(x.UpstreamId))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
         var latestHealthyUpstreams = latestBatch
             .Where(x => string.Equals(x.Health, "healthy", StringComparison.OrdinalIgnoreCase))
-            .Select(x => x.UpstreamId)
+            .Select(x => NormalizeUpstreamId(x.UpstreamId))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var historicalFailuresRecovered = historicalFailureUpstreams.Length > 0 &&
             historicalFailureUpstreams.All(latestHealthyUpstreams.Contains);
@@ -98,10 +99,13 @@ public static class SiteHealthTrendCalculator
     }
 
     private static bool IsCompleteBatch(IReadOnlyList<SiteHealthObservation> batch, int expected) =>
-        expected > 0 && batch.Select(x => x.UpstreamId).Distinct(StringComparer.OrdinalIgnoreCase).Count() >= expected;
+        expected > 0 && batch.Select(x => NormalizeUpstreamId(x.UpstreamId)).Distinct(StringComparer.OrdinalIgnoreCase).Count() >= expected;
 
     private static bool IsCompleteFailedBatch(IReadOnlyList<SiteHealthObservation> batch, int expected) =>
         IsCompleteBatch(batch, expected) && batch.All(x => string.Equals(x.Health, "unhealthy", StringComparison.OrdinalIgnoreCase));
+
+    private static string NormalizeUpstreamId(string? upstreamId) =>
+        (upstreamId ?? string.Empty).Trim();
 
     private static DateTimeOffset NormalizeBatchTimestamp(DateTimeOffset value)
     {

@@ -11,7 +11,7 @@ public sealed class SiteSingleReadEfficiencyContractTests
 
         Assert.Contains("Task<GatewaySite?> FindByIdAsync", source, StringComparison.Ordinal);
         Assert.Contains("WHERE site_id=@site_id", source, StringComparison.Ordinal);
-        Assert.Contains("cmd.Parameters.AddWithValue(\"site_id\", siteId)", source, StringComparison.Ordinal);
+        Assert.Contains("cmd.Parameters.AddWithValue(\"site_id\", normalizedSiteId)", source, StringComparison.Ordinal);
     }
 
     [Fact]

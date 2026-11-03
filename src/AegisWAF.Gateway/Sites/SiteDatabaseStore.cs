@@ -64,9 +64,10 @@ public sealed class SiteDatabaseStore(IConfiguration configuration)
 
     public async Task<GatewaySite?> FindByIdAsync(string siteId, CancellationToken ct)
     {
+        var normalizedSiteId = SiteConfigurationValidator.NormalizeId(siteId);
         await using var db = await OpenAsync(ct);
         await using var cmd = new NpgsqlCommand(SelectSql + " WHERE site_id=@site_id", db);
-        cmd.Parameters.AddWithValue("site_id", siteId);
+        cmd.Parameters.AddWithValue("site_id", normalizedSiteId);
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         return await reader.ReadAsync(ct) ? ReadSite(reader) : null;
     }
@@ -80,25 +81,29 @@ public sealed class SiteDatabaseStore(IConfiguration configuration)
     {
         var db = await OpenAsync(ct);
         using var budget = SiteMutationLockPolicy.CreateBudget(ct);
+        NpgsqlTransaction? tx = null;
         try
         {
+            tx = await db.BeginTransactionAsync(budget.Token);
             while (true)
             {
                 await using var command = new NpgsqlCommand(
-                    "SELECT pg_try_advisory_lock(hashtextextended(@lock_key, 0))", db);
+                    "SELECT pg_try_advisory_xact_lock(hashtextextended(@lock_key, 0))", db, tx);
                 command.Parameters.AddWithValue("lock_key", SiteMutationLockKey);
                 if (Convert.ToBoolean(await command.ExecuteScalarAsync(budget.Token)))
-                    return new SiteMutationLockLease(db);
+                    return new SiteMutationLockLease(db, tx);
                 await Task.Delay(SiteMutationLockPolicy.PollInterval, budget.Token);
             }
         }
         catch (OperationCanceledException) when (SiteMutationLockPolicy.IsBudgetCancellation(ct, budget.Token))
         {
+            if (tx is not null) await tx.DisposeAsync();
             await db.DisposeAsync();
             throw new SiteMutationLockTimeoutException();
         }
         catch
         {
+            if (tx is not null) await tx.DisposeAsync();
             await db.DisposeAsync();
             throw;
         }
@@ -107,6 +112,7 @@ public sealed class SiteDatabaseStore(IConfiguration configuration)
     public async Task RecordHealthHistoryAsync(string siteId, IReadOnlyList<SiteHealthObservation> observations, CancellationToken ct)
     {
         if (observations.Count == 0) return;
+        var normalizedSiteId = SiteConfigurationValidator.NormalizeId(siteId);
         await using var db = await OpenAsync(ct);
         await using var tx = await db.BeginTransactionAsync(ct);
         await using var batch = new NpgsqlBatch(db, tx);
@@ -116,7 +122,7 @@ public sealed class SiteDatabaseStore(IConfiguration configuration)
                 INSERT INTO waf_site_health_observations(site_id, upstream_id, health, reason, checked_at)
                 VALUES (@site_id, @upstream_id, @health, @reason, @checked_at)
                 """);
-            insert.Parameters.AddWithValue("site_id", siteId);
+            insert.Parameters.AddWithValue("site_id", normalizedSiteId);
             insert.Parameters.AddWithValue("upstream_id", observation.UpstreamId);
             insert.Parameters.AddWithValue("health", observation.Health);
             insert.Parameters.AddWithValue("reason", (object?)observation.Reason ?? DBNull.Value);
@@ -134,7 +140,7 @@ public sealed class SiteDatabaseStore(IConfiguration configuration)
                   LIMIT 64)
             """, db, tx))
         {
-            trim.Parameters.AddWithValue("site_id", siteId);
+            trim.Parameters.AddWithValue("site_id", normalizedSiteId);
             await trim.ExecuteNonQueryAsync(ct);
         }
         await tx.CommitAsync(ct);
@@ -143,6 +149,7 @@ public sealed class SiteDatabaseStore(IConfiguration configuration)
     public async Task<IReadOnlyList<SiteHealthObservation>> ListHealthHistoryAsync(string siteId, int limit, CancellationToken ct)
     {
         limit = Math.Clamp(limit, 1, 100);
+        var normalizedSiteId = SiteConfigurationValidator.NormalizeId(siteId);
         await using var db = await OpenAsync(ct);
         await using var cmd = new NpgsqlCommand("""
             SELECT upstream_id, health, reason, checked_at
@@ -151,7 +158,7 @@ public sealed class SiteDatabaseStore(IConfiguration configuration)
             ORDER BY checked_at DESC, observation_id DESC
             LIMIT @limit
             """, db);
-        cmd.Parameters.AddWithValue("site_id", siteId);
+        cmd.Parameters.AddWithValue("site_id", normalizedSiteId);
         cmd.Parameters.AddWithValue("limit", limit);
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         var result = new List<SiteHealthObservation>();
@@ -165,6 +172,8 @@ public sealed class SiteDatabaseStore(IConfiguration configuration)
     {
         if (siteIds.Count == 0) return new Dictionary<string, IReadOnlyList<SiteHealthObservation>>(StringComparer.OrdinalIgnoreCase);
         limit = Math.Clamp(limit, 1, SiteHealthTrendCalculator.MaxWindow);
+        var normalizedSiteIds = siteIds.Select(SiteConfigurationValidator.NormalizeId)
+            .Distinct(StringComparer.OrdinalIgnoreCase).Take(100).ToArray();
         await using var db = await OpenAsync(ct);
         await using var cmd = new NpgsqlCommand("""
             SELECT site_id, upstream_id, health, reason, checked_at
@@ -177,7 +186,7 @@ public sealed class SiteDatabaseStore(IConfiguration configuration)
             WHERE row_number <= @limit
             ORDER BY site_id, checked_at DESC
             """, db);
-        cmd.Parameters.AddWithValue("site_ids", siteIds.Distinct(StringComparer.OrdinalIgnoreCase).Take(100).ToArray());
+        cmd.Parameters.AddWithValue("site_ids", normalizedSiteIds);
         cmd.Parameters.AddWithValue("limit", limit);
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         var result = new Dictionary<string, List<SiteHealthObservation>>(StringComparer.OrdinalIgnoreCase);
@@ -192,23 +201,26 @@ public sealed class SiteDatabaseStore(IConfiguration configuration)
 
     public async Task<SiteHealthAlertAcknowledgement?> GetHealthAlertAcknowledgementAsync(string siteId, string alertState, CancellationToken ct)
     {
+        var normalizedSiteId = SiteConfigurationValidator.NormalizeId(siteId);
         await using var db = await OpenAsync(ct);
         await using var cmd = new NpgsqlCommand("""
             SELECT acknowledged_at, acknowledged_until, acknowledged_by
             FROM waf_site_health_alerts
             WHERE site_id=@site_id AND alert_state=@alert_state
             """, db);
-        cmd.Parameters.AddWithValue("site_id", siteId);
+        cmd.Parameters.AddWithValue("site_id", normalizedSiteId);
         cmd.Parameters.AddWithValue("alert_state", alertState);
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         if (!await reader.ReadAsync(ct)) return null;
-        return new SiteHealthAlertAcknowledgement(siteId, alertState, reader.GetFieldValue<DateTimeOffset>(0), reader.GetFieldValue<DateTimeOffset>(1), reader.GetString(2));
+        return new SiteHealthAlertAcknowledgement(normalizedSiteId, alertState, reader.GetFieldValue<DateTimeOffset>(0), reader.GetFieldValue<DateTimeOffset>(1), reader.GetString(2));
     }
 
     public async Task<IReadOnlyDictionary<string, IReadOnlyList<SiteHealthAlertAcknowledgement>>> ListHealthAlertAcknowledgementsAsync(
         IReadOnlyList<string> siteIds, CancellationToken ct)
     {
         if (siteIds.Count == 0) return new Dictionary<string, IReadOnlyList<SiteHealthAlertAcknowledgement>>(StringComparer.OrdinalIgnoreCase);
+        var normalizedSiteIds = siteIds.Select(SiteConfigurationValidator.NormalizeId)
+            .Distinct(StringComparer.OrdinalIgnoreCase).Take(100).ToArray();
         await using var db = await OpenAsync(ct);
         await using var cmd = new NpgsqlCommand("""
             SELECT site_id, alert_state, acknowledged_at, acknowledged_until, acknowledged_by
@@ -216,7 +228,7 @@ public sealed class SiteDatabaseStore(IConfiguration configuration)
             WHERE site_id = ANY(@site_ids)
             ORDER BY site_id, alert_state
             """, db);
-        cmd.Parameters.AddWithValue("site_ids", siteIds.Distinct(StringComparer.OrdinalIgnoreCase).Take(100).ToArray());
+        cmd.Parameters.AddWithValue("site_ids", normalizedSiteIds);
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         var result = new Dictionary<string, List<SiteHealthAlertAcknowledgement>>(StringComparer.OrdinalIgnoreCase);
         while (await reader.ReadAsync(ct))
@@ -241,6 +253,7 @@ public sealed class SiteDatabaseStore(IConfiguration configuration)
     {
         if (!HealthAlertLifecycle.IsActionable(alertState)) throw new ArgumentException("Only degraded or critical alerts can be acknowledged", nameof(alertState));
         if (!HealthAlertLifecycle.TryValidateCooldown(cooldownSeconds, out var error)) throw new ArgumentOutOfRangeException(nameof(cooldownSeconds), error);
+        var normalizedSiteId = SiteConfigurationValidator.NormalizeId(siteId);
         var acknowledgedAt = DateTimeOffset.UtcNow;
         var acknowledgedUntil = acknowledgedAt.AddSeconds(cooldownSeconds);
         await using var db = await OpenAsync(ct);
@@ -254,15 +267,15 @@ public sealed class SiteDatabaseStore(IConfiguration configuration)
                 acknowledged_by=EXCLUDED.acknowledged_by,
                 updated_at=now()
             """, db, tx);
-        cmd.Parameters.AddWithValue("site_id", siteId);
+        cmd.Parameters.AddWithValue("site_id", normalizedSiteId);
         cmd.Parameters.AddWithValue("alert_state", alertState);
         cmd.Parameters.AddWithValue("acknowledged_at", acknowledgedAt);
         cmd.Parameters.AddWithValue("acknowledged_until", acknowledgedUntil);
         cmd.Parameters.AddWithValue("acknowledged_by", actor);
         await cmd.ExecuteNonQueryAsync(ct);
-        await Audit.Write(db, tx, "site.health.alert.acknowledge", $"{siteId}:{alertState}", ct, actor, clientIp);
+        await Audit.Write(db, tx, "site.health.alert.acknowledge", $"{normalizedSiteId}:{alertState}", ct, actor, clientIp);
         await tx.CommitAsync(ct);
-        return new SiteHealthAlertAcknowledgement(siteId, alertState, acknowledgedAt, acknowledgedUntil, actor);
+        return new SiteHealthAlertAcknowledgement(normalizedSiteId, alertState, acknowledgedAt, acknowledgedUntil, actor);
     }
 
     public async Task EnsureSeededAsync(IReadOnlyList<GatewaySite> sites, CancellationToken ct)
@@ -284,6 +297,7 @@ public sealed class SiteDatabaseStore(IConfiguration configuration)
 
     public async Task<bool> InsertAsync(GatewaySite site, string? actor, string? clientIp, CancellationToken ct)
     {
+        var normalizedSiteId = SiteConfigurationValidator.NormalizeId(site.Id);
         await using var db = await OpenAsync(ct);
         await using var tx = await db.BeginTransactionAsync(ct);
         try
@@ -293,8 +307,8 @@ public sealed class SiteDatabaseStore(IConfiguration configuration)
             cmd.Parameters["updated_by"].Value = (object?)actor ?? DBNull.Value;
             await cmd.ExecuteNonQueryAsync(ct);
             await ReplaceHostnamesAsync(db, tx, site, ct);
-            await Audit.Write(db, tx, "site.create", site.Id, ct, actor, clientIp);
-            await NotifySiteChangedAsync(db, tx, "site.create", site.Id, ct);
+            await Audit.Write(db, tx, "site.create", normalizedSiteId, ct, actor, clientIp);
+            await NotifySiteChangedAsync(db, tx, "site.create", normalizedSiteId, ct);
             await tx.CommitAsync(ct);
             return true;
         }
@@ -302,7 +316,7 @@ public sealed class SiteDatabaseStore(IConfiguration configuration)
         {
             await tx.RollbackAsync(ct);
             if (string.Equals(ex.ConstraintName, "ux_waf_site_hostnames_active_hostname", StringComparison.Ordinal))
-                throw new SiteHostnameConflictException(site.Id, ex);
+                throw new SiteHostnameConflictException(normalizedSiteId, ex);
             return false;
         }
     }
@@ -315,6 +329,7 @@ public sealed class SiteDatabaseStore(IConfiguration configuration)
 
     public async Task<SiteUpdateResult> UpdateWithConcurrencyAsync(GatewaySite site, long expectedVersion, string? actor, string? clientIp, CancellationToken ct)
     {
+        var normalizedSiteId = SiteConfigurationValidator.NormalizeId(site.Id);
         await using var db = await OpenAsync(ct);
         await using var tx = await db.BeginTransactionAsync(ct);
         const string sql = """
@@ -342,7 +357,7 @@ public sealed class SiteDatabaseStore(IConfiguration configuration)
             if (scalar is null || scalar is DBNull)
             {
                 await using var current = new NpgsqlCommand("SELECT row_version FROM waf_sites WHERE site_id=@site_id", db, tx);
-                current.Parameters.AddWithValue("site_id", site.Id);
+                current.Parameters.AddWithValue("site_id", normalizedSiteId);
                 var currentValue = await current.ExecuteScalarAsync(ct);
                 await tx.RollbackAsync(ct);
                 return currentValue is null or DBNull
@@ -351,8 +366,8 @@ public sealed class SiteDatabaseStore(IConfiguration configuration)
             }
             var newVersion = Convert.ToInt64(scalar);
             await ReplaceHostnamesAsync(db, tx, site, ct);
-            await Audit.Write(db, tx, "site.update", site.Id, ct, actor, clientIp);
-            await NotifySiteChangedAsync(db, tx, "site.update", site.Id, ct);
+            await Audit.Write(db, tx, "site.update", normalizedSiteId, ct, actor, clientIp);
+            await NotifySiteChangedAsync(db, tx, "site.update", normalizedSiteId, ct);
             await tx.CommitAsync(ct);
             return new SiteUpdateResult(SiteUpdateStatus.Updated, newVersion);
         }
@@ -360,7 +375,7 @@ public sealed class SiteDatabaseStore(IConfiguration configuration)
                                            string.Equals(ex.ConstraintName, "ux_waf_site_hostnames_active_hostname", StringComparison.Ordinal))
         {
             await tx.RollbackAsync(ct);
-            throw new SiteHostnameConflictException(site.Id, ex);
+            throw new SiteHostnameConflictException(normalizedSiteId, ex);
         }
     }
 
@@ -369,40 +384,42 @@ public sealed class SiteDatabaseStore(IConfiguration configuration)
 
     public async Task<bool> DeleteAsync(string id, string? actor, string? clientIp, CancellationToken ct)
     {
+        var normalizedSiteId = SiteConfigurationValidator.NormalizeId(id);
         await using var db = await OpenAsync(ct);
         await using var tx = await db.BeginTransactionAsync(ct);
         await using var cmd = new NpgsqlCommand("DELETE FROM waf_sites WHERE site_id=@site_id", db, tx);
-        cmd.Parameters.AddWithValue("site_id", id);
+        cmd.Parameters.AddWithValue("site_id", normalizedSiteId);
         if (await cmd.ExecuteNonQueryAsync(ct) != 1)
         {
             await tx.RollbackAsync(ct);
             return false;
         }
-        await Audit.Write(db, tx, "site.delete", id, ct, actor, clientIp);
-        await NotifySiteChangedAsync(db, tx, "site.delete", id, ct);
+        await Audit.Write(db, tx, "site.delete", normalizedSiteId, ct, actor, clientIp);
+        await NotifySiteChangedAsync(db, tx, "site.delete", normalizedSiteId, ct);
         await tx.CommitAsync(ct);
         return true;
     }
 
     public async Task<SiteDeleteResult> DeleteWithConcurrencyAsync(string id, long expectedVersion, string? actor, string? clientIp, CancellationToken ct)
     {
+        var normalizedSiteId = SiteConfigurationValidator.NormalizeId(id);
         await using var db = await OpenAsync(ct);
         await using var tx = await db.BeginTransactionAsync(ct);
         await using var cmd = new NpgsqlCommand("DELETE FROM waf_sites WHERE site_id=@site_id AND row_version=@expected_version", db, tx);
-        cmd.Parameters.AddWithValue("site_id", id);
+        cmd.Parameters.AddWithValue("site_id", normalizedSiteId);
         cmd.Parameters.AddWithValue("expected_version", expectedVersion);
         if (await cmd.ExecuteNonQueryAsync(ct) != 1)
         {
             await using var current = new NpgsqlCommand("SELECT row_version FROM waf_sites WHERE site_id=@site_id", db, tx);
-            current.Parameters.AddWithValue("site_id", id);
+            current.Parameters.AddWithValue("site_id", normalizedSiteId);
             var currentValue = await current.ExecuteScalarAsync(ct);
             await tx.RollbackAsync(ct);
             return currentValue is null or DBNull
                 ? new SiteDeleteResult(SiteDeleteStatus.NotFound)
                 : new SiteDeleteResult(SiteDeleteStatus.Conflict, Convert.ToInt64(currentValue));
         }
-        await Audit.Write(db, tx, "site.delete", id, ct, actor, clientIp);
-        await NotifySiteChangedAsync(db, tx, "site.delete", id, ct);
+        await Audit.Write(db, tx, "site.delete", normalizedSiteId, ct, actor, clientIp);
+        await NotifySiteChangedAsync(db, tx, "site.delete", normalizedSiteId, ct);
         await tx.CommitAsync(ct);
         return new SiteDeleteResult(SiteDeleteStatus.Deleted);
     }
@@ -507,16 +524,17 @@ public sealed class SiteDatabaseStore(IConfiguration configuration)
 
     private static async Task ReplaceHostnamesAsync(NpgsqlConnection db, NpgsqlTransaction tx, GatewaySite site, CancellationToken ct)
     {
+        var siteId = SiteConfigurationValidator.NormalizeId(site.Id);
         await using (var delete = new NpgsqlCommand("DELETE FROM waf_site_hostnames WHERE site_id=@site_id", db, tx))
         {
-            delete.Parameters.AddWithValue("site_id", site.Id);
+            delete.Parameters.AddWithValue("site_id", siteId);
             await delete.ExecuteNonQueryAsync(ct);
         }
         foreach (var hostname in site.Hostnames.Select(SiteConfigurationValidator.NormalizeHostname).Where(x => x.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase))
         {
             await using var insert = new NpgsqlCommand(
                 "INSERT INTO waf_site_hostnames(site_id, hostname, active) VALUES (@site_id, @hostname, @active)", db, tx);
-            insert.Parameters.AddWithValue("site_id", site.Id);
+            insert.Parameters.AddWithValue("site_id", siteId);
             insert.Parameters.AddWithValue("hostname", hostname);
             insert.Parameters.AddWithValue("active", site.Enabled);
             await insert.ExecuteNonQueryAsync(ct);
@@ -556,9 +574,13 @@ public sealed class SiteDatabaseStore(IConfiguration configuration)
     }
 }
 
-file sealed class SiteMutationLockLease(NpgsqlConnection connection) : IAsyncDisposable
+file sealed class SiteMutationLockLease(NpgsqlConnection connection, NpgsqlTransaction transaction) : IAsyncDisposable
 {
-    public ValueTask DisposeAsync() => connection.DisposeAsync();
+    public async ValueTask DisposeAsync()
+    {
+        await transaction.DisposeAsync();
+        await connection.DisposeAsync();
+    }
 }
 
 public sealed class SiteHostnameConflictException(string siteId, Exception inner)

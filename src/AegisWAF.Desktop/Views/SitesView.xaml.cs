@@ -19,11 +19,9 @@ public partial class SitesView : UserControl, IPage
         _initialized = true;
         _api = api;
         VersionText.Text = $"AegisWAF v{typeof(SitesView).Assembly.GetName().Version?.ToString(3)}";
-        CanEdit = api.Session!.Level >= 4;
         AddSiteForm.IsEnabled = CanEdit;
-        if (!CanEdit) FormHint.Text = "ต้องใช้สิทธิ์ SECURITY_ADMIN ขึ้นไปเพื่อเพิ่ม Site ระบบยังคงบังคับสิทธิ์ซ้ำที่ Gateway API";
     }
-    public bool CanEdit { get; }
+    public bool CanEdit => true;
     public bool AutoRefresh => true;
     public Task RefreshAsync() => RefreshListAsync(true, RefreshCancellationReason.Superseded);
 
@@ -119,7 +117,9 @@ public partial class SitesView : UserControl, IPage
                 : " · ข้อมูล Health ยังบันทึก PostgreSQL ไม่ครบ"
             : "";
         var pendingLabel = summary is not null && summary.PendingRestartSites > 0
-            ? $" · รอเปิดใช้ {summary.PendingRestartSites} Site"
+            ? summary.CountsScope == "returned-sites"
+                ? $" · รายการนี้รอเปิดใช้ {summary.PendingRestartSites} Site"
+                : $" · รอเปิดใช้ {summary.PendingRestartSites} Site"
             : "";
         SummaryText.Text = summary is null
             ? "Health trend summary unavailable — รายการ Site ยังคงใช้งานได้"
@@ -389,6 +389,8 @@ public partial class SitesView : UserControl, IPage
                 var weightText = at > 0 ? addressAndWeight[(at + 1)..] : "100";
                 if (!int.TryParse(weightText, out var weight) || weight is < 1 or > 10_000)
                 { error = "Upstream weight ต้องอยู่ระหว่าง 1 ถึง 10000"; return false; }
+                var upstreamError = SiteFormInputValidator.ValidateUpstreamUrl(address);
+                if (upstreamError is not null) { error = $"Advanced upstream {id}: {upstreamError}"; return false; }
                 parsed.Add(new SiteUpstreamInputDto(id, address, weight));
             }
             upstreams = parsed.ToArray();

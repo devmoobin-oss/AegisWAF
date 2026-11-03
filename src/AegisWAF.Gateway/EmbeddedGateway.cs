@@ -4,6 +4,8 @@ using AegisWAF.Gateway.Traffic;
 
 namespace AegisWAF.Gateway;
 
+// BootstrapAdminPassword is no longer used now that the login system (and its bootstrap administrator) is gone;
+// it stays in this position only so existing positional call sites keep lining up.
 public sealed record EmbeddedGatewayOptions(
     Uri ListenUrl,
     string ConnectionString,
@@ -20,6 +22,7 @@ public sealed record EmbeddedGatewayOptions(
 public sealed class EmbeddedGateway : IAsyncDisposable
 {
     private readonly object _gate = new();
+    private readonly SemaphoreSlim _lifecycleGate = new(1, 1);
     private readonly Queue<string> _log = new();
     private WebApplication? _app;
 
@@ -32,45 +35,60 @@ public sealed class EmbeddedGateway : IAsyncDisposable
 
     public async Task StartAsync(EmbeddedGatewayOptions o, CancellationToken ct = default)
     {
-        lock (_gate) if (_app is not null) return;
-
-        var overrides = new Dictionary<string, string?> { ["ConnectionStrings:Postgres"] = o.ConnectionString };
-        if (!string.IsNullOrEmpty(o.BootstrapAdminPassword)) overrides["Bootstrap:AdminPassword"] = o.BootstrapAdminPassword;
-        if (!string.IsNullOrWhiteSpace(o.UpstreamUrl)) overrides["ReverseProxy:Clusters:appcluster:Destinations:app1:Address"] = o.UpstreamUrl;
-        if (o.ConfigurationOverrides is not null)
-            foreach (var pair in o.ConfigurationOverrides) overrides[pair.Key] = pair.Value;
-        if (o.PreferConfigurationSites)
-            overrides["Waf:Sites:UseDatabase"] = "false";
-
-        var builder = GatewayApp.CreateBuilder([], contentRoot: o.ContentRoot ?? AppContext.BaseDirectory, overrides);
-        builder.WebHost.UseUrls(o.ListenUrl.GetLeftPart(UriPartial.Authority));
-        builder.Logging.ClearProviders();
-        builder.Logging.AddProvider(new BufferLoggerProvider(_log));
-        GatewayApp.AddServices(builder);
-        var app = builder.Build();
+        await _lifecycleGate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            await Bootstrap.RunAsync(app).ConfigureAwait(false);
-            GatewayApp.MapPipeline(app);
-            await app.StartAsync(ct).ConfigureAwait(false);
+            lock (_gate) if (_app is not null) return;
+
+            var overrides = new Dictionary<string, string?> { ["ConnectionStrings:Postgres"] = o.ConnectionString };
+            if (!string.IsNullOrWhiteSpace(o.UpstreamUrl)) overrides["ReverseProxy:Clusters:appcluster:Destinations:app1:Address"] = o.UpstreamUrl;
+            if (o.ConfigurationOverrides is not null)
+                foreach (var pair in o.ConfigurationOverrides) overrides[pair.Key] = pair.Value;
+            if (o.PreferConfigurationSites)
+                overrides["Waf:Sites:UseDatabase"] = "false";
+
+            var builder = GatewayApp.CreateBuilder([], contentRoot: o.ContentRoot ?? AppContext.BaseDirectory, overrides);
+            builder.WebHost.UseUrls(o.ListenUrl.GetLeftPart(UriPartial.Authority));
+            builder.Logging.ClearProviders();
+            builder.Logging.AddProvider(new BufferLoggerProvider(_log));
+            GatewayApp.AddServices(builder);
+            var app = builder.Build();
+            try
+            {
+                await Bootstrap.RunAsync(app).ConfigureAwait(false);
+                GatewayApp.MapPipeline(app);
+                await app.StartAsync(ct).ConfigureAwait(false);
+            }
+            catch
+            {
+                await app.DisposeAsync().ConfigureAwait(false);
+                throw;
+            }
+            lock (_gate) _app = app;
         }
-        catch
+        finally
         {
-            await app.DisposeAsync().ConfigureAwait(false);
-            throw;
+            _lifecycleGate.Release();
         }
-        lock (_gate) _app = app;
     }
 
     public async Task StopAsync()
     {
-        WebApplication? app;
-        lock (_gate) { app = _app; _app = null; }
-        if (app is null) return;
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-        try { await app.StopAsync(cts.Token).ConfigureAwait(false); }
-        catch (OperationCanceledException) { /* forced */ }
-        await app.DisposeAsync().ConfigureAwait(false);
+        await _lifecycleGate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            WebApplication? app;
+            lock (_gate) { app = _app; _app = null; }
+            if (app is null) return;
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            try { await app.StopAsync(cts.Token).ConfigureAwait(false); }
+            catch (OperationCanceledException) { /* forced */ }
+            await app.DisposeAsync().ConfigureAwait(false);
+        }
+        finally
+        {
+            _lifecycleGate.Release();
+        }
     }
 
     public ValueTask DisposeAsync() => new(StopAsync());

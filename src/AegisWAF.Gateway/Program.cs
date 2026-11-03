@@ -169,20 +169,6 @@ static class Bootstrap
             if (Convert.ToBoolean(await securityCmd.ExecuteScalarAsync()))
                 throw new InvalidOperationException("Production policy rejected a PostgreSQL superuser account; configure a least-privilege database role.");
         }
-        var store = app.Services.GetRequiredService<AuthStore>();
-        if (await store.CountUsersAsync(default) > 0) return;
-        // Environment variable wins; the config keys exist for double-click use (remove the password from the file after first login).
-        var password = Environment.GetEnvironmentVariable("AEGISWAF_BOOTSTRAP_ADMIN_PASSWORD") ?? app.Configuration["Bootstrap:AdminPassword"];
-        var username = (Environment.GetEnvironmentVariable("AEGISWAF_BOOTSTRAP_ADMIN_USER") ?? app.Configuration["Bootstrap:AdminUser"] ?? "admin").Trim().ToLowerInvariant();
-        var problem = PasswordHasher.Validate(password, username);
-        if (problem is not null)
-        {
-            log.LogWarning("No users exist. Set AEGISWAF_BOOTSTRAP_ADMIN_PASSWORD (any non-empty password) and restart to create the first SUPER_ADMIN. {Problem}", problem);
-            return;
-        }
-        var id = await store.CreateUserAsync(username, "Bootstrap administrator", PasswordHasher.Hash(password!), Roles.SuperAdmin, false, default);
-        if (id is not null) await store.AuditAsync(null, "local", "user.bootstrap", username, "success", default);
-        log.LogInformation("Created bootstrap SUPER_ADMIN '{User}'", username);
     }
 }
 

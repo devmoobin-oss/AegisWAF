@@ -25,6 +25,186 @@ public sealed class SitePersistenceCodecTests
     }
 
     [Fact]
+    public void Persistence_codec_rejects_query_strings_and_fragments_before_writing_a_row()
+    {
+        var cases = new[]
+        {
+            "https://origin.example.com/?tenant=secret",
+            "https://origin.example.com/base#fragment"
+        };
+
+        foreach (var address in cases)
+        {
+            var site = new GatewaySite(
+                "broken", true, ["broken.example.com"], ["/"],
+                [new SiteUpstream("primary", new Uri(address), 100)],
+                "default",
+                new SiteRateLimitPolicy(),
+                new SiteEgressPolicy(["origin.example.com"], [443], ["https"]),
+                new SiteHealthPolicy());
+
+            var error = Assert.Throws<InvalidDataException>(() => SitePersistenceCodec.ToRow(site));
+
+            Assert.Contains("query or fragment", error.Message, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    [Fact]
+    public void Persistence_codec_rejects_invalid_upstream_values_before_writing_a_row()
+    {
+        var cases = new[]
+        {
+            (new Uri("ftp://origin.example.com/"), 100, "absolute HTTP(S) URL"),
+            (new Uri("https://user:password@origin.example.com/"), 100, "credentials"),
+            (new Uri("https://origin.example.com/"), 0, "outside the allowed range")
+        };
+
+        foreach (var testCase in cases)
+        {
+            var site = new GatewaySite(
+                "broken", true, ["broken.example.com"], ["/"],
+                [new SiteUpstream("primary", testCase.Item1, testCase.Item2)],
+                "default",
+                new SiteRateLimitPolicy(),
+                new SiteEgressPolicy(["origin.example.com"], [443], ["https"]),
+                new SiteHealthPolicy());
+
+            var error = Assert.Throws<InvalidDataException>(() => SitePersistenceCodec.ToRow(site));
+
+            Assert.Contains(testCase.Item3, error.Message, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    [Fact]
+    public void Persistence_codec_rejects_unsafe_upstream_ids_before_writing_a_row()
+    {
+        var site = new GatewaySite(
+            "broken", true, ["broken.example.com"], ["/"],
+            [new SiteUpstream("primary/one", new Uri("https://origin.example.com/"), 100)],
+            "default",
+            new SiteRateLimitPolicy(),
+            new SiteEgressPolicy(["origin.example.com"], [443], ["https"]),
+            new SiteHealthPolicy());
+
+        var error = Assert.Throws<InvalidDataException>(() => SitePersistenceCodec.ToRow(site));
+
+        Assert.Contains("upstream", error.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("ID", error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Persistence_codec_writes_canonical_upstream_ids()
+    {
+        var site = new GatewaySite(
+            "shop", true, ["shop.example.com"], ["/"],
+            [new SiteUpstream(" PRIMARY ", new Uri("https://origin.example.com/"), 100)],
+            "default",
+            new SiteRateLimitPolicy(),
+            new SiteEgressPolicy(["origin.example.com"], [443], ["https"]),
+            new SiteHealthPolicy());
+
+        var row = SitePersistenceCodec.ToRow(site);
+
+        Assert.Equal(["primary"], row.UpstreamIds);
+    }
+
+    [Fact]
+    public void Persistence_codec_writes_canonical_site_ids()
+    {
+        var site = new GatewaySite(
+            "  SHOP  ", true, ["shop.example.com"], ["/"],
+            [new SiteUpstream("primary", new Uri("https://origin.example.com/"), 100)],
+            "default",
+            new SiteRateLimitPolicy(),
+            new SiteEgressPolicy(["origin.example.com"], [443], ["https"]),
+            new SiteHealthPolicy());
+
+        var row = SitePersistenceCodec.ToRow(site);
+
+        Assert.Equal("shop", row.SiteId);
+    }
+
+    [Fact]
+    public void Persistence_codec_rejects_invalid_site_structure_before_writing_a_row()
+    {
+        var validSite = new GatewaySite(
+            "broken", true, ["broken.example.com"], ["/"],
+            [new SiteUpstream("primary", new Uri("https://origin.example.com/"), 100)],
+            "default",
+            new SiteRateLimitPolicy(),
+            new SiteEgressPolicy(["origin.example.com"], [443], ["https"]),
+            new SiteHealthPolicy());
+        var cases = new[]
+        {
+            (validSite with { Hostnames = [] }, "at least one hostname"),
+            (validSite with { Hostnames = ["broken.example.com", "BROKEN.EXAMPLE.COM"] }, "duplicate hostnames"),
+            (validSite with { Upstreams = [] }, "at least one upstream"),
+            (validSite with
+            {
+                Upstreams =
+                [
+                    new SiteUpstream("primary", new Uri("https://origin.example.com/"), 100),
+                    new SiteUpstream("PRIMARY", new Uri("https://origin.example.com/"), 100)
+                ]
+            }, "upstream IDs must be non-empty and unique"),
+            (validSite with { Health = new SiteHealthPolicy("/", 4, 3, 30) }, "health policy"),
+            (validSite with { RateLimit = new SiteRateLimitPolicy(0, 60, 10_000) }, "rate-limit policy"),
+            (validSite with { Egress = new SiteEgressPolicy([], [443], ["https"]) }, "egress host"),
+            (validSite with { Version = 0 }, "row version")
+        };
+
+        foreach (var testCase in cases)
+        {
+            var error = Assert.Throws<InvalidDataException>(() => SitePersistenceCodec.ToRow(testCase.Item1));
+
+            Assert.Contains(testCase.Item2, error.Message, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    [Fact]
+    public void Persistence_codec_rejects_null_nested_values_before_writing_a_row()
+    {
+        var validSite = new GatewaySite(
+            "broken", true, ["broken.example.com"], ["/"],
+            [new SiteUpstream("primary", new Uri("https://origin.example.com/"), 100)],
+            "default",
+            new SiteRateLimitPolicy(),
+            new SiteEgressPolicy(["origin.example.com"], [443], ["https"]),
+            new SiteHealthPolicy());
+        var cases = new[]
+        {
+            (validSite with { Upstreams = new SiteUpstream[] { null! } }, "null upstream"),
+            (validSite with
+            {
+                Egress = new SiteEgressPolicy(null!, [443], ["https"])
+            }, "null egress collection"),
+            (validSite with
+            {
+                Egress = new SiteEgressPolicy(["origin.example.com"], null!, ["https"])
+            }, "null egress collection"),
+            (validSite with
+            {
+                Egress = new SiteEgressPolicy(["origin.example.com"], [443], null!)
+            }, "null egress collection")
+        };
+
+        foreach (var testCase in cases)
+        {
+            var error = Assert.Throws<InvalidDataException>(() => SitePersistenceCodec.ToRow(testCase.Item1));
+
+            Assert.Contains(testCase.Item2, error.Message, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    [Fact]
+    public void Persistence_codec_rejects_a_null_row_before_materialization()
+    {
+        var error = Assert.Throws<InvalidDataException>(() => SitePersistenceCodec.FromRow(null!));
+
+        Assert.Contains("row is null", error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void Persistence_codec_rejects_mismatched_upstream_arrays_instead_of_indexing_past_the_end()
     {
         var row = new SitePersistenceRow(
@@ -48,6 +228,28 @@ public sealed class SitePersistenceCodecTests
         var error = Assert.Throws<InvalidDataException>(() => SitePersistenceCodec.FromRow(row));
 
         Assert.Contains("credentials", error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Persistence_codec_rejects_query_strings_and_fragments_before_materialization()
+    {
+        var cases = new[]
+        {
+            "https://origin.example.com/?tenant=secret",
+            "https://origin.example.com/base#fragment"
+        };
+
+        foreach (var address in cases)
+        {
+            var row = new SitePersistenceRow(
+                "broken", true, ["broken.example.com"], ["/"],
+                ["primary"], [address], [100], "default",
+                ["origin.example.com"], [443], ["https"], false, "/", 10, 3, 30, 300, 60, 10000);
+
+            var error = Assert.Throws<InvalidDataException>(() => SitePersistenceCodec.FromRow(row));
+
+            Assert.Contains("query or fragment", error.Message, StringComparison.OrdinalIgnoreCase);
+        }
     }
 
     [Fact]
