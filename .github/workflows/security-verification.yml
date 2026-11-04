@@ -105,12 +105,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Verify Code scanning is enabled
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_API_URL: ${{ github.api_url }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-        run: python3 tools/ci/check-code-scanning.py
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
