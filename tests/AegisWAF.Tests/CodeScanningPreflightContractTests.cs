@@ -12,7 +12,7 @@ public sealed class CodeScanningPreflightContractTests
         var script = File.ReadAllText(Path.Combine(root, "tools", "ci", "check-code-scanning.py"), Encoding.UTF8);
 
         Assert.Contains("check-code-scanning.py", workflow, StringComparison.Ordinal);
-        Assert.Contains("code-scanning/analyses", script, StringComparison.Ordinal);
+        Assert.Contains("code-scanning/default-setup", script, StringComparison.Ordinal);
         Assert.Contains("Code scanning is not enabled", script, StringComparison.Ordinal);
         Assert.Contains("return 1", script, StringComparison.Ordinal);
     }

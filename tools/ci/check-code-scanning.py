@@ -27,8 +27,14 @@ def main() -> int:
     if not token or not repository:
         return fail("GITHUB_TOKEN and GITHUB_REPOSITORY are required")
 
+    # `code-scanning/analyses` 404s with "no analysis found" until the *first* analysis
+    # ever completes, which makes it indistinguishable from "code scanning unavailable"
+    # and would block the very first run forever. `code-scanning/default-setup` reports
+    # availability directly (200 even when state is "not-configured", because this repo
+    # uploads results via its own Actions workflow instead of GitHub's default setup) and
+    # only fails when the repository genuinely cannot use code scanning/Advanced Security.
     request = urllib.request.Request(
-        f"{api_url}/repos/{repository}/code-scanning/analyses?per_page=1",
+        f"{api_url}/repos/{repository}/code-scanning/default-setup",
         headers={
             "Accept": "application/vnd.github+json",
             "Authorization": f"Bearer {token}",
@@ -43,7 +49,7 @@ def main() -> int:
     except urllib.error.HTTPError as error:
         if error.code in (403, 404):
             return fail(
-                "Code scanning is not enabled or the token cannot read code-scanning analyses; "
+                "Code scanning is not enabled or the token cannot read code-scanning configuration; "
                 "enable Code scanning/Advanced Security and grant security-events read access"
             )
         return fail(f"GitHub API status {error.code}")
