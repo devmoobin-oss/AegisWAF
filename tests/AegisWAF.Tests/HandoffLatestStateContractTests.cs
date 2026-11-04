@@ -9,7 +9,7 @@ public sealed class HandoffLatestStateContractTests
     {
         var root = FindRepoRoot();
         var handoff = File.ReadAllText(Path.Combine(root, "handoff.md"), Encoding.UTF8);
-        const string marker = "### Current handoff pointer — 2026-11-04 (after Module 218)";
+        const string marker = "### Current handoff pointer — 2026-11-04 (after Module 219)";
         var markerIndex = handoff.LastIndexOf(marker, StringComparison.Ordinal);
 
         Assert.True(markerIndex >= 0, "handoff.md must end with the Module 216 current pointer.");
@@ -127,6 +127,7 @@ public sealed class HandoffLatestStateContractTests
         Assert.Contains("Module 216 = 100%", pointer);
         Assert.Contains("Module 217 = 100%", pointer);
         Assert.Contains("Module 218 = 100%", pointer);
+        Assert.Contains("Module 219 = 100%", pointer);
         Assert.Contains("DDC2C0A4B4DEBBA3078808795BC0E2CA95BBD6695A01435AFDFEF3078D24D860", pointer);
         Assert.Contains("D:\\AegisWAF\\dist\\AegisWAF-Desktop-CompletedModules\\AegisWAF.exe", pointer);
     }
