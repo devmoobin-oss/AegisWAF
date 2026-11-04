@@ -1,0 +1,29 @@
+{
+  "module": "Module 127",
+  "title": "Bound Site runtime listener connection setup and subscription readiness",
+  "recordedAt": "2026-10-28",
+  "progress": {
+    "beforePercent": 0,
+    "afterPercent": 100,
+    "targetPercent": 100
+  },
+  "sourceCommit": "aaf292cde8c3c7de4c194a775d73561d2032d4dd",
+  "implementation": [
+    "Added a five-second linked budget for PostgreSQL listener OpenAsync and LISTEN subscription setup.",
+    "Translated budget-only connection setup cancellation to retryable TimeoutException.",
+    "Moved connected status after LISTEN succeeds so operator diagnostics do not report a half-subscribed listener as connected.",
+    "Preserved shutdown cancellation semantics."
+  ],
+  "verification": {
+    "tddRed": "Initial test build failed because SiteRuntimeListenerConnectionBudget did not exist.",
+    "focused": "10/10 passed",
+    "regressionWithoutPostgres": "111/111 passed across 53 classes",
+    "releaseBuild": "0 warnings / 0 errors",
+    "gitDiffCheck": "passed",
+    "postgresIntegrationBoundary": "Not run to green: local 127.0.0.1:5432 was unavailable; integration remains an external environment gate."
+  },
+  "boundary": [
+    "Live PostgreSQL connection/subscribe timeout execution remains externally unverified.",
+    "Authenticated browser/published-EXE smoke, visual responsive verification, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification remain outside this local run."
+  ]
+}

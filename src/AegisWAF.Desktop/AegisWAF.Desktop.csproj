@@ -7,13 +7,19 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>AegisWAF</AssemblyName>
     <RootNamespace>AegisWAF.Desktop</RootNamespace>
-    <Version>0.10.0</Version>
+    <Version>0.10.3</Version>
   </PropertyGroup>
   <ItemGroup>
     <!-- The gateway runs inside this process (Kestrel on background threads), so the exe is self-sufficient. -->
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
-    <ProjectReference Include="..\AegisWAF.Client\AegisWAF.Client.csproj" />
-    <ProjectReference Include="..\AegisWAF.Gateway\AegisWAF.Gateway.csproj" />
+    <ProjectReference Include="..\AegisWAF.Client\AegisWAF.Client.csproj">
+      <!-- Both references are single-target projects; avoid redundant cross-targeting/workload resolution during publish. -->
+      <SkipGetTargetFrameworkProperties>true</SkipGetTargetFrameworkProperties>
+    </ProjectReference>
+    <ProjectReference Include="..\AegisWAF.Gateway\AegisWAF.Gateway.csproj">
+      <!-- Both references are single-target projects; avoid redundant cross-targeting/workload resolution during publish. -->
+      <SkipGetTargetFrameworkProperties>true</SkipGetTargetFrameworkProperties>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <!-- The single-file desktop app extracts these embedded assets to a private temp folder at runtime. -->

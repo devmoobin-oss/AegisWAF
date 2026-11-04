@@ -1,0 +1,32 @@
+{
+  "module": "Module 143",
+  "title": "Web UI ownership, application validation, and standards scrollbar contract",
+  "date": "2026-10-30",
+  "progress": {
+    "beforePercent": 0,
+    "afterPercent": 100,
+    "targetPercent": 100
+  },
+  "opportunity": "The premium UI audit identified missing canonical ownership for native Select/Listbox controls, missing explicit application-level validation markers on the login and password-change forms, and a WebKit-only scrollbar styling contract.",
+  "implementation": [
+    "Added UX-CONTRACT.md as the canonical UI behavior and ownership map for the operational console.",
+    "Added premium-ui.json to declare product-admin UI scope, native Select/Listbox ownership, and evidence entry points.",
+    "Added novalidate to the login and password-change forms so application validation owns the user-facing error state.",
+    "Added standards scrollbar-color and scrollbar-width properties while preserving the WebKit fallback.",
+    "Added WebUiOwnershipContractTests to prevent regression of the ownership, form, scrollbar, and canonical-map contracts."
+  ],
+  "verification": {
+    "focusedContracts": "13/13 passed",
+    "nodeSyntax": "node --check src/AegisWAF.Gateway/wwwroot/assets/app.js passed",
+    "releaseSolutionBuild": "0 warnings / 0 errors",
+    "gitDiffCheck": "passed",
+    "premiumStrictAudit": "29 actionless-button findings remain; 0 ownership, form-validation, or scrollbar findings remain. The remaining findings are caused by the static detector not recognizing plain-JavaScript delegated handlers and dynamic template buttons; they were not masked.",
+    "impeccableDetector": "Completed against index.html and style.css; output contains advisory quality/design-system findings only and no newly introduced deterministic blocking issue."
+  },
+  "boundary": [
+    "Real-browser keyboard, popup, computed-scrollbar, and narrow-viewport verification",
+    "Authenticated full CRUD browser smoke against a running published EXE",
+    "Static detector recognition of dynamic delegated buttons",
+    "CodeQL/SARIF, penetration testing, load/SLO, SIEM, Authenticode signing, and production certification"
+  ]
+}

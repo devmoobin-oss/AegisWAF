@@ -1,0 +1,26 @@
+{
+  "module": 171,
+  "title": "Multi-Site health summary enabled-site scope",
+  "beforePercent": 0,
+  "afterPercent": 100,
+  "targetPercent": 100,
+  "red": "SiteHealthSummaryEnabledScopeContractTests failed before the enabled-only summary query was implemented.",
+  "focusedTests": "43/43 passed",
+  "fullInProcessRegression": "525/650 passed; 125 PostgreSQL-dependent tests could not start because 127.0.0.1:5432 was unavailable; this is an environment boundary, not a code assertion failure",
+  "javascriptSyntax": "node --check passed",
+  "releaseBuild": "Release passed: 0 warnings, 0 errors",
+  "diffCheck": "git diff --check passed",
+  "implementation": "Health Summary now calls ListEnabledSummaryPageAsync, whose bounded COUNT(*) OVER() page filters WHERE enabled. Disabled configuration remains available through the Site CRUD endpoint but no longer contributes to monitored health counts or summary pagination.",
+  "strictUiAudit": "29 pre-existing affordance.actionless-button findings remain in dynamic Browser/Index markup; no new Module 171 UI surface was added",
+  "browserSmoke": "not available in this environment",
+  "artifact": {
+    "path": "D:\\AegisWAF\\dist\\AegisWAF-Desktop-CompletedModules\\AegisWAF.exe",
+    "sha256": "0C34164BEA74943CE56E7B943DE7E14A2336A0AB801BAF2FD56AB97B21BA5DBA",
+    "sizeBytes": 170723179,
+    "sourceCommit": "f09db99fff8c5c12c02dc1388e553579df4dfb2d",
+    "manifest": "files=6, signed=false, workingTreeClean=true",
+    "peHeader": "MZ",
+    "authenticode": "NotSigned"
+  },
+  "boundary": "No live authenticated browser/published-EXE smoke claim; PostgreSQL-backed integration remains unverified while 127.0.0.1:5432 is unavailable; Authenticode signing, external penetration testing, load/SLO, SIEM, and production certification remain outside this verification run."
+}

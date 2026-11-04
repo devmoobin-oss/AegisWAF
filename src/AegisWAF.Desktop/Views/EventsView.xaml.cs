@@ -10,9 +10,9 @@ public partial class EventsView : UserControl, IPage
     private readonly ApiClient _api;
     private List<SecurityEventDto> _all = [];
 
-    public EventsView(ApiClient api) { InitializeComponent(); _api = api; CanBlock = api.Session!.Level >= 3; }
+    public EventsView(ApiClient api) { InitializeComponent(); _api = api; }
 
-    public bool CanBlock { get; }
+    public bool CanBlock => true;
 
     private async void OnBlockIp(object sender, RoutedEventArgs e)
     {

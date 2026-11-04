@@ -1,5 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
+using System.Collections;
+using System.Reflection;
 using System.Text;
 using AegisWAF.Gateway;
 using Microsoft.Extensions.Configuration;
@@ -48,6 +50,28 @@ public class EngineUpgradeTests
         Assert.Single(Normalizer.Variants("hello"));
     }
 
+    [Fact]
+    public void Rule_engine_inspects_payload_suffixes_beyond_the_single_value_cap()
+    {
+        var payload = new string('a', 66_000) + "<script>alert(1)</script>";
+
+        Assert.Equal("XSS", Rules().Match(payload, checkOversize: false));
+    }
+
+    [Fact]
+    public void Rule_engine_fails_closed_when_inspection_budget_is_expired()
+    {
+        Assert.Equal("Inspection Timeout", Rules().Match("ordinary input", checkOversize: false, new InspectionBudget(0)));
+    }
+
+    [Fact]
+    public void Binary_response_scan_detects_high_signal_leaks_without_utf8_decoding()
+    {
+        var body = new byte[] { 0, 255, (byte)'r', (byte)'o', (byte)'o', (byte)'t', (byte)':', (byte)'x', (byte)':', (byte)'0', (byte)':', (byte)'0', (byte)':', 255 };
+
+        Assert.Equal("Response Leak — passwd/shadow file", new ResponseInspector().InspectBytes(body));
+    }
+
     // ---- New signatures: NoSQL / XXE / SSTI ----
 
     [Theory]
@@ -89,6 +113,30 @@ public class EngineUpgradeTests
     public void Anomaly_scoring_blocks_when_enough_weak_signals_combine()
     {
         Assert.Equal("Anomaly Score", Rules(anomaly: true).Match("a' select/* <b"));
+    }
+
+    [Fact]
+    public void Concurrent_cold_rule_instances_do_not_timeout_anomaly_scoring()
+    {
+        var results = new string?[128];
+        Parallel.For(0, results.Length, index =>
+            results[index] = Rules(anomaly: true).Match("a' select/* <b"));
+
+        Assert.All(results, result => Assert.Equal("Anomaly Score", result));
+    }
+
+    [Fact]
+    public void Security_rule_instances_share_compiled_pattern_cache()
+    {
+        var first = Rules(anomaly: true);
+        var second = Rules(anomaly: true);
+        var field = typeof(SecurityRules).GetField("_rules", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var firstEntry = ((IEnumerable)field.GetValue(first)!).Cast<object>().First();
+        var secondEntry = ((IEnumerable)field.GetValue(second)!).Cast<object>().First();
+        var firstPattern = firstEntry.GetType().GetProperty("Pattern")!.GetValue(firstEntry);
+        var secondPattern = secondEntry.GetType().GetProperty("Pattern")!.GetValue(secondEntry);
+
+        Assert.Same(firstPattern, secondPattern);
     }
 
     [Fact]
@@ -189,11 +237,11 @@ public class EngineUpgradeTests
     [Collection("gateway")]
     public class ResponseInspection(GatewayFixture fx)
     {
-        private async Task<Running> StartAsync(ScriptedUpstream up)
+        private async Task<Running> StartAsync(ScriptedUpstream up, IReadOnlyDictionary<string, string?>? overrides = null)
         {
             var url = FreeUrl();
             var gw = new EmbeddedGateway();
-            await gw.StartAsync(new EmbeddedGatewayOptions(url, fx.ConnectionString, null, up.Url.ToString()));
+            await gw.StartAsync(new EmbeddedGatewayOptions(url, fx.ConnectionString, null, up.Url.ToString(), null, overrides, PreferConfigurationSites: true));
             return new Running(gw, up, url);
         }
 
@@ -228,14 +276,34 @@ public class EngineUpgradeTests
         }
 
         [Fact]
-        public async Task A_binary_response_is_not_inspected_so_the_same_bytes_pass_through_fail_open()
+        public async Task A_text_like_binary_response_is_inspected_and_suppressed()
         {
-            // Same passwd content, but declared as a binary type: not buffered/inspected (documented fail-open).
+            // Text content must not evade response-leak inspection merely by declaring a binary media type.
             using var up = new ScriptedUpstream("200 OK", "application/octet-stream", "root:x:0:0:root:/root:/bin/bash");
             await using var run = await StartAsync(up);
             var (status, body) = await GetAsync(run.Url, "/blob");
+            Assert.Equal(502, status);
+            Assert.DoesNotContain("root:x:0:0", body);
+        }
+
+        [Fact]
+        public async Task A_binary_response_with_control_bytes_remains_compatible()
+        {
+            using var up = new ScriptedUpstream("200 OK", "application/octet-stream", "PK\0\0\u0001\u0002");
+            await using var run = await StartAsync(up);
+            var (status, body) = await GetAsync(run.Url, "/binary");
             Assert.Equal(200, status);
-            Assert.Contains("root:x:0:0", body);
+            Assert.Contains("PK", body);
+        }
+
+        [Fact]
+        public async Task A_binary_response_is_scanned_when_binary_inspection_is_enabled()
+        {
+            using var up = new ScriptedUpstream("200 OK", "application/octet-stream", "root:x:0:0:root:/root:/bin/bash");
+            await using var run = await StartAsync(up, new Dictionary<string, string?> { ["Waf:InspectBinaryResponses"] = "true" });
+            var (status, body) = await GetAsync(run.Url, "/blob");
+            Assert.Equal(502, status);
+            Assert.DoesNotContain("root:x:0:0", body);
         }
 
         [Fact]
@@ -248,6 +316,25 @@ public class EngineUpgradeTests
             var (status, body) = await GetAsync(run.Url, "/big");
             Assert.Equal(200, status);
             Assert.Equal(payload.Length, body.Length);
+        }
+
+        [Fact]
+        public async Task A_block_mode_does_not_return_success_after_response_headers_started_before_overflow()
+        {
+            using var up = new ScriptedUpstream("200 OK", "text/plain", new string('a', 300_000));
+            await using var run = await StartAsync(up, new Dictionary<string, string?>
+            {
+                ["Waf:ResponseOverflowAction"] = "block",
+                ["Waf:MaxResponseInspectBytes"] = "1024"
+            });
+
+            var status = 0;
+            Exception? failure = null;
+            try { (status, _) = await GetAsync(run.Url, "/big-block"); }
+            catch (Exception ex) { failure = ex; }
+
+            Assert.True(failure is not null || status != 200,
+                $"Fail-closed overflow returned an apparent success status: {status}");
         }
     }
 }

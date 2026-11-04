@@ -1,0 +1,115 @@
+{
+  "version": 1,
+  "modules": [
+    {
+      "id": "waf-engine",
+      "name": "WAF inspection engine",
+      "gates": [
+        { "id": "gateway-build", "kind": "build", "weight": 25, "timeoutSeconds": 120, "command": "dotnet build src/AegisWAF.Gateway/AegisWAF.Gateway.csproj --no-restore --disable-build-servers -m:1 --verbosity minimal" },
+        { "id": "engine-tests", "kind": "test", "weight": 25, "timeoutSeconds": 120, "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/module-verification/Invoke-InProcClassTests.ps1 -Classes EngineUpgradeTests" },
+        { "id": "catalog-tests", "kind": "test", "weight": 25, "timeoutSeconds": 120, "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/module-verification/Invoke-InProcClassTests.ps1 -Classes CatalogVerificationTests" },
+        { "id": "engine-documentation", "kind": "contract", "weight": 25, "timeoutSeconds": 30, "command": "if ((Select-String -Path docs/PROTECTION.md -Pattern 'v0.9' -Quiet) -and (Select-String -Path docs/ARCHITECTURE.md -Pattern 'ResponseInspector' -Quiet)) { exit 0 } else { exit 1 }" }
+      ]
+    },
+    {
+      "id": "gateway-security",
+      "name": "Gateway / perimeter security",
+      "gates": [
+        { "id": "gateway-build", "kind": "build", "weight": 25, "timeoutSeconds": 120, "command": "dotnet build src/AegisWAF.Gateway/AegisWAF.Gateway.csproj --no-restore --disable-build-servers -m:1 --verbosity minimal" },
+        { "id": "security-tests", "kind": "test", "weight": 25, "timeoutSeconds": 120, "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/module-verification/Invoke-InProcClassTests.ps1 -Classes ProductionSecurityTests" },
+        { "id": "health-tests", "kind": "test", "weight": 25, "timeoutSeconds": 120, "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/module-verification/Invoke-InProcClassTests.ps1 -Classes ProductionHealthTests" },
+        { "id": "security-documentation", "kind": "contract", "weight": 25, "timeoutSeconds": 30, "command": "if ((Select-String -Path docs/PRODUCTION_READINESS.md -Pattern 'Deployment' -Quiet) -and (Select-String -Path docs/SECURITY.md -Pattern 'bounded' -Quiet)) { exit 0 } else { exit 1 }" }
+      ]
+    },
+    {
+      "id": "admin-perimeter-hardening",
+      "name": "Admin perimeter hardening",
+      "gates": [
+        { "id": "gateway-build", "kind": "build", "weight": 25, "timeoutSeconds": 120, "command": "dotnet build src/AegisWAF.Gateway/AegisWAF.Gateway.csproj --no-restore --disable-build-servers -m:1 --verbosity minimal" },
+        { "id": "perimeter-tests", "kind": "test", "weight": 25, "timeoutSeconds": 120, "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/module-verification/Invoke-InProcClassTests.ps1 -Classes AdminPerimeterTests" },
+        { "id": "production-policy-tests", "kind": "test", "weight": 25, "timeoutSeconds": 120, "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/module-verification/Invoke-InProcClassTests.ps1 -Classes ProductionReadinessPolicyTests" },
+        { "id": "perimeter-documentation", "kind": "contract", "weight": 25, "timeoutSeconds": 30, "command": "if ((Select-String -Path docs/PRODUCTION_READINESS.md -Pattern 'listener isolation' -Quiet) -and (Select-String -Path docs/SECURITY.md -Pattern 'dual-listener' -Quiet) -and (Test-Path docs/superpowers/specs/2026-10-25-admin-perimeter-hardening-design.md)) { exit 0 } else { exit 1 }" }
+      ]
+    },
+    {
+      "id": "identity-hardening",
+      "name": "Identity hardening",
+      "gates": [
+        { "id": "gateway-build", "kind": "build", "weight": 25, "timeoutSeconds": 120, "command": "dotnet build src/AegisWAF.Gateway/AegisWAF.Gateway.csproj --no-restore --disable-build-servers -m:1 --verbosity minimal" },
+        { "id": "throttle-tests", "kind": "test", "weight": 25, "timeoutSeconds": 120, "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/module-verification/Invoke-InProcClassTests.ps1 -Classes AuthThrottleTests" },
+        { "id": "authentication-tests", "kind": "test", "weight": 25, "timeoutSeconds": 120, "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/module-verification/Invoke-InProcClassTests.ps1 -Classes AuthenticationTests" },
+        { "id": "identity-documentation", "kind": "contract", "weight": 25, "timeoutSeconds": 30, "command": "if ((Select-String -Path docs/SECURITY.md -Pattern 'local IP/username/pair' -Quiet) -and (Select-String -Path docs/PROTECTION.md -Pattern 'MFA' -Quiet) -and (Test-Path docs/superpowers/specs/2026-10-25-identity-hardening-design.md)) { exit 0 } else { exit 1 }" }
+      ]
+    },
+    {
+      "id": "cidr-ip-policy",
+      "name": "CIDR-aware IP policy",
+      "gates": [
+        { "id": "gateway-build", "kind": "build", "weight": 25, "timeoutSeconds": 120, "command": "dotnet build src/AegisWAF.Gateway/AegisWAF.Gateway.csproj --no-restore --disable-build-servers -m:1 --verbosity minimal" },
+        { "id": "ip-policy-unit-tests", "kind": "test", "weight": 25, "timeoutSeconds": 120, "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/module-verification/Invoke-InProcClassTests.ps1 -Classes IpPolicyUnitTests" },
+        { "id": "ip-policy-api-tests", "kind": "test", "weight": 25, "timeoutSeconds": 120, "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/module-verification/Invoke-InProcClassTests.ps1 -Classes IpPolicyApiTests" },
+        { "id": "ip-policy-documentation", "kind": "contract", "weight": 25, "timeoutSeconds": 30, "command": "if ((Select-String -Path docs/PROTECTION.md -Pattern 'CIDR' -Quiet) -and (Select-String -Path docs/SECURITY.md -Pattern 'most-specific' -Quiet) -and (Test-Path docs/superpowers/specs/2026-10-25-cidr-ip-policy-design.md)) { exit 0 } else { exit 1 }" }
+      ]
+    },
+    {
+      "id": "opaque-content-inspection",
+      "name": "Opaque content inspection",
+      "gates": [
+        { "id": "gateway-build", "kind": "build", "weight": 25, "timeoutSeconds": 120, "command": "dotnet build src/AegisWAF.Gateway/AegisWAF.Gateway.csproj --no-restore --disable-build-servers -m:1 --verbosity minimal" },
+        { "id": "opaque-request-tests", "kind": "test", "weight": 25, "timeoutSeconds": 120, "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/module-verification/Invoke-InProcClassTests.ps1 -Classes CatalogVerificationTests" },
+        { "id": "opaque-response-tests", "kind": "test", "weight": 25, "timeoutSeconds": 120, "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/module-verification/Invoke-InProcClassTests.ps1 -Classes ResponseInspection" },
+        { "id": "opaque-content-documentation", "kind": "contract", "weight": 25, "timeoutSeconds": 30, "command": "if ((Select-String -Path docs/PROTECTION.md -Pattern 'application/octet-stream' -Quiet) -and (Select-String -Path docs/SECURITY.md -Pattern 'opaque-content hardening' -Quiet) -and (Test-Path docs/superpowers/specs/2026-10-25-opaque-content-inspection-design.md)) { exit 0 } else { exit 1 }" }
+      ]
+    },
+    {
+      "id": "audit-integrity-alerting",
+      "name": "Audit integrity alerting",
+      "gates": [
+        { "id": "gateway-build", "kind": "build", "weight": 25, "timeoutSeconds": 120, "command": "dotnet build src/AegisWAF.Gateway/AegisWAF.Gateway.csproj --no-restore --disable-build-servers -m:1 --verbosity minimal" },
+        { "id": "audit-integrity-tests", "kind": "test", "weight": 25, "timeoutSeconds": 120, "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/module-verification/Invoke-InProcClassTests.ps1 -Classes AuditIntegrityAlertTests" },
+        { "id": "security-event-tests", "kind": "test", "weight": 25, "timeoutSeconds": 120, "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/module-verification/Invoke-InProcClassTests.ps1 -Classes SecurityEventLoggingTests" },
+        { "id": "audit-alert-documentation", "kind": "contract", "weight": 25, "timeoutSeconds": 30, "command": "if ((Select-String -Path docs/PRODUCTION_READINESS.md -Pattern 'Audit Integrity Failure' -Quiet) -and (Select-String -Path docs/SECURITY.md -Pattern 'audit-chain integrity alerting' -Quiet) -and (Test-Path docs/superpowers/specs/2026-10-25-audit-integrity-alerting-design.md)) { exit 0 } else { exit 1 }" }
+      ]
+    },
+    {
+      "id": "auth-rbac-audit",
+      "name": "Authentication / RBAC / audit",
+      "gates": [
+        { "id": "gateway-build", "kind": "build", "weight": 25, "timeoutSeconds": 120, "command": "dotnet build src/AegisWAF.Gateway/AegisWAF.Gateway.csproj --no-restore --disable-build-servers -m:1 --verbosity minimal" },
+        { "id": "authentication-tests", "kind": "test", "weight": 25, "timeoutSeconds": 120, "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/module-verification/Invoke-InProcClassTests.ps1 -Classes AuthenticationTests" },
+        { "id": "authorization-tests", "kind": "test", "weight": 25, "timeoutSeconds": 120, "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/module-verification/Invoke-InProcClassTests.ps1 -Classes AuthorizationTests" },
+        { "id": "audit-documentation", "kind": "contract", "weight": 25, "timeoutSeconds": 30, "command": "if ((Select-String -Path docs/ARCHITECTURE.md -Pattern 'Authorization matrix' -Quiet) -and (Select-String -Path docs/SECURITY.md -Pattern 'audit' -Quiet)) { exit 0 } else { exit 1 }" }
+      ]
+    },
+    {
+      "id": "desktop-ui",
+      "name": "Client API / Desktop UI",
+      "gates": [
+        { "id": "client-build", "kind": "build", "weight": 15, "timeoutSeconds": 120, "command": "dotnet build src/AegisWAF.Client/AegisWAF.Client.csproj --no-restore --disable-build-servers -m:1 --verbosity minimal" },
+        { "id": "desktop-build", "kind": "build", "weight": 30, "timeoutSeconds": 120, "command": "dotnet build src/AegisWAF.Desktop/AegisWAF.Desktop.csproj --no-restore --disable-build-servers -m:1 --verbosity minimal" },
+        { "id": "ui-contract-tests", "kind": "test", "weight": 25, "timeoutSeconds": 120, "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/module-verification/Invoke-InProcClassTests.ps1 -Classes UiContractTests" },
+        { "id": "desktop-documentation", "kind": "contract", "weight": 30, "timeoutSeconds": 30, "command": "if ((Select-String -Path docs/PROGRESS.md -Pattern 'Desktop app' -Quiet) -and (Test-Path src/AegisWAF.Desktop/App.xaml)) { exit 0 } else { exit 1 }" }
+      ]
+    },
+    {
+      "id": "database-operations",
+      "name": "Database / migrations / operations",
+      "gates": [
+        { "id": "migration-assets", "kind": "contract", "weight": 25, "timeoutSeconds": 30, "command": "if ((Get-ChildItem database -Filter '*.sql').Count -ge 9) { exit 0 } else { exit 1 }" },
+        { "id": "gateway-build", "kind": "build", "weight": 25, "timeoutSeconds": 120, "command": "dotnet build src/AegisWAF.Gateway/AegisWAF.Gateway.csproj --no-restore --disable-build-servers -m:1 --verbosity minimal" },
+        { "id": "operations-tests", "kind": "test", "weight": 25, "timeoutSeconds": 120, "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/module-verification/Invoke-InProcClassTests.ps1 -Classes GatewaySetupTests" },
+        { "id": "loadtest-harness", "kind": "contract", "weight": 25, "timeoutSeconds": 30, "command": "if ((Test-Path tools/security-loadtest/loadtest.ps1) -and (Test-Path tools/security-loadtest/README.md)) { exit 0 } else { exit 1 }" }
+      ]
+    },
+    {
+      "id": "documentation-verification",
+      "name": "Documentation / handoff / verification",
+      "gates": [
+        { "id": "handoff", "kind": "contract", "weight": 25, "timeoutSeconds": 30, "command": "if ((Test-Path handoff.md) -and (Select-String -Path handoff.md -Pattern 'Module ledger' -Quiet)) { exit 0 } else { exit 1 }" },
+        { "id": "design", "kind": "contract", "weight": 25, "timeoutSeconds": 30, "command": "if (Test-Path docs/superpowers/specs/2026-10-25-modular-development-handoff-design.md) { exit 0 } else { exit 1 }" },
+        { "id": "plan", "kind": "contract", "weight": 25, "timeoutSeconds": 30, "command": "if (Test-Path docs/superpowers/plans/2026-10-25-modular-development-handoff-plan.md) { exit 0 } else { exit 1 }" },
+        { "id": "verifier-tests", "kind": "test", "weight": 25, "timeoutSeconds": 120, "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/module-verification/verify-modules.tests.ps1" }
+      ]
+    }
+  ]
+}

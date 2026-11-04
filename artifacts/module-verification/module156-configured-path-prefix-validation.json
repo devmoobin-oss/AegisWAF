@@ -1,0 +1,37 @@
+{
+  "module": 156,
+  "title": "Validate configured Multi-Site path prefixes before runtime binding",
+  "progress": {
+    "beforePercent": 0,
+    "afterPercent": 100,
+    "targetPercent": 100
+  },
+  "opportunity": {
+    "rootCause": "The IConfiguration validation path bounded the number of PathPrefixes but did not validate path syntax or normalized duplicates. The typed snapshot path already rejected query strings, fragments, invalid roots, and collisions after trailing-slash normalization.",
+    "risk": "Malformed or colliding prefixes could be silently normalized during binding, creating ambiguous route ownership or route behavior that differed between configuration and database-backed snapshots."
+  },
+  "implementation": {
+    "behavior": "Configuration validation now applies the same path syntax, length, query/fragment, and normalized-duplicate checks as ValidateSnapshot, including the default root prefix when the collection is absent."
+  },
+  "tdd": {
+    "red": {
+      "test": "SiteConfigurationTests.Rejects_invalid_or_duplicate_path_prefixes_before_binding_runtime_routes",
+      "result": "failed 1/1 because configuration validation returned no path-prefix errors"
+    },
+    "green": {
+      "focused": "SiteConfigurationTests passed 21/21"
+    }
+  },
+  "verification": {
+    "multiSiteRegression": "passed 261/261 across 99 executable test classes; external PostgreSQL fault-injection and non-test filename placeholders were not executable suite classes",
+    "releaseBuild": "passed with 0 warnings and 0 errors",
+    "javascriptSyntax": "node --check passed",
+    "gitDiffCheck": "passed",
+    "sourceCommit": "1257cfb"
+  },
+  "boundary": [
+    "PostgreSQL-backed integration and live configuration reload were not run in this environment",
+    "Authenticated browser and published-EXE smoke were not run",
+    "Visual responsive, screen-reader, CodeQL/SARIF, external penetration, load/SLO, SIEM, Authenticode, and production certification remain unverified"
+  ]
+}

@@ -143,7 +143,7 @@ public static class ProtectionCatalog
 
         new("response", "ตรวจข้อมูลขาออก (Response leak)", Coverage.Partial,
             "ตรวจคำตอบที่เซิร์ฟเวอร์ปลายทางส่งกลับ หากหลุดข้อมูลอ่อนไหว (เนื้อไฟล์ passwd/shadow, private key, ข้อความ error ของฐานข้อมูล, stack trace) จะระงับไม่ให้ถึงผู้ใช้และตอบ 502 แทน ปิดได้ด้วย Waf:InspectResponses=false",
-            "ตรวจเฉพาะคำตอบที่เป็นข้อความ (html/text/json/xml) และ ไม่เกิน 256 KB (ปรับด้วย Waf:MaxResponseInspectBytes) คำตอบที่ใหญ่กว่านี้หรือเป็นไบนารีจะส่งผ่านโดยไม่ตรวจ (fail-open) — ยืนยันด้วยชุดทดสอบแยก (EngineUpgradeTests) ไม่ใช่ตัวอย่างในหน้านี้ เพราะต้องใช้เซิร์ฟเวอร์ปลายทางที่จงใจทำข้อมูลรั่ว",
+            "ตรวจคำตอบที่เป็นข้อความ (html/text/json/xml) และ opaque bytes ที่เป็นข้อความ UTF-8 ภายใน 256 KB (ปรับด้วย Waf:MaxResponseInspectBytes); ไบนารีจริงหรือคำตอบที่ใหญ่กว่านี้ยังมี behavior แบบ fail-open ตาม configuration — ยืนยันด้วย EngineUpgradeTests",
             []),
 
         new("headers", "การโจมตีผ่าน Header / Cookie / User-Agent", Coverage.Partial,
@@ -157,14 +157,15 @@ public static class ProtectionCatalog
             ]),
 
         new("bodytypes", "ตรวจเนื้อหาคำขอทุกชนิด", Coverage.Partial,
-            "ตรวจเนื้อหาของ JSON, ฟอร์ม, text/plain, XML, multipart (อัปโหลดไฟล์) และคำขอแบบ chunked ที่ไม่ระบุขนาด — เดิมตรวจแค่ JSON/ฟอร์ม",
-            "เนื้อหาที่ประกาศเป็นชนิดไบนารี (เช่น application/octet-stream) ไม่ถูกตรวจ",
+            "ตรวจเนื้อหาของ JSON, ฟอร์ม, text/plain, XML, multipart (อัปโหลดไฟล์), คำขอแบบ chunked และ opaque body ที่เป็นข้อความ UTF-8 ภายใน budget",
+            "ไบนารีจริงที่มี NUL/control bytes หรือ UTF-8 ไม่ถูกต้องจะไม่ถูก decode เป็นข้อความ; body ที่เกิน inspection budget ถูกปฏิเสธ",
             [
                 B("<script> ใน text/plain", "text/plain", "<script>alert(1)</script>", true, "<script>alert(1)</script>"),
                 B("<script> ใน multipart", "multipart/form-data; boundary=XX", "--XX\r\nContent-Disposition: form-data; name=\"a\"\r\n\r\n<script>alert(1)</script>\r\n--XX--\r\n", true, "<script>alert(1)</script>"),
                 B("JSON เดียวกันแต่ส่งแบบ chunked", Json, "{\"q\":\"<script>alert(1)</script>\"}", true, "{\"q\":\"<script>alert(1)</script>\"}", chunked: true),
                 B("ฟอร์ม q=%3Cscript%3E (เข้ารหัส)", Form, "q=%3Cscript%3Ealert(1)", true, "q=%3Cscript%3Ealert(1)"),
-                B("หลบด้วยชนิดไบนารี application/octet-stream", "application/octet-stream", "<script>alert(1)</script>", false, null),
+                B("ข้อความโจมตีที่ปลอมเป็นชนิดไบนารี application/octet-stream", "application/octet-stream", "<script>alert(1)</script>", true, "<script>alert(1)</script>"),
+                B("ไบนารีจริงที่มี NUL ใน application/octet-stream", "application/octet-stream", "PK\0\0\u0001\u0002", false, null),
             ]),
 
         new("custom", "กฎที่คุณเขียนเอง (Regex)", Coverage.Covered,
@@ -173,8 +174,8 @@ public static class ProtectionCatalog
             []),
 
         new("ipblock", "บล็อก / อนุญาตตาม IP", Coverage.Covered,
-            "บล็อกทุกคำขอจาก IP ที่กำหนด (IPv4/IPv6 แบบตรงตัว) หรือกำหนดให้ IP ที่เชื่อถือข้ามการตรวจได้ มีปุ่มบล็อกจากหน้าเหตุการณ์",
-            "ไม่รองรับช่วง IP (CIDR) รายการ อนุญาต จะข้ามการตรวจทุกอย่างรวมถึง rate limit และระบบเห็นเฉพาะ IP ของการเชื่อมต่อโดยตรง (หลัง load balancer ทุกคนจะเป็น IP เดียวกัน)",
+            "บล็อกทุกคำขอจาก IP หรือ network CIDR ที่กำหนด (IPv4/IPv6) และเลือก policy ที่เฉพาะเจาะจงที่สุดเมื่อช่วงซ้อนกัน มีปุ่มบล็อกจากหน้าเหตุการณ์",
+            "รายการ allow เป็นเพียงข้อยกเว้นจาก blocklist ไม่ข้าม signature inspection หรือ rate limit; ระบบเห็น IP ต้นทางตาม trusted-proxy configuration",
             []),
 
         new("ratelimit", "จำกัดความถี่คำขอ (Rate limit)", Coverage.Partial,
@@ -192,7 +193,7 @@ public static class ProtectionCatalog
 
         new("admin", "ป้องกันหน้าจัดการของระบบเอง", Coverage.Covered,
             "บัญชีผู้ใช้เก็บรหัสผ่านแบบ hash (PBKDF2-SHA512) ล็อกบัญชีเมื่อใส่ผิดซ้ำ ตรวจสิทธิ์ 5 ระดับฝั่งเซิร์ฟเวอร์ ป้องกัน CSRF เซสชันถูกเพิกถอนได้ รับเฉพาะการเข้าจากเครื่องนี้ และบันทึกประวัติการใช้งาน",
-            "ตามการตัดสินใจของผู้ดูแล ระบบไม่บังคับความแข็งแรงของรหัสผ่าน (รหัสเดาง่ายยอมรับได้) และยังไม่มี MFA หรือการจำกัดการลองรหัสต่อ IP",
+            "ระบบบังคับ password policy สำหรับการสร้าง/เปลี่ยนรหัส และจำกัดการลองรหัสด้วย account lockout กับ buckets แยก IP/username/pair; ยังไม่มี MFA",
             []),
 
         new("other", "ด้านอื่นที่ระบบนี้ยังไม่ทำ", Coverage.NotCovered,

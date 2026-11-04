@@ -1,0 +1,38 @@
+{
+  "module": 119,
+  "title": "Bounded lock for Multi-Site health alert acknowledgement",
+  "progress": {
+    "before": 0,
+    "after": 100,
+    "target": 100
+  },
+  "opportunity": "Health alert acknowledgement wrote PostgreSQL state without the Site mutation lock used by add/update/delete, so concurrent Site changes could race and a lock wait was not bounded.",
+  "rootCause": "The acknowledgement endpoint called AcknowledgeHealthAlertAsync directly after reading the trend; no advisory-lock lease or site_mutation_busy boundary covered the write.",
+  "implementation": [
+    "Acquired the existing bounded Site mutation lock before the acknowledgement write.",
+    "Returned the existing 503 site_mutation_busy ProblemDetails when the lock budget expires.",
+    "Disposed the advisory-lock lease in a finally block on success, database failure, cancellation and timeout."
+  ],
+  "tdd": {
+    "red": "SiteHealthAlertMutationLockTests initially failed because the acknowledgement endpoint did not acquire the mutation lock; the existing mutation count contract then caught and was updated for the fourth guarded endpoint.",
+    "focused": "4/4"
+  },
+  "verification": {
+    "relevantRegression": "83/83 across 40 classes",
+    "nodeSyntax": "passed",
+    "releaseBuild": "0 warnings / 0 errors",
+    "gitDiffCheck": "passed",
+    "uiAuditBoundary": "backend-only change; no CSS/HTML visual assets changed; existing UI audit baseline retained"
+  },
+  "boundaries": [
+    "Live PostgreSQL lock-contention execution, authenticated browser/published-EXE smoke, visual responsive verification, full VSTest testhost connectivity, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification remain unverified."
+  ],
+  "release": {
+    "path": "D:\\AegisWAF\\dist\\AegisWAF-Desktop-CompletedModules\\AegisWAF.exe",
+    "configuration": "Release win-x64 self-contained single-file net10.0-windows",
+    "bytes": 170648427,
+    "sha256": "AC28856E02F55F49D82796194632B26D04AA49BAA5E57F0957E22397DF8332F2",
+    "peHeader": "MZ",
+    "manifest": "files=6; signed=false; workingTreeClean=true; sourceCommit=024ab3dcd3746c8e0fb2e66f685f069f9b0bdf44"
+  }
+}

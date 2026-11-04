@@ -77,7 +77,13 @@ public class CatalogVerificationTests(GatewayFixture fx)
         var up = new FakeUpstream();
         var url = FreeUrl();
         var gw = new EmbeddedGateway();
-        await gw.StartAsync(new EmbeddedGatewayOptions(url, fx.ConnectionString, null, up.Url.ToString()));
+        await gw.StartAsync(new EmbeddedGatewayOptions(
+            url,
+            fx.ConnectionString,
+            null,
+            up.Url.ToString(),
+            ConfigurationOverrides: new Dictionary<string, string?> { ["AllowedHosts"] = "*" },
+            PreferConfigurationSites: true));
         return new Running(gw, up, url);
     }
 
@@ -117,7 +123,6 @@ public class CatalogVerificationTests(GatewayFixture fx)
         await using var run = await StartAsync();
         var url = run.Url;
         using var api = new ApiClient(url);
-        await api.LoginAsync(GatewayFixture.AdminUser, GatewayFixture.AdminPassword);
         var failures = new List<string>();
         foreach (var item in ProtectionCatalog.Items)
             foreach (var ex in item.Examples)
@@ -161,7 +166,6 @@ public class CatalogVerificationTests(GatewayFixture fx)
         await using var run = await StartAsync();
         var url = run.Url;
         using var api = new ApiClient(url);
-        await api.LoginAsync(GatewayFixture.AdminUser, GatewayFixture.AdminPassword);
         var attack = new ProbeRequest("GET", "/s?q=sleep(5)");
         var harmless = new ProbeRequest("GET", "/products?id=42");
         try

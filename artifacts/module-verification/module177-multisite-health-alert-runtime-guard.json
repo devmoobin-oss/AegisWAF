@@ -1,0 +1,23 @@
+{
+  "module": 177,
+  "title": "Multi-Site health alert runtime activation guard",
+  "beforePercent": 0,
+  "afterPercent": 100,
+  "targetPercent": 100,
+  "red": "SiteRuntimeStateTests and SiteHealthAlertRuntimeGuardContractTests initially failed because the shared runtime-state helper and acknowledgement guard did not exist.",
+  "focusedTests": "60/60 targeted tests passed across runtime state, health alert acknowledgement, health summary, trend, display-state, Browser, Desktop, activation, listener, registry lookup, and reload retry coverage; 0 failed and 0 skipped.",
+  "javascriptSyntax": "node --check src/AegisWAF.Gateway/wwwroot/assets/app.js passed",
+  "releaseBuild": "Release build passed before publish: 0 warnings, 0 errors",
+  "diffCheck": "git diff --check passed",
+  "implementation": "Centralized persisted-versus-active Site comparison in SiteRuntimeState.IsPendingRestart, reused it for Site listing and manual health, and blocked alert acknowledgement with stable code site_runtime_pending_restart plus Thai recovery guidance when the persisted Site is not active in the Gateway runtime.",
+  "artifact": {
+    "path": "D:\\AegisWAF\\dist\\AegisWAF-Desktop-CompletedModules\\AegisWAF.exe",
+    "sha256": "8456A54324F332A841AF80CFAEAE43CBD7CB89738AE0023C7EF6DAB85C6C10F1",
+    "sizeBytes": 170731883,
+    "sourceCommit": "3d8c49091d384af792327b0edd2236aa2bdc4d82",
+    "manifest": "files=6, signed=false, workingTreeClean=true",
+    "peHeader": "MZ",
+    "authenticode": "NotSigned"
+  },
+  "boundary": "This module prevents acknowledgement against an inactive runtime route; it does not automatically activate, mutate, or delete Site configuration. PostgreSQL-backed live outage execution, authenticated visual published-EXE smoke, full VSTest testhost connectivity, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification remain outside this verification run."
+}

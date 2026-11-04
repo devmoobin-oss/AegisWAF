@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <Reference Include="AegisWAF.Gateway">
+      <HintPath>..\..\..\src\AegisWAF.Gateway\bin\Debug\net10.0\AegisWAF.Gateway.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Content Include="..\..\..\src\AegisWAF.Gateway\bin\Debug\net10.0\*.dll" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <Target Name="RequireGatewayBuild" BeforeTargets="ResolveReferences">
+    <Error Condition="!Exists('..\..\..\src\AegisWAF.Gateway\bin\Debug\net10.0\AegisWAF.Gateway.dll')" Text="Build src/AegisWAF.Gateway first." />
+  </Target>
+</Project>

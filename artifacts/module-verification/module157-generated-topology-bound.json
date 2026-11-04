@@ -1,0 +1,46 @@
+{
+  "module": 157,
+  "title": "Bound global Multi-Site generated routes and destinations",
+  "progress": {
+    "beforePercent": 0,
+    "afterPercent": 100,
+    "targetPercent": 100
+  },
+  "opportunity": {
+    "rootCause": "Per-Site cardinality limits did not bound the aggregate runtime topology. Generated routes multiply normalized Hostnames by normalized PathPrefixes, while generated destinations aggregate Upstreams across all active Sites.",
+    "risk": "A valid collection of many Sites could still expand the YARP configuration provider and route/destination graph to an excessive size during activation."
+  },
+  "implementation": {
+    "configuration": {
+      "maxGeneratedRoutesDefault": 100000,
+      "maxGeneratedRoutesHardCeiling": 1000000,
+      "maxGeneratedDestinationsDefault": 100000,
+      "maxGeneratedDestinationsHardCeiling": 1000000
+    },
+    "behavior": "Both IConfiguration validation and typed snapshot validation now reject aggregate route or destination counts above the configured global limits before SiteProxyConfiguration.Build runs."
+  },
+  "tdd": {
+    "red": {
+      "tests": [
+        "SiteConfigurationCardinalityTests.Rejects_more_generated_routes_than_the_global_runtime_limit",
+        "SiteConfigurationCardinalityTests.Rejects_more_generated_destinations_than_the_global_runtime_limit"
+      ],
+      "result": "failed 2/2 because neither global topology gate existed"
+    },
+    "green": {
+      "focused": "SiteConfigurationCardinalityTests passed 6/6"
+    }
+  },
+  "verification": {
+    "multiSiteRegression": "passed 263/263 across 99 executable test classes; external PostgreSQL fault-injection and non-test filename placeholders were not executable suite classes",
+    "releaseBuild": "passed with 0 warnings and 0 errors",
+    "javascriptSyntax": "node --check passed",
+    "gitDiffCheck": "passed",
+    "sourceCommit": "5523b25"
+  },
+  "boundary": [
+    "PostgreSQL-backed integration and live large-topology activation were not run in this environment",
+    "Authenticated browser and published-EXE smoke were not run",
+    "Visual responsive, screen-reader, CodeQL/SARIF, external penetration, load/SLO, SIEM, Authenticode, and production certification remain unverified"
+  ]
+}

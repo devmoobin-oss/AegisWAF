@@ -15,12 +15,11 @@
                 <TextBlock Text="&#xEA18;" FontFamily="Segoe MDL2 Assets" FontSize="30" Foreground="{StaticResource Blue}" Margin="0,0,10,0" VerticalAlignment="Center"/>
                 <TextBlock FontSize="26" FontWeight="SemiBold" VerticalAlignment="Center"><Run Text="ยินดีต้อนรับสู่ Aegis"/><Run Text="WAF" Foreground="{StaticResource Blue}"/></TextBlock>
             </StackPanel>
-            <TextBlock Text="ตั้งค่าเพียง 4 ขั้นตอน ใช้เวลาไม่กี่นาที — ระบบจะเริ่มทำงานและเข้าสู่ระบบให้อัตโนมัติ" Style="{StaticResource MutedText}" FontSize="13" Margin="0,6,0,16"/>
-            <UniformGrid Columns="4" Margin="0,0,0,16">
+            <TextBlock Text="ตั้งค่าเพียง 3 ขั้นตอน ใช้เวลาไม่กี่นาที — ระบบจะเริ่มทำงานให้อัตโนมัติ" Style="{StaticResource MutedText}" FontSize="13" Margin="0,6,0,16"/>
+            <UniformGrid Columns="3" Margin="0,0,0,16">
                 <Border x:Name="Pill1" CornerRadius="16" Padding="8,7" Margin="0,0,6,0"><TextBlock x:Name="PillText1" Text="1  ฐานข้อมูล" HorizontalAlignment="Center" FontSize="12.5"/></Border>
-                <Border x:Name="Pill2" CornerRadius="16" Padding="8,7" Margin="0,0,6,0"><TextBlock x:Name="PillText2" Text="2  ผู้ดูแลระบบ" HorizontalAlignment="Center" FontSize="12.5"/></Border>
-                <Border x:Name="Pill3" CornerRadius="16" Padding="8,7" Margin="0,0,6,0"><TextBlock x:Name="PillText3" Text="3  เว็บไซต์ที่ปกป้อง" HorizontalAlignment="Center" FontSize="12.5"/></Border>
-                <Border x:Name="Pill4" CornerRadius="16" Padding="8,7"><TextBlock x:Name="PillText4" Text="4  เริ่มใช้งาน" HorizontalAlignment="Center" FontSize="12.5"/></Border>
+                <Border x:Name="Pill2" CornerRadius="16" Padding="8,7" Margin="0,0,6,0"><TextBlock x:Name="PillText2" Text="2  เว็บไซต์ที่ปกป้อง" HorizontalAlignment="Center" FontSize="12.5"/></Border>
+                <Border x:Name="Pill3" CornerRadius="16" Padding="8,7"><TextBlock x:Name="PillText3" Text="3  เริ่มใช้งาน" HorizontalAlignment="Center" FontSize="12.5"/></Border>
             </UniformGrid>
         </StackPanel>
 
@@ -54,30 +53,8 @@
                     </StackPanel>
                 </ScrollViewer>
 
-                <!-- Step 2: administrator -->
+                <!-- Step 2: protected site -->
                 <ScrollViewer x:Name="Step2" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
-                    <StackPanel>
-                        <TextBlock Text="บัญชีผู้ดูแลระบบ" Style="{StaticResource H2}"/>
-                        <StackPanel x:Name="AdminExisting" Visibility="Collapsed">
-                            <TextBlock TextWrapping="Wrap" Margin="0,10,0,0" FontSize="13" Foreground="{StaticResource Green}"
-                                       Text="พบบัญชีผู้ใช้อยู่แล้วในฐานข้อมูลนี้ — ไม่ต้องสร้างใหม่ ใช้บัญชีเดิมเข้าสู่ระบบได้เลยหลังจบขั้นตอนนี้"/>
-                        </StackPanel>
-                        <StackPanel x:Name="AdminNew">
-                            <TextBlock Style="{StaticResource MutedText}" TextWrapping="Wrap" FontSize="12.5" Margin="0,6,0,14"
-                                       Text="สร้างบัญชีแรกสำหรับเข้าใช้งานโปรแกรม (สิทธิ์สูงสุด) บัญชีอื่นเพิ่มได้ภายหลังในเมนู ผู้ใช้งานระบบ"/>
-                            <TextBlock Text="ชื่อผู้ใช้ (a-z ตัวเลข . _ -)" Style="{StaticResource MutedText}" FontSize="11.5" Margin="0,0,0,4"/>
-                            <TextBox x:Name="AdminUser" Text="admin" Margin="0,0,0,12"/>
-                            <TextBlock Text="รหัสผ่าน" Style="{StaticResource MutedText}" FontSize="11.5" Margin="0,0,0,4"/>
-                            <PasswordBox x:Name="AdminPass" Margin="0,0,0,12" PasswordChanged="OnAdminPassChanged"/>
-                            <TextBlock Text="ยืนยันรหัสผ่าน" Style="{StaticResource MutedText}" FontSize="11.5" Margin="0,0,0,4"/>
-                            <PasswordBox x:Name="AdminPass2" Margin="0,0,0,8" PasswordChanged="OnAdminPassChanged"/>
-                            <TextBlock x:Name="PassHint" FontSize="12.5" TextWrapping="Wrap" Style="{StaticResource MutedText}" Text="ตั้งรหัสผ่านอะไรก็ได้ที่คุณจำได้"/>
-                        </StackPanel>
-                    </StackPanel>
-                </ScrollViewer>
-
-                <!-- Step 3: protected site -->
-                <ScrollViewer x:Name="Step3" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
                     <StackPanel>
                         <TextBlock Text="เว็บไซต์ที่ต้องการปกป้อง" Style="{StaticResource H2}"/>
                         <TextBlock Style="{StaticResource MutedText}" TextWrapping="Wrap" FontSize="12.5" Margin="0,6,0,14"
@@ -94,8 +71,8 @@
                     </StackPanel>
                 </ScrollViewer>
 
-                <!-- Step 4: summary -->
-                <ScrollViewer x:Name="Step4" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                <!-- Step 3: summary -->
+                <ScrollViewer x:Name="Step3" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
                     <StackPanel>
                         <TextBlock Text="พร้อมเริ่มใช้งาน" Style="{StaticResource H2}"/>
                         <TextBlock x:Name="Summary" TextWrapping="Wrap" FontSize="13" LineHeight="24" Margin="0,12,0,14"/>

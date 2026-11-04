@@ -1,0 +1,64 @@
+{
+  "module": 150,
+  "title": "Index Multi-Site hostname routing and telemetry attribution",
+  "progress": {
+    "before": 0,
+    "after": 100,
+    "target": 100
+  },
+  "opportunity": {
+    "rootCause": "SiteRegistry.Resolve and hostname-only telemetry attribution scanned every Site in the active snapshot before checking hostnames, producing O(S) work on each request as the Multi-Site configuration grew.",
+    "scope": "SiteRegistry, SiteMatcher, and request telemetry attribution"
+  },
+  "implementation": [
+    "Added an immutable case-insensitive hostname index to each atomically replaced SiteRegistry state.",
+    "Changed route resolution to perform an indexed hostname lookup and then evaluate only the matched Site's bounded path-prefix list while preserving longest-prefix semantics.",
+    "Added an indexed SiteRegistry.MatchHostname API and switched pathless telemetry attribution to use it, avoiding a second full-snapshot scan."
+  ],
+  "verification": {
+    "tddRed": {
+      "tests": 1,
+      "failed": 1,
+      "reason": "The new routing-index test suite initially could not compile because SiteRegistry had no MatchHostname API (CS1061); the index/source contract was absent."
+    },
+    "focused": {
+      "passed": 20,
+      "failed": 0,
+      "skipped": 0,
+      "classes": [
+        "SiteRegistryRoutingIndexTests",
+        "SiteMatcherTests",
+        "SiteProxyConfigurationTests"
+      ]
+    },
+    "multiSiteRegressionWithoutPostgres": {
+      "passed": 252,
+      "failed": 0,
+      "skipped": 0,
+      "classes": 94,
+      "runner": "in-process xUnit",
+      "excludedEnvironmentGates": [
+        "SiteDatabaseCrudTests",
+        "SiteRuntimeDistributedTests",
+        "SiteRuntimeListenerStatusIntegrationTests",
+        "SiteEndpointReadBudgetTests (stale source contract expecting ListAsync in manual health endpoint)",
+        "SiteHealthProbeTests (loopback socket AccessDenied in this environment)"
+      ]
+    },
+    "releaseBuild": {
+      "warnings": 0,
+      "errors": 0,
+      "solution": "AegisWAF.slnx"
+    },
+    "javascriptSyntax": "passed",
+    "gitDiffCheck": "passed"
+  },
+  "boundaries": [
+    "Large live Site-count routing latency benchmark",
+    "Live PostgreSQL persistence and concurrent multi-instance execution",
+    "Authenticated browser/published-EXE smoke",
+    "Visual responsive and screen-reader verification",
+    "CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification"
+  ],
+  "recordedAt": "2026-10-30"
+}

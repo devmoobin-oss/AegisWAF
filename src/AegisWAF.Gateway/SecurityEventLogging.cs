@@ -5,6 +5,15 @@ namespace AegisWAF.Gateway;
 
 internal static class SecurityEventLogFormatter
 {
+    public static string FormatAuditIntegrityFailure(long checkedEntries, long firstInvalidId) => JsonSerializer.Serialize(new
+    {
+        eventType = "aegiswaf.audit_integrity_failure",
+        timestamp = DateTimeOffset.UtcNow,
+        severity = "critical",
+        checkedEntries,
+        firstInvalidId
+    });
+
     public static string Format(SecurityEvent item) => JsonSerializer.Serialize(new
     {
         eventType = "aegiswaf.security_event",
@@ -12,6 +21,9 @@ internal static class SecurityEventLogFormatter
         clientIp = item.Ip,
         method = item.Method,
         path = item.Path,
+        siteId = item.SiteId,
+        hostname = item.Hostname,
+        upstreamId = item.UpstreamId,
         requestId = item.RequestId,
         rule = item.Rule,
         status = item.Status,

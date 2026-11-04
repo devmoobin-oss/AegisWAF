@@ -1,0 +1,15 @@
+{
+  "profile": "product-admin",
+  "sourceRoots": ["src/AegisWAF.Gateway/wwwroot"],
+  "canonicalMap": "UX-CONTRACT.md",
+  "requiredCapabilities": ["Table Selection", "Select/Listbox", "Form", "Scrollbar", "Toast", "CRUD"],
+  "ownership": {
+    "Select/Listbox": "native"
+  },
+  "requiredCommands": [],
+  "commands": {},
+  "evidence": {
+    "crudFullFlow": "tests/AegisWAF.Tests/SiteCrudProgressiveLoadContractTests.cs",
+    "failurePaths": "tests/AegisWAF.Tests/SiteMutationValidationSourceContractTests.cs"
+  }
+}

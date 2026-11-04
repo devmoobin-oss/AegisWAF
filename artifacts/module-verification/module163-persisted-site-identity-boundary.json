@@ -1,0 +1,46 @@
+{
+  "module": 163,
+  "title": "Reject invalid persisted Site identity and empty required collections",
+  "progress": {
+    "beforePercent": 0,
+    "afterPercent": 100,
+    "targetPercent": 100
+  },
+  "opportunity": {
+    "rootCause": "SitePersistenceCodec.FromRow accepted malformed Site IDs and empty hostname/path-prefix arrays before later snapshot validation.",
+    "risk": "Malformed database rows could become runtime Site objects with ambiguous identity or incomplete routing data."
+  },
+  "implementation": {
+    "behavior": "FromRow validates the shared Site ID grammar, canonicalizes valid IDs, and rejects empty hostname/path-prefix collections before constructing GatewaySite."
+  },
+  "tdd": {
+    "red": {
+      "test": "SitePersistenceCodecTests.Persistence_codec_rejects_invalid_site_identity_and_empty_required_collections",
+      "result": "failed 1/1 because invalid identity and empty required collections produced no exception"
+    },
+    "canonicalizationRed": {
+      "test": "SitePersistenceCodecTests.Persistence_codec_canonicalizes_a_valid_site_id_before_materialization",
+      "result": "failed 1/1 when persistence returned the uncanonicalized row ID"
+    },
+    "green": {
+      "focused": "SitePersistenceCodecTests passed 7/7"
+    }
+  },
+  "verification": {
+    "relatedRegression": "passed 78/78 across configuration, editor, persistence, activation, security, health-trend, UI-contract, and handoff classes",
+    "releaseBuild": "passed with 0 warnings and 0 errors",
+    "javascriptSyntax": "node --check passed",
+    "gitDiffCheck": "passed",
+    "publishedArtifact": {
+      "path": "D:\\AegisWAF\\dist\\AegisWAF-Desktop-CompletedModules\\AegisWAF.exe",
+      "sha256": "BF98814371A0BECFAD545594B1001AFE9A11AF9C1C8159C8C37C9FE101A44834",
+      "bytes": 170714987,
+      "sourceCommit": "655105fb5cdc827f6df1ebb0125fbd8c8cac1cd9",
+      "manifest": "passed files=6 signed=false workingTreeClean=true"
+    }
+  },
+  "boundary": [
+    "Live PostgreSQL malformed-row execution was not available",
+    "Authenticated browser/published-EXE smoke, visual responsive/screen-reader verification, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification remain unverified"
+  ]
+}

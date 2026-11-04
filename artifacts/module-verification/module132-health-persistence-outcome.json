@@ -1,0 +1,29 @@
+{
+  "module": "Module 132",
+  "title": "Clarify manual health probe versus history persistence outcome",
+  "recordedAt": "2026-10-28",
+  "progress": {
+    "beforePercent": 0,
+    "afterPercent": 100,
+    "targetPercent": 100
+  },
+  "sourceCommit": "c29ca37",
+  "implementation": [
+    "Preserved the manual health endpoint's explicit historyPersisted and historyRetention boundary as a tested contract.",
+    "Updated the Multi-Site browser status to warn in Thai when the probe completed but the health history could not be persisted.",
+    "Kept the successful probe result visible and reloads the current Site summary without misrepresenting persistence as successful."
+  ],
+  "verification": {
+    "tddRed": "The new browser persistence contract initially failed because historyPersisted=false was not reflected in the UI.",
+    "focused": "2/2 passed",
+    "regressionWithoutPostgres": "125/125 passed across 57 classes",
+    "releaseBuild": "0 warnings / 0 errors",
+    "nodeSyntax": "passed",
+    "impeccableDetector": "0 anti-patterns; four pre-existing advisory design-system color findings remain in app.js",
+    "gitDiffCheck": "passed"
+  },
+  "boundary": [
+    "Live PostgreSQL history-write failure and authenticated browser/published-EXE smoke remain externally unverified.",
+    "Visual responsive verification, full VSTest testhost connectivity, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification remain outside this local run."
+  ]
+}

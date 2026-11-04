@@ -1,4 +1,35 @@
-# Progress Report — v0.7
+# Current Production WAF Progress Snapshot
+
+Updated against Hosted Security Verification run `40445541235` on 2026-10-27.
+
+## Verified local evidence
+
+| Evidence | Result |
+|---|---|
+| Full automated security/regression suite | **509/509 passed, 0 failed, 0 skipped** |
+| Hosted supporting security gates | **Dependency audit, secret scan, SBOM, and direct-origin guardrail passed; CodeQL/SARIF pending repository enablement** |
+| Release solution build | **4 projects, 0 warnings, 0 errors** |
+| Dependency vulnerability scan | **No vulnerable packages reported** by NuGet sources |
+| Healthy-upstream real-socket load test | **82 requests; 78 blocked, 4 proxied, 0 errors** |
+| Local synthetic load test without an upstream | **92 requests; 76 blocked (403), 16 upstream 502s, 0 client errors; JSON/CSV evidence recorded** |
+| Worktree integrity | **`git diff --check` passed; authoritative module history and current artifact are recorded in `handoff.md`** |
+
+## Workstream progress
+
+| Workstream | Progress | Evidence boundary |
+|---|---:|---|
+| Multi-Site routing and isolation | 99% | Real-socket site isolation and unknown-host rejection tested; external multi-instance validation pending |
+| Runtime egress enforcement | 97% | Startup DNS preflight and connection-boundary checks tested, including IPv6 documentation-range rejection; infrastructure ACL and external rebinding assessment pending |
+| Upstream health/failover | 96% | Active/passive YARP health and local failover tested; external capacity/failure testing pending |
+| Distributed rate limiting/auth throttling | 100% local evidence | PostgreSQL shared state and two-gateway tests pass; multi-instance deployment validation pending |
+| Parser-aware hardening | 98% | Structured parsing, decompression limits, duplicate-key and fuzz regressions pass; independent bypass testing pending |
+| Secure production guardrails | 100% local evidence | Fail-closed configuration/readiness checks pass; deployment operation review pending |
+| Audit/SIEM integrity | 98% | Structured events, chain verification and tamper alert pass; SIEM routing/alert policy pending |
+| External security assessment | 25% | Local harness and dependency scan exist; independent penetration, SAST/secret/SBOM and external load review pending |
+
+These percentages describe implementation and local evidence only. They are not a certification or an OWASP compliance claim. The remaining gates are tracked in [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md).
+
+# Historical Progress Report — v0.7
 
 ## Iteration summary
 * **Version**: v0.7 (from the v0.6 baseline)
@@ -22,8 +53,8 @@ Reason: first-run setup was the hardest part (hand-written connection string, ma
 * Verified by running the published exe with UI Automation from a state with no settings file and no database: wizard → missing database detected → created → weak/good password hints → upstream check → summary → automatic start + sign-in → dashboard banner → self-test reported "blocked" → events/settings pages open → app closed → relaunch showed the slim login with the gateway already started → login succeeded. Test artefacts (settings file, database) were removed afterwards.
 * Not verified: the "wrong database password" and "port already in use" messages in the wizard UI (covered by unit/integration tests of the underlying calls, and the wrong-password message was seen in an earlier run), the block-IP button, the settings-page save/restart and reset flows, the remote-gateway mode, high-DPI layouts. No usability testing with real users has been done — the redesign is based on the friction I met while using the app, not on observed users.
 
-## Password policy removed (operator request)
-Server (`PasswordHasher.Validate` is now only non-empty ≤128 chars), desktop wizard/change-password/users screens and the web console no longer mention or enforce length/complexity/username/"must differ" rules. Tests rewritten to assert the new behaviour (96 total): weak passwords such as `1`, `x`, the username itself and a repeated password are accepted for create, reset and change and can log in; empty and 129-character passwords are rejected. Not re-run in the UI after this change: the wizard/change-password windows were not re-driven with UI Automation. Risk assessment is recorded in `SECURITY.md`.
+## Password policy and identity throttling status
+Server-side creation/change/reset paths enforce at least 12 characters, upper/lower/digit/symbol classes, username exclusion and a 128-character maximum. Local authentication fallback uses bounded IP, username and IP+username failure buckets; production uses shared PostgreSQL IP and username buckets. MFA/WebAuthn/OIDC remains a separate open item. Existing legacy hashes created under older policy should be rotated by administrators.
 
 ## "What the system protects against" (page + document)
 * New app page **ระบบป้องกันอะไรได้บ้าง** and `docs/PROTECTION.md`, both derived from / checked against `ProtectionCatalog` (Client library). 13 topics: 4 covered, 4 partial, 5 not covered.
@@ -39,7 +70,7 @@ Goal: close the bypasses documented in PROTECTION.md (raw non-normalised matchin
 * **Signatures**: 3 → 13 NonBacktracking rule groups (SQLi ×3, XSS ×3, path ×2, LFI/RFI, cmd ×2, SSRF, protocol anomaly) + a scanner-User-Agent rule. Linear-time (no ReDoS), each individually toggleable; `RuleText` descriptions and `ProtectionCatalog`/PROTECTION.md updated.
 * **Tests**: 101 total. `CatalogVerificationTests` now proves each catalog claim on a real in-process gateway; the previously-bypassing examples assert BLOCKED.
 * **Real-process probe** (published exe, throw-away DB, raw sockets) — before → after, now BLOCKED where they used to pass: `union%20select`, `or%201=1`, `union/**/select`, `'; DROP TABLE`, boolean-blind; `%3Cscript%3E`, encoded `<img onerror>`; `..%2f`, double-encoded `%252e`, `/etc/passwd`, `php://filter`; `;cat`, `|id`, `$(whoami)`; SSRF `169.254.169.254`; form/text/plain/multipart/chunked bodies; `<script>`/`sleep(5)`/`sqlmap` in User-Agent/Cookie/X-Forwarded-Host. Still pass (documented gaps): http-RFI, NoSQL `{"$ne":null}`; server-level 414/400 for oversized/malformed raw requests; normal and harmless-large traffic correctly pass.
-* **Honest cost**: tuned for detection, so false positives rise (e.g. `sleep(` in ordinary prose is blocked; broad `(or|and) x=x` and shell-binary lists can hit legitimate data). Mitigation: every rule is toggleable in *กฎการป้องกัน*; IP allowlist bypasses.
+* **Honest cost**: tuned for detection, so false positives rise (e.g. `sleep(` in ordinary prose is blocked; broad `(or|and) x=x` and shell-binary lists can hit legitimate data). Mitigation: every rule is toggleable in *กฎการป้องกัน*; IP allowlist entries do not bypass inspection or rate limiting.
 * **Not done**: Unicode normalisation, response inspection, NoSQL/XXE/template injection, anomaly scoring, OWASP CRS — these remain v0.9. No independent pen-test. The new page/engine were not re-driven through the WPF UI after this change (the underlying calls are covered by tests; the page rendered correctly in the earlier UI-Automation run).
 
 ## v0.9 — remaining engine work (deep normalisation, new classes, scoring, response inspection, CRS study)
@@ -47,10 +78,10 @@ Goal: finish the detection items listed as "not done" after v0.7.1.
 * **Deep Unicode normalisation** (`Normalizer`): added an NFKC compatibility fold (collapses fullwidth/compatibility code points such as `＜script＞` to ASCII) and zero-width/BOM stripping (defeats `un​ion`), as extra canonical variants alongside the existing decode/entity/comment passes. Never mutates the forwarded request.
 * **New signature classes** (`SecurityRules`): NoSQL operator injection (`nosql-01`: `$ne/$gt/$where/…`, `user[$ne]=`), XXE (`xxe-01`: DOCTYPE/ENTITY, SYSTEM/PUBLIC to file/http), SSTI (`ssti-01`: `{{7*7}}`, `${…}`, `<%…%>`, `#{…}`, dangerous template keywords). 13 → 16 groups. Some payloads overlap earlier broader rules (a `file://` entity is attributed to LFI, `${…}` to shell) — still blocked, just under the earlier rule.
 * **Anomaly scoring** (`AnomalyScorer`, rule `anomaly-01`): additive weak-signal scoring; blocks when one value's score ≥ threshold (default 7). **Off by default** (raises false positives); toggleable in the rules grid and via `Waf:AnomalyScoring:Enabled`/`Threshold`.
-* **Response/leak inspection** (`ResponseInspector` + `ResponseBufferStream`): buffers textual upstream responses up to `Waf:MaxResponseInspectBytes` (256 KiB) and replaces the body with a 502 if it leaks a passwd/shadow file, private key, raw DB error, or stack trace. Responses that are binary or exceed the cap stream through unbuffered and are not inspected (documented fail-open). On by default (`Waf:InspectResponses`).
+* **Response/leak inspection** (`ResponseInspector` + `ResponseBufferStream`): buffers textual and text-like opaque upstream responses within `Waf:MaxResponseInspectBytes` (256 KiB default) and replaces the body with a 502 if it leaks a passwd/shadow file, private key, raw DB error, or stack trace. In the strict Production profile, `Waf:InspectResponses=true`, `Waf:InspectBinaryResponses=true`, and `Waf:ResponseOverflowAction=block` make malformed, binary, or oversized responses fail closed; the Desktop compatibility profile may use `stream` for controlled local testing.
 * **OWASP CRS**: a compatibility **study/decision record** (`OWASP_CRS_COMPATIBILITY.md`), not an import — CRS SecLang cannot load into .NET; decision is to adopt CRS *concepts* now (scoring, response rules, transform parity) and record a Coraza+CRS sidecar as the path to real CRS coverage once a multi-process deployment exists.
 * **Deferred** from the v0.9 scope: rule exclusions (per-path/param allowlisting) and rule versioning.
-* **Tests**: 101 → **125** (24 new in `EngineUpgradeTests`): Unicode fold/zero-width, each new signature class and its documented bypass, anomaly scoring on/off/threshold and the toggle/count, and five response-inspection integration tests over a scripted upstream (passwd leak → 502, DB-error leak → 502, clean HTML passes, binary fail-open, > cap streams through intact). `dotnet test`: **125 passed, 0 failed**.
+* **Tests**: 101 → **125** (24 new in `EngineUpgradeTests`): Unicode fold/zero-width, each new signature class and its documented bypass, anomaly scoring on/off/threshold and the toggle/count, and response-inspection integration tests over a scripted upstream. The current full suite is maintained separately in the Production readiness evidence.
 * **Not done / not verified**: no independent pen-test; no benchmark against OWASP CRS on a shared corpus (that benchmark is itself a documented follow-up); the new rules/response path were not re-driven through the WPF UI (underlying calls are covered by tests).
 
 ## Verified results

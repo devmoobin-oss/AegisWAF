@@ -1,0 +1,39 @@
+{
+  "module": 117,
+  "title": "Localized bounded Multi-Site API error recovery copy",
+  "progress": {
+    "before": 0,
+    "after": 100,
+    "target": 100
+  },
+  "opportunity": "Multi-Site API errors exposed English ProblemDetails title/detail text directly, so operators received internal wording instead of a clear Thai recovery action.",
+  "rootCause": "readApiError ignored the stable ProblemDetails code and had no bounded user-facing copy map.",
+  "implementation": [
+    "Added a bounded apiErrorCopy map for operational Multi-Site codes, including mutation contention, health-summary timeout, activation failure, database availability, hostname conflict and version conflicts.",
+    "Preserved validation error detail for actionable field-level feedback and kept the generic RFC7807 fallback path.",
+    "Read only the stable code and extensions.code fields, cap the final message at 512 characters, and do not expose traceId or infrastructure details."
+  ],
+  "tdd": {
+    "red": "BrowserMultiSiteErrorCopyContractTests initially failed because readApiError had no detail.code mapping.",
+    "focused": "1/1"
+  },
+  "verification": {
+    "relevantRegression": "81/81 across 38 classes; direct-listener SiteHealthProbeTests were excluded because the current execution environment returns socket_AccessDenied for the loopback fixture.",
+    "nodeSyntax": "passed",
+    "releaseBuild": "0 warnings / 0 errors",
+    "gitDiffCheck": "passed",
+    "impeccableDetector": "passed with four pre-existing advisory color findings (#ff4d5e, #22374f, #ff6378); no new error-copy finding",
+    "uiAuditBoundary": "copy-only browser refinement; no CSS/HTML visual assets changed; existing UI audit baseline retained"
+  },
+  "boundaries": [
+    "Authenticated browser/published-EXE smoke, visual responsive verification, full VSTest testhost connectivity, live PostgreSQL behavior, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification remain unverified."
+  ],
+  "release": {
+    "path": "D:\\AegisWAF\\dist\\AegisWAF-Desktop-CompletedModules\\AegisWAF.exe",
+    "configuration": "Release win-x64 self-contained single-file net10.0-windows",
+    "bytes": 170647915,
+    "sha256": "A2E98EEDFCD2DFC56C96A31E217CFF210ED6CBD55CF9D87D7448813250634532",
+    "peHeader": "MZ",
+    "manifest": "files=6; signed=false; workingTreeClean=true; sourceCommit=ab7ddb8975059f5d047a26b4b8948a376237bcfa"
+  }
+}

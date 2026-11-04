@@ -1,0 +1,39 @@
+{
+  "module": 120,
+  "title": "Bounded Multi-Site health history, trend and acknowledgement reads",
+  "progress": {
+    "before": 0,
+    "after": 100,
+    "target": 100
+  },
+  "opportunity": "Individual health history and trend endpoints, plus the acknowledgement read phase, had no database time budget even though the summary endpoint was bounded.",
+  "rootCause": "The endpoints passed the request cancellation token directly to SiteDatabaseStore reads and only returned when the caller disconnected or the database completed.",
+  "implementation": [
+    "Added a two-second linked SiteHealthReadBudget with explicit client-cancellation distinction.",
+    "Applied the budget to health history, trend and acknowledgement discovery reads.",
+    "Returned the bounded site_health_read_timeout ProblemDetails response and localized its recovery copy in the browser."
+  ],
+  "tdd": {
+    "red": "SiteHealthReadBudgetTests initially failed to compile because the budget policy did not exist; the endpoint contract then required all three read paths to use it.",
+    "focused": "3/3"
+  },
+  "verification": {
+    "relevantRegression": "86/86 across 41 classes",
+    "nodeSyntax": "passed",
+    "releaseBuild": "0 warnings / 0 errors",
+    "gitDiffCheck": "passed",
+    "impeccableDetector": "passed with four pre-existing advisory color findings (#ff4d5e, #22374f, #ff6378); no new finding",
+    "uiAuditBoundary": "one localized error-copy addition; no CSS/HTML visual assets changed; existing UI audit baseline retained"
+  },
+  "boundaries": [
+    "Live PostgreSQL slow-read execution, authenticated browser/published-EXE smoke, visual responsive verification, full VSTest testhost connectivity, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification remain unverified."
+  ],
+  "release": {
+    "path": "D:\\AegisWAF\\dist\\AegisWAF-Desktop-CompletedModules\\AegisWAF.exe",
+    "configuration": "Release win-x64 self-contained single-file net10.0-windows",
+    "bytes": 170649963,
+    "sha256": "0861896B288DDCDDFD6F3C0CA4B36875F3B9205930688845CDDB2B1BC6C010B6",
+    "peHeader": "MZ",
+    "manifest": "files=6; signed=false; workingTreeClean=true; sourceCommit=97a901ea11adc62e1dda789a48d2fc98675a38d7"
+  }
+}

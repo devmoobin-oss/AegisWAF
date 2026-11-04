@@ -1,0 +1,23 @@
+{
+  "module": 176,
+  "title": "Multi-Site health alert acknowledgement fallback",
+  "beforePercent": 0,
+  "afterPercent": 100,
+  "targetPercent": 100,
+  "red": "SiteHealthAlertAcknowledgementFallbackContractTests initially failed because the acknowledgement endpoint did not receive SiteHealthHistory or merge process-memory observations.",
+  "focusedTests": "39/39 passed across the Multi-Site health, alert, fallback, display-state, Browser, and Desktop regression set; the class-name runner reported SiteHealthAlertAcknowledgeTests as a missing helper name and executed the discovered tests successfully",
+  "javascriptSyntax": "node --check passed",
+  "releaseBuild": "Release passed: 0 warnings, 0 errors",
+  "diffCheck": "git diff --check passed",
+  "implementation": "Alert acknowledgement now merges bounded process-memory observations with PostgreSQL history before deciding whether the current alert is actionable. Acknowledgement writes still require PostgreSQL, and the response reports history retention state.",
+  "artifact": {
+    "path": "D:\\AegisWAF\\dist\\AegisWAF-Desktop-CompletedModules\\AegisWAF.exe",
+    "sha256": "EC75C4BCE8807D72F2B221229B4A460E1C7083984B43B3FCE57D235465A3BDD2",
+    "sizeBytes": 170728811,
+    "sourceCommit": "8b497c439850e98d3196ff584f71ff32e1d5ba08",
+    "manifest": "files=6, signed=false, workingTreeClean=true",
+    "peHeader": "MZ",
+    "authenticode": "NotSigned"
+  },
+  "boundary": "This module does not bypass PostgreSQL for acknowledgement writes and does not change role or CSRF enforcement. PostgreSQL-backed live outage execution, authenticated visual published-EXE smoke, full VSTest testhost connectivity, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification remain outside this verification run."
+}

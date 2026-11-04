@@ -11,11 +11,11 @@ public class GatewaySetupTests(GatewayFixture fx)
     private DbParams Valid => DbParams.FromConnectionString(fx.ConnectionString);
 
     [Fact]
-    public async Task Existing_migrated_database_is_ready_and_reports_existing_users()
+    public async Task Existing_migrated_database_is_ready()
     {
         var r = await GatewaySetup.CheckDatabaseAsync(Valid);
         Assert.True(r.Ready);
-        Assert.True(r.HasUsers); // the fixture bootstrapped an admin
+        Assert.False(r.HasUsers); // the login system was removed; nothing bootstraps a user anymore
     }
 
     [Fact]

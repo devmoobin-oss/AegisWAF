@@ -12,13 +12,12 @@ namespace AegisWAF.Desktop.Views;
 public partial class ProtectionView : UserControl, IPage
 {
     private readonly ApiClient _api;
-    private readonly bool _canTest;
+    private const bool _canTest = true;
 
     public ProtectionView(ApiClient api)
     {
         InitializeComponent();
         _api = api;
-        _canTest = api.Session!.Level >= 2; // the sandbox endpoint requires SECURITY_ANALYST on the server
         Build();
     }
 
@@ -84,7 +83,7 @@ public partial class ProtectionView : UserControl, IPage
         };
         panel.Children.Add(warn);
         panel.Children.Add(Text("ทุกตัวอย่างในหน้านี้ถูกรันกับ Gateway จริงโดยชุดเทสต์อัตโนมัติ (เมื่อโค้ดเปลี่ยน เทสต์จะล้มจนกว่าหน้านี้จะแก้ให้ตรง) รายละเอียดฉบับเต็ม: docs\\PROTECTION.md ใช้ปุ่ม ลองทดสอบ เพื่อดูผลบน Gateway ของคุณเอง", "Muted", 12, new Thickness(0, 12, 0, 0)));
-        return new Border { Style = (Style)FindResource("Card"), Child = panel, Margin = new Thickness(0, 0, 0, 6) };
+        return new Border { Style = (Style)Application.Current.FindResource("Card"), Child = panel, Margin = new Thickness(0, 0, 0, 6) };
     }
 
     private Border ItemCard(ProtectionItem item)
@@ -110,7 +109,7 @@ public partial class ProtectionView : UserControl, IPage
                 Header = $"ดูตัวอย่าง ({item.Examples.Count})", Foreground = Ui.Brush("Blue"), Margin = new Thickness(0, 12, 0, 0), Content = list
             });
         }
-        return new Border { Style = (Style)FindResource("Card"), Child = panel, Margin = new Thickness(0, 0, 0, 12) };
+        return new Border { Style = (Style)Application.Current.FindResource("Card"), Child = panel, Margin = new Thickness(0, 0, 0, 12) };
     }
 
     private UIElement ExampleRow(ProtectionExample ex)
@@ -138,7 +137,7 @@ public partial class ProtectionView : UserControl, IPage
         if (ex.SandboxText is not null)
         {
             var status = new TextBlock { FontSize = 12, Margin = new Thickness(12, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap, MaxWidth = 230 };
-            var button = new Button { Content = "ลองทดสอบ", Style = (Style)FindResource("Ghost"), Padding = new Thickness(10, 4, 10, 4), Margin = new Thickness(12, 0, 0, 0), IsEnabled = _canTest,
+            var button = new Button { Content = "ลองทดสอบ", Style = (Style)Application.Current.FindResource("Ghost"), Padding = new Thickness(10, 4, 10, 4), Margin = new Thickness(12, 0, 0, 0), IsEnabled = _canTest,
                 ToolTip = _canTest ? "ส่งข้อความนี้เข้า Rule Sandbox ของ Gateway (ไม่ส่งไปเว็บจริง)" : "ต้องใช้สิทธิ์นักวิเคราะห์ (SECURITY_ANALYST) ขึ้นไป" };
             button.Click += async (_, _) =>
             {

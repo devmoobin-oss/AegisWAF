@@ -1,0 +1,23 @@
+{
+  "module": 172,
+  "title": "Desktop OWASP resource lookup scope",
+  "beforePercent": 0,
+  "afterPercent": 100,
+  "targetPercent": 100,
+  "red": "DesktopOwaspResourceScopeContractTests failed before implementation because OwaspCoverageView did not use Application.Current.FindResource(\"IconFont\").",
+  "focusedTests": "8/8 passed (DesktopOwaspResourceScopeContractTests and UiContractTests)",
+  "javascriptSyntax": "node --check passed",
+  "releaseBuild": "Release passed: 0 warnings, 0 errors",
+  "diffCheck": "git diff --check passed before commit",
+  "implementation": "OwaspCoverageView now resolves IconFont from Application.Current, matching the application-level Theme.xaml resource scope already used by the other font resources and preventing the reported IconFont resource-not-found failure.",
+  "artifact": {
+    "path": "D:\\AegisWAF\\dist\\AegisWAF-Desktop-CompletedModules\\AegisWAF.exe",
+    "sha256": "90A06272675ADD0AC67268C2270867C82D2679A66715AF43750A31432C2C12E5",
+    "sizeBytes": 170723179,
+    "sourceCommit": "0c2851e77ce2579216b7442baa7472821952a1e4",
+    "manifest": "files=6, signed=false, workingTreeClean=true",
+    "peHeader": "MZ",
+    "authenticode": "NotSigned"
+  },
+  "boundary": "No authenticated visual browser/published-EXE smoke claim; Authenticode signing, hosted CodeQL/SARIF, external penetration testing, load/SLO, SIEM, and production certification remain outside this verification run."
+}

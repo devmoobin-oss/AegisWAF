@@ -1,0 +1,38 @@
+{
+  "module": 121,
+  "title": "Bounded Multi-Site list and manual health reads",
+  "progress": {
+    "before": 0,
+    "after": 100,
+    "target": 100
+  },
+  "opportunity": "The main Multi-Site list endpoint and the manual per-site health-check endpoint still passed the request cancellation token directly to the PostgreSQL site list query.",
+  "rootCause": "A slow or unavailable database could leave the page load or manual health action waiting until the client disconnected, while the history/trend endpoints already had a bounded read policy.",
+  "implementation": [
+    "Applied the existing two-second linked SiteHealthReadBudget to GET /api/sites.",
+    "Applied the same bounded budget to the initial site lookup in POST /api/sites/{id}/health.",
+    "Returned site_health_read_timeout for budget expiry while preserving client cancellation semantics; the probe and health-history write retain the request token and their own controls."
+  ],
+  "tdd": {
+    "red": "SiteEndpointReadBudgetTests failed before implementation because both endpoint regions lacked the budget token and timeout contract.",
+    "focused": "4/4"
+  },
+  "verification": {
+    "relevantRegression": "87/87 across 42 classes",
+    "nodeSyntax": "passed",
+    "releaseBuild": "0 warnings / 0 errors",
+    "gitDiffCheck": "passed",
+    "uiAuditBoundary": "backend-only change; no CSS/HTML/JavaScript assets changed"
+  },
+  "boundaries": [
+    "Live PostgreSQL slow-read execution, authenticated browser/published-EXE smoke, visual responsive verification, full VSTest testhost connectivity, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification remain unverified."
+  ],
+  "release": {
+    "path": "D:\\AegisWAF\\dist\\AegisWAF-Desktop-CompletedModules\\AegisWAF.exe",
+    "configuration": "Release win-x64 self-contained single-file net10.0-windows",
+    "bytes": 170650475,
+    "sha256": "5DE276ED487D61F42F4C8F721A58FD36FD141D142A9F43095F32515C9F3444AA",
+    "peHeader": "MZ",
+    "manifest": "files=6; signed=false; workingTreeClean=true; sourceCommit=d5191781b66d37386782a5a473efd0973cba98ab"
+  }
+}

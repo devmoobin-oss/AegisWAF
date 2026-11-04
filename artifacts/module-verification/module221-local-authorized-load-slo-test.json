@@ -1,0 +1,27 @@
+﻿{
+    "generatedAt":  "\/Date(1793755262552)\/",
+    "target":  "http://127.0.0.1:5092",
+    "durationSeconds":  32.453,
+    "concurrency":  8,
+    "totalRequests":  126711,
+    "throughputPerSecond":  3904.477,
+    "blockedRequests":  126521,
+    "errors":  0,
+    "p50LatencyMs":  0.474,
+    "p95LatencyMs":  0.765,
+    "p99LatencyMs":  1.325,
+    "statuses":  [
+                     {
+                         "status":  403,
+                         "count":  110
+                     },
+                     {
+                         "status":  503,
+                         "count":  190
+                     },
+                     {
+                         "status":  429,
+                         "count":  126411
+                     }
+                 ]
+}

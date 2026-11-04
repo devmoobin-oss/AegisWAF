@@ -46,6 +46,15 @@ public sealed class StructuredPayloadParserTests
     }
 
     [Fact]
+    public void Xml_external_public_dtd_is_rejected_without_regex_backtracking()
+    {
+        var result = StructuredPayloadParser.Parse("application/xml", "<!DOCTYPE root PUBLIC \"-//Example//DTD Root//EN\" \"https://evil.example/root.dtd\"><root/>", Limits);
+
+        Assert.False(result.Success);
+        Assert.Equal("xml_dtd_or_entity", result.ReasonCode);
+    }
+
+    [Fact]
     public void Multipart_parser_extracts_field_names_and_filenames_with_part_limit()
     {
         const string boundary = "----aegis";
@@ -68,5 +77,55 @@ public sealed class StructuredPayloadParserTests
         Assert.Equal("json_limit", depth.ReasonCode);
         Assert.False(members.Success);
         Assert.Equal("json_limit", members.ReasonCode);
+    }
+
+    [Fact]
+    public void Json_parser_rejects_duplicate_object_keys_to_prevent_parser_differential()
+    {
+        var result = StructuredPayloadParser.Parse("application/json", "{\"role\":\"user\",\"role\":\"admin\"}", Limits);
+
+        Assert.False(result.Success);
+        Assert.Equal("json_duplicate_key", result.ReasonCode);
+    }
+
+    [Fact]
+    public void Form_parser_rejects_malformed_percent_encoding()
+    {
+        var result = StructuredPayloadParser.Parse("application/x-www-form-urlencoded", "q=%ZZ", Limits);
+
+        Assert.False(result.Success);
+        Assert.Equal("form_malformed", result.ReasonCode);
+    }
+
+    [Fact]
+    public void Form_parser_rejects_invalid_percent_encoded_utf8()
+    {
+        var result = StructuredPayloadParser.Parse("application/x-www-form-urlencoded", "q=%C3%28", Limits);
+
+        Assert.False(result.Success);
+        Assert.Equal("form_malformed", result.ReasonCode);
+    }
+
+    [Fact]
+    public void Form_parser_stops_at_member_limit_without_materializing_unbounded_pairs()
+    {
+        var result = StructuredPayloadParser.Parse("application/x-www-form-urlencoded", "a=1&b=2&c=3", Limits with { MaxMembers = 2 });
+
+        Assert.False(result.Success);
+        Assert.Equal("form_limit", result.ReasonCode);
+    }
+
+    [Fact]
+    public void Multipart_parser_enforces_part_limit_during_bounded_scan()
+    {
+        const string boundary = "----bounded";
+        var body = $"--{boundary}\r\nContent-Disposition: form-data; name=\"a\"\r\n\r\n1\r\n" +
+                   $"--{boundary}\r\nContent-Disposition: form-data; name=\"b\"\r\n\r\n2\r\n" +
+                   $"--{boundary}\r\nContent-Disposition: form-data; name=\"c\"\r\n\r\n3\r\n--{boundary}--\r\n";
+
+        var result = StructuredPayloadParser.Parse($"multipart/form-data; boundary={boundary}", body, Limits with { MaxMultipartParts = 2 });
+
+        Assert.False(result.Success);
+        Assert.Equal("multipart_limit", result.ReasonCode);
     }
 }

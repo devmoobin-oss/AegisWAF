@@ -1,0 +1,38 @@
+{
+  "module": 125,
+  "title": "Bounded interactive Site runtime activation",
+  "progress": {
+    "before": 0,
+    "after": 100,
+    "target": 100
+  },
+  "opportunity": "After a Site write committed, POST/PUT/DELETE activated the runtime from a fresh PostgreSQL snapshot using the request token directly.",
+  "rootCause": "A slow activation snapshot could delay the interactive mutation response after PostgreSQL had already committed, without distinguishing runtime-refresh timeout from database write failure.",
+  "implementation": [
+    "Added a two-second linked SiteRuntimeActivationBudget with explicit client-cancellation distinction.",
+    "Applied it to interactive create, update and delete runtime activation while preserving the existing lock, validation-read and write boundaries.",
+    "Returned site_runtime_activation_timeout with a safe message stating that PostgreSQL was written but runtime refresh exceeded its limit, and added Thai browser recovery copy."
+  ],
+  "tdd": {
+    "red": "SiteRuntimeActivationBudgetTests initially failed to compile because the activation budget policy did not exist; the endpoint contract then failed until all three mutation paths used the budget.",
+    "focused": "4/4"
+  },
+  "verification": {
+    "relevantRegression": "99/99 across 47 classes",
+    "nodeSyntax": "passed",
+    "releaseBuild": "0 warnings / 0 errors",
+    "gitDiffCheck": "passed",
+    "impeccableDetector": "0 anti-patterns; four pre-existing advisory design-system-color findings in app.js (#ff4d5e, #22374f, #ff6378); no new finding"
+  },
+  "boundaries": [
+    "Live PostgreSQL slow-activation execution, authenticated browser/published-EXE smoke, visual responsive verification, full VSTest testhost connectivity, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification remain unverified."
+  ],
+  "release": {
+    "path": "D:\\AegisWAF\\dist\\AegisWAF-Desktop-CompletedModules\\AegisWAF.exe",
+    "configuration": "Release win-x64 self-contained single-file net10.0-windows",
+    "bytes": 170654571,
+    "sha256": "B5E26948112ED311CC9EBCB4088884CF58745D8E6F16300699249F692F12D192",
+    "peHeader": "MZ",
+    "manifest": "files=6; signed=false; workingTreeClean=true; sourceCommit=6b737c3a16b469cd41c84282d2fccb126778400f"
+  }
+}

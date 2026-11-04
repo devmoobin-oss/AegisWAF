@@ -13,13 +13,10 @@ public partial class IpView : UserControl, IPage
     {
         InitializeComponent();
         _api = api;
-        // Controls mirror the server's rule (SECURITY_OPERATOR+); the server enforces it regardless.
-        CanEdit = api.Session!.Level >= 3;
         Form.IsEnabled = CanEdit;
-        if (!Form.IsEnabled) Msg.Text = "สิทธิ์ของคุณดูข้อมูลได้อย่างเดียว (ต้องใช้ SECURITY_OPERATOR ขึ้นไปเพื่อแก้ไข)";
     }
 
-    public bool CanEdit { get; }
+    public bool CanEdit => true;
     public bool AutoRefresh => false;
 
     private void Show(string text, bool ok) { Msg.Text = text; Msg.Foreground = Ui.Brush(ok ? "Green" : "Red"); }
@@ -32,10 +29,14 @@ public partial class IpView : UserControl, IPage
 
     private async void OnSave(object sender, RoutedEventArgs e)
     {
-        if (!IPAddress.TryParse(IpBox.Text.Trim(), out var ip)) { Show("IP ไม่ถูกต้อง (รองรับ IPv4 / IPv6 เดี่ยว)", false); return; }
+        var policy = IpBox.Text.Trim();
+        var parts = policy.Split('/', 2, StringSplitOptions.TrimEntries);
+        var valid = IPAddress.TryParse(parts[0], out var ip) &&
+            (parts.Length == 1 || (int.TryParse(parts[1], out var prefix) && prefix >= 0 && prefix <= ip.GetAddressBytes().Length * 8));
+        if (!valid) { Show("IP/CIDR ไม่ถูกต้อง (เช่น 192.0.2.10 หรือ 192.0.2.0/24)", false); return; }
         try
         {
-            await _api.SaveIpPolicyAsync(ip.ToString(), ((ComboBoxItem)ActionBox.SelectedItem).Content.ToString()!, ReasonBox.Text.Trim());
+            await _api.SaveIpPolicyAsync(policy, ((ComboBoxItem)ActionBox.SelectedItem).Content.ToString()!, ReasonBox.Text.Trim());
             Show("บันทึกแล้ว", true); IpBox.Clear(); ReasonBox.Clear();
             await RefreshAsync();
         }

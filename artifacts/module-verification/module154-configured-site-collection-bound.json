@@ -1,0 +1,42 @@
+{
+  "module": 154,
+  "title": "Bound configured Multi-Site collections before runtime route binding",
+  "progress": {
+    "beforePercent": 0,
+    "afterPercent": 100,
+    "targetPercent": 100
+  },
+  "opportunity": {
+    "rootCause": "The IConfiguration validation path bounded total Sites but did not bound Hostnames, PathPrefixes, or Upstreams per Site. The typed snapshot path already had these limits, so configuration-backed startup could expand route and destination state before reaching the shared runtime snapshot gate.",
+    "risk": "A malformed or oversized configuration could create excessive route, destination, and health-probe work during binding and activation."
+  },
+  "implementation": {
+    "limits": {
+      "hostnamesPerSite": 32,
+      "pathPrefixesPerSite": 64,
+      "upstreamsPerSite": 32
+    },
+    "behavior": "Configuration validation now rejects oversized per-Site collections before SiteConfigurationLoader binds runtime routes, using the same cardinality limits as ValidateSnapshot."
+  },
+  "tdd": {
+    "red": {
+      "test": "SiteConfigurationCardinalityTests.Rejects_oversized_per_site_collections_before_binding_runtime_routes",
+      "result": "failed 1/1 because configuration validation returned no per-Site cardinality errors"
+    },
+    "green": {
+      "focused": "SiteConfigurationCardinalityTests passed 4/4"
+    }
+  },
+  "verification": {
+    "multiSiteRegression": "passed 259/259 across 99 executable test classes; external PostgreSQL fault-injection and non-test filename placeholders were not executable suite classes",
+    "releaseBuild": "passed with 0 warnings and 0 errors",
+    "javascriptSyntax": "node --check passed",
+    "gitDiffCheck": "passed",
+    "sourceCommit": "4ceceee"
+  },
+  "boundary": [
+    "PostgreSQL-backed integration and live database oversized-configuration execution were not run in this environment",
+    "Authenticated browser and published-EXE smoke were not run",
+    "Visual responsive, screen-reader, CodeQL/SARIF, external penetration, load/SLO, SIEM, Authenticode, and production certification remain unverified"
+  ]
+}

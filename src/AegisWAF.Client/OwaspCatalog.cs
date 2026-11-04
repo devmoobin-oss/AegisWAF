@@ -28,7 +28,10 @@ public static class OwaspCatalog
         ["sqli-01"] = ["A03"], ["sqli-02"] = ["A03"], ["sqli-03"] = ["A03"], ["xss-01"] = ["A03"], ["xss-02"] = ["A03"], ["xss-03"] = ["A03"],
         ["path-01"] = ["A03"], ["path-02"] = ["A03"], ["lfi-01"] = ["A03", "A10"], ["cmd-01"] = ["A03"], ["cmd-02"] = ["A03"], ["ssrf-01"] = ["A10"],
         ["proto-01"] = ["A03", "A05"], ["nosql-01"] = ["A03"], ["xxe-01"] = ["A03", "A10"], ["ssti-01"] = ["A03"], ["scanner-01"] = ["A06"], ["anomaly-01"] = ["A03"],
-        ["ipblock"] = ["A01"], ["ratelimit"] = ["A07", "A09"], ["admin"] = ["A01", "A07", "A09"], ["bodytypes"] = ["A03", "A05"], ["bodysize"] = ["A05"], ["response"] = ["A09"], ["custom"] = ["A03"], ["other"] = []
+        ["ipblock"] = ["A01"], ["ratelimit"] = ["A07", "A09"], ["admin"] = ["A01", "A07", "A09"], ["bodytypes"] = ["A03", "A05"], ["bodysize"] = ["A05"], ["response"] = ["A09"], ["custom"] = ["A03"], ["other"] = [],
+        ["SQL Injection"] = ["A03"], ["XSS"] = ["A03"], ["Path Traversal"] = ["A03"], ["LFI/RFI"] = ["A03", "A10"],
+        ["Command Injection"] = ["A03"], ["NoSQL Injection"] = ["A03"], ["XXE"] = ["A03", "A10"], ["Template Injection"] = ["A03"],
+        ["Malicious Scanner"] = ["A06"], ["Protocol Anomaly"] = ["A03", "A05"], ["Anomaly Score"] = ["A03"]
     };
 
     public static OwaspCategory ForCode(string code) => All.FirstOrDefault(x => string.Equals(x.Code, code, StringComparison.OrdinalIgnoreCase))

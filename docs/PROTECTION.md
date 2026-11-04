@@ -9,7 +9,7 @@
 3. **Anomaly scoring (ให้คะแนนความผิดปกติ)** — เมื่อสัญญาณอ่อนหลายอย่างรวมกันในค่าเดียวจนถึงเกณฑ์ จะบล็อกแม้ไม่มีลายเซ็นตัวใดตรงเดี่ยวๆ **ปิดไว้โดยปริยาย** (เปิดได้ที่กฎ `anomaly-01`) เพราะเพิ่ม false positive
 4. **ตรวจข้อมูลขาออก (response)** — สแกนคำตอบจากเซิร์ฟเวอร์ปลายทาง หากหลุดเนื้อไฟล์ `passwd`/`shadow`, private key, ข้อความ error ของฐานข้อมูล หรือ stack trace จะระงับและตอบ 502 แทน
 
-> ความสมดุล: ตั้งค่าเน้น "ป้องกันสูงสุด" จึงมีโอกาส **บล็อกผิดพลาด (false positive)** มากขึ้น เช่น ข้อความปกติที่มีคำว่า `sleep(` ทุกกฎเปิด/ปิดแยกได้ที่เมนู *กฎการป้องกัน* และ IP ที่ *อนุญาต* ข้ามการตรวจได้
+> ความสมดุล: ตั้งค่าเน้น "ป้องกันสูงสุด" จึงมีโอกาส **บล็อกผิดพลาด (false positive)** มากขึ้น เช่น ข้อความปกติที่มีคำว่า `sleep(` ทุกกฎเปิด/ปิดแยกได้ที่เมนู *กฎการป้องกัน* และ IP ที่ *อนุญาต* เป็นเพียงข้อยกเว้นจาก blocklist ไม่ได้ข้ามการตรวจหรือ rate limit
 
 ## สรุป
 
@@ -142,14 +142,15 @@
 
 ### ตรวจข้อมูลขาออก (Response leak)
 **ตรวจ:** คำตอบที่เซิร์ฟเวอร์ปลายทางส่งกลับ — หากหลุดข้อมูลอ่อนไหว (เนื้อไฟล์ `passwd`/`shadow`, private key, ข้อความ error ของฐานข้อมูล เช่น `Npgsql.PostgresException`, stack trace) จะระงับไม่ให้ถึงผู้ใช้และตอบ **502** แทน ปิดได้ด้วย `Waf:InspectResponses=false`
-**หลุด:** ตรวจเฉพาะคำตอบที่เป็นข้อความ (html/text/json/xml) และ **ไม่เกิน 256 KB** (`Waf:MaxResponseInspectBytes`); คำตอบที่ใหญ่กว่านี้หรือเป็นไบนารีจะส่งผ่านโดยไม่ตรวจ (fail-open)
+**หลุด:** ตรวจคำตอบที่เป็นข้อความ (html/text/json/xml) และ opaque bytes ที่เป็นข้อความ UTF-8 ภายใน **256 KB** (`Waf:MaxResponseInspectBytes`); ไบนารีจริง, UTF-8 ที่ไม่ถูกต้อง หรือคำตอบที่ใหญ่กว่านี้ยังส่งผ่านตาม overflow policy (fail-open ในค่าเริ่มต้น)
 
 | ตัวอย่าง | ผล |
 |---|---|
 | ปลายทางคืนเนื้อ `root:x:0:0:` (text/plain) | ถูกระงับ (502) |
 | ปลายทางคืน `Npgsql.PostgresException: …` (json) | ถูกระงับ (502) |
 | ปลายทางคืนหน้า HTML ปกติ | ผ่าน |
-| เนื้อ `passwd` แต่ประกาศเป็น `application/octet-stream` | **หลุด (ไบนารีไม่ถูกตรวจ)** |
+| เนื้อ `passwd` ที่เป็นข้อความแต่ประกาศเป็น `application/octet-stream` | ถูกระงับ (502) |
+| ไบนารีจริงที่มี NUL ใน `application/octet-stream` | ผ่านโดยไม่ decode เป็นข้อความ |
 | คำตอบข้อความ > 256 KB | **หลุด (เกินขนาดที่ตรวจ)** |
 
 > ยืนยันด้วยชุดทดสอบ `EngineUpgradeTests` (เซิร์ฟเวอร์ปลายทางจำลองที่จงใจทำข้อมูลรั่ว) ไม่ใช่ตัวอย่างในหน้า catalog เพราะ fake upstream ของ catalog ตอบคงที่
@@ -166,14 +167,15 @@
 | `<script>` ใน `X-Custom-Data` (หัวข้อนอกรายการ) | **หลุด** |
 
 ### ตรวจเนื้อหาคำขอทุกชนิด
-**ตรวจ:** เนื้อหาของ JSON, ฟอร์ม, `text/plain`, XML, multipart (อัปโหลดไฟล์) และคำขอแบบ **chunked** ที่ไม่ระบุขนาด (เดิมตรวจแค่ JSON/ฟอร์ม)
-**หลุด:** เนื้อหาที่ประกาศเป็นชนิดไบนารี (`application/octet-stream`)
+**ตรวจ:** เนื้อหาของ JSON, ฟอร์ม, `text/plain`, XML, multipart (อัปโหลดไฟล์), คำขอแบบ **chunked** ที่ไม่ระบุขนาด และ opaque body ที่เป็นข้อความ UTF-8 ภายใน inspection budget
+**หลุด:** ไบนารีจริงที่มี NUL/control bytes หรือ UTF-8 ไม่ถูกต้องจะไม่ถูก decode เป็นข้อความ; body ที่เกิน budget ถูกปฏิเสธแบบ fail-closed
 
 | ตัวอย่าง | ผล |
 |---|---|
 | `<script>` ใน text/plain, multipart, chunked | ถูกบล็อก |
 | ฟอร์ม `q=%3Cscript%3E` (เข้ารหัส) | ถูกบล็อก |
-| `<script>` ใน `application/octet-stream` | **หลุด** |
+| `<script>` ใน `application/octet-stream` ที่เป็นข้อความ | ถูกบล็อก |
+| ไบนารีจริงที่มี NUL ใน `application/octet-stream` | ผ่านโดยไม่ decode เป็นข้อความ |
 
 ### จำกัดความถี่คำขอ (Rate limit)
 **ทำได้:** IP หนึ่งส่งได้ไม่เกิน **300 คำขอต่อนาที** เกินได้ HTTP 429
@@ -181,7 +183,7 @@
 
 ## Structured body inspection และ bounded decompression
 
-JSON, form-urlencoded, XML และ multipart body จะถูกแยกเป็น field/key/value ที่มีขีดจำกัดก่อนส่งเข้า rule engine โดยไม่แก้ body ที่ส่งต่อ upstream ระบบรองรับ gzip, deflate และ Brotli เฉพาะเมื่อผ่าน compressed-size, decompressed-size และ expansion-ratio limits; encoding ที่ไม่รู้จัก, XML entity/external DTD และ payload ที่เกิน parser budget จะถูกปฏิเสธแบบ fail-closed ใน Production
+JSON, form-urlencoded, XML, multipart และ opaque body ที่เป็นข้อความ UTF-8 จะถูกส่งเข้า rule engine ภายใน budget โดยไม่แก้ body ที่ส่งต่อ upstream; ไบนารีจริงที่มี NUL/control bytes หรือ UTF-8 ไม่ถูกต้องจะไม่ถูก decode เป็นข้อความ ระบบรองรับ gzip, deflate และ Brotli เฉพาะเมื่อผ่าน compressed-size, decompressed-size และ expansion-ratio limits; encoding ที่ไม่รู้จัก, XML entity/external DTD และ payload ที่เกิน parser budget จะถูกปฏิเสธแบบ fail-closed ใน Production
 
 การรองรับ parser นี้เพิ่มความแม่นยำเมื่อ payload อยู่ใน object ซ้อน, form field, XML attribute หรือ multipart filename แต่ยังไม่ใช่ OWASP CRS เต็มรูปแบบ และยังต้องทำ external penetration test/load test
 
@@ -195,8 +197,8 @@ JSON, form-urlencoded, XML และ multipart body จะถูกแยกเ�
 เพิ่มรูปแบบที่ต้องการบล็อกที่เมนู *กฎการป้องกัน* ตรวจทุกจุดเดียวกับกฎมาตรฐาน (URL, header, cookie, body ทุกชนิด) และได้ประโยชน์จากการถอดรหัส/normalize เช่นกัน ใช้ Regex แบบ NonBacktracking จำกัดเวลา 20 มิลลิวินาที
 
 ### บล็อก / อนุญาตตาม IP
-บล็อกทุกคำขอจาก IP ที่กำหนด (IPv4/IPv6 ตรงตัว) หรือกำหนด IP ที่เชื่อถือให้ข้ามการตรวจ มีปุ่ม *บล็อก IP นี้* ในหน้าเหตุการณ์
-**ข้อควรระวัง:** ไม่รองรับ CIDR; IP ที่ *อนุญาต* ข้ามทุกอย่างรวม rate limit; ระบบเห็นเฉพาะ IP การเชื่อมต่อโดยตรง (หลัง load balancer ทุกคนเป็น IP เดียวกัน)
+บล็อกทุกคำขอจาก IP หรือ network แบบ CIDR ที่กำหนด (IPv4/IPv6) และเลือก policy ที่เฉพาะเจาะจงที่สุดเมื่อช่วงซ้อนกัน มีปุ่ม *บล็อก IP นี้* ในหน้าเหตุการณ์
+**ข้อควรระวัง:** IP ที่ *อนุญาต* เป็นเพียงข้อยกเว้นจาก blocklist ไม่ข้าม signature inspection หรือ rate limit; ระบบใช้ IP ต้นทางที่ผ่าน trusted-proxy configuration
 
 ### ขนาดคำขอที่ผิดปกติ
 ปฏิเสธ URL/ข้อความที่ตรวจยาวเกิน 8,192 ตัวอักษร และเนื้อหาคำขอที่ใหญ่เกิน **128 KB** แบบ fail-closed (เดิม 64 KB และเคยบล็อก JSON ปกติที่เกิน 8 KB ผิดพลาด — แก้แล้ว)
@@ -209,7 +211,7 @@ JSON, form-urlencoded, XML และ multipart body จะถูกแยกเ�
 
 ### ป้องกันหน้าจัดการของระบบเอง
 รหัสผ่านเก็บแบบ hash (PBKDF2-SHA512), ล็อกบัญชีเมื่อใส่ผิดซ้ำ, ตรวจสิทธิ์ 5 ระดับฝั่งเซิร์ฟเวอร์, ป้องกัน CSRF, เพิกถอนเซสชันได้, รับเฉพาะการเข้าจากเครื่องนี้, บันทึกประวัติการใช้งาน
-**ข้อจำกัด:** ไม่บังคับความแข็งแรงของรหัสผ่าน (ตามการตัดสินใจของผู้ดูแล); ยังไม่มี MFA และการจำกัดการลองรหัสต่อ IP
+**ข้อจำกัด:** ยังไม่มี MFA; การลองรหัสถูกจำกัดด้วย account lockout, local buckets แยก IP/username/pair และ shared PostgreSQL buckets ใน production แต่ยังต้องมี external identity assurance สำหรับ production สูงสุด
 
 ---
 
@@ -226,3 +228,6 @@ XXE แบบ parse จริง (ตรวจด้วยลายเซ็น�
 * อยากตรวจเข้มขึ้นให้เปิด `anomaly-01` แล้วสังเกต false positive ก่อนใช้จริง
 * ใช้ปุ่ม **ทดสอบระบบป้องกัน** ในหน้าภาพรวมเพื่อเช็กว่ากฎยังทำงาน
 * ขั้นต่อไป (v0.10+): batching/partition ของ event store, SIEM, การศึกษาความเข้ากันได้กับ OWASP CRS — ดู `DEVELOPMENT_ROADMAP.md`
+## Production profile note
+
+The compatibility examples above describe the Desktop/local profile. A strict Production deployment must set `Waf:Deployment:Enforce=true`, `Waf:InspectResponses=true`, `Waf:InspectBinaryResponses=true`, and `Waf:ResponseOverflowAction=block`. Under that profile, oversized responses are rejected or the connection is aborted after headers have been committed; binary responses are inspected within the configured bounded budget. Do not treat the compatibility-profile fail-open examples as Production behavior.

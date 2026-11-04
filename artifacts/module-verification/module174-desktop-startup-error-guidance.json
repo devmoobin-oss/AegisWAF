@@ -1,0 +1,23 @@
+{
+  "module": 174,
+  "title": "Desktop startup error guidance",
+  "beforePercent": 0,
+  "afterPercent": 100,
+  "targetPercent": 100,
+  "red": "GatewayStartupFailureTests initially could not compile because no startup-failure classifier existed; the implemented duplicate-hostname assertion then passed with the new classifier.",
+  "focusedTests": "6/6 passed (GatewayStartupFailureTests, ApiClientProblemDetailsTests, DesktopOwaspResourceScopeContractTests, and DesktopDynamicResourceScopeContractTests)",
+  "javascriptSyntax": "node --check passed",
+  "releaseBuild": "Release passed: 0 warnings, 0 errors",
+  "diffCheck": "git diff --check passed before commit",
+  "implementation": "LoginWindow now routes embedded Gateway startup exceptions through GatewayStartupFailure. Duplicate active-hostname migration failures receive actionable Thai guidance while preserving the original PostgreSQL detail; port and PostgreSQL connectivity failures are also classified, and unknown messages remain unchanged.",
+  "artifact": {
+    "path": "D:\\AegisWAF\\dist\\AegisWAF-Desktop-CompletedModules\\AegisWAF.exe",
+    "sha256": "D5236158ECA6CA5F589D3C4EA7F196BC86C9A25765618D3582712CED38D7719B",
+    "sizeBytes": 170727275,
+    "sourceCommit": "7771ff4dab725be6de24697997e56a8f33c09ecd",
+    "manifest": "files=6, signed=false, workingTreeClean=true",
+    "peHeader": "MZ",
+    "authenticode": "NotSigned"
+  },
+  "boundary": "This module does not automatically alter or delete conflicting database Sites. No authenticated visual published-EXE smoke claim; Authenticode signing, hosted CodeQL/SARIF, external penetration testing, load/SLO, SIEM, and production certification remain outside this verification run."
+}

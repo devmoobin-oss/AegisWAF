@@ -13,10 +13,9 @@ public sealed class LocalGateway : IDisposable
     public bool Running => _gateway.Running;
     public string RecentOutput => _gateway.RecentLog;
 
-    /// <param name="bootstrapAdminPassword">Only used while the database has no users; creates the first administrator.</param>
-    public Task StartAsync(GatewaySettings s, string? bootstrapAdminPassword = null, CancellationToken ct = default) =>
+    public Task StartAsync(GatewaySettings s, CancellationToken ct = default) =>
         // Task.Run keeps the gateway's continuations off the WPF dispatcher.
-        Task.Run(() => _gateway.StartAsync(new EmbeddedGatewayOptions(s.ListenUrl, s.Db.ToConnectionString(), bootstrapAdminPassword, s.UpstreamUrl, WebAssetStore.EnsureExtracted()), ct), ct);
+        Task.Run(() => _gateway.StartAsync(new EmbeddedGatewayOptions(s.ListenUrl, s.Db.ToConnectionString(), null, s.UpstreamUrl, WebAssetStore.EnsureExtracted()), ct), ct);
 
     public Task StopAsync() => Task.Run(() => _gateway.StopAsync());
 

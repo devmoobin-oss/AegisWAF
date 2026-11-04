@@ -1,0 +1,42 @@
+{
+  "module": 165,
+  "title": "Preserve an explicitly empty database Site snapshot",
+  "progress": {
+    "beforePercent": 0,
+    "afterPercent": 100,
+    "targetPercent": 100
+  },
+  "opportunity": {
+    "rootCause": "TryLoadSnapshot returned null both when the waf_sites table was missing and when the existing table contained zero rows.",
+    "risk": "After an operator deleted the last database-backed Site, startup could fall back to appsettings Sites and EnsureSeededAsync could resurrect a stale Site."
+  },
+  "implementation": {
+    "behavior": "A successful waf_sites read always returns SiteConfigurationSnapshot, including an empty Sites list; null remains reserved for no connection string and UndefinedTable first-start migration compatibility."
+  },
+  "tdd": {
+    "red": {
+      "test": "SiteEmptyDatabaseSnapshotContractTests.Empty_database_result_is_materialized_as_an_authoritative_snapshot",
+      "result": "failed 1/1 before implementation because the zero-row path returned null"
+    },
+    "green": {
+      "focused": "passed 1/1"
+    }
+  },
+  "verification": {
+    "relatedRegression": "passed 80/80 across empty-snapshot, bootstrap-failure, configuration, editor, persistence, activation, security, health-trend, UI-contract, and handoff classes",
+    "releaseBuild": "passed with 0 warnings and 0 errors",
+    "javascriptSyntax": "node --check passed",
+    "gitDiffCheck": "passed",
+    "publishedArtifact": {
+      "path": "D:\\AegisWAF\\dist\\AegisWAF-Desktop-CompletedModules\\AegisWAF.exe",
+      "sha256": "038D921455BCC8A72FF68DD01909B52CF57295BC68498AB31CAEE99CDE794983",
+      "bytes": 170714987,
+      "sourceCommit": "f48326f907fd7e9c14ad34aecc7d4f63aaf23407",
+      "manifest": "passed files=6 signed=false workingTreeClean=true"
+    }
+  },
+  "boundary": [
+    "Live PostgreSQL empty-table startup execution was attempted but unavailable because 127.0.0.1:5432 was not listening",
+    "Authenticated browser/published-EXE smoke, visual responsive/screen-reader verification, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification remain unverified"
+  ]
+}

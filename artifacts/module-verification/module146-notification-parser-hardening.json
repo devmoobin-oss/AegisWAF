@@ -1,0 +1,50 @@
+{
+  "module": 146,
+  "title": "Harden Multi-Site runtime notification parsing against malformed JSON types",
+  "progress": {
+    "before": 0,
+    "after": 100,
+    "target": 100
+  },
+  "opportunity": {
+    "rootCause": "PostgreSQL LISTEN/NOTIFY payloads are external input, but the parser called JsonElement.GetString without checking ValueKind; wrong JSON types could throw InvalidOperationException from the notification callback.",
+    "scope": "SiteRuntimeChangeNotification.TryParse"
+  },
+  "implementation": [
+    "Require schema, operation, and siteId to be JSON strings before reading them.",
+    "Reject malformed payloads without throwing and preserve the existing bounded, redacted wake-up contract."
+  ],
+  "verification": {
+    "tddRed": {
+      "payloads": 3,
+      "failed": 1,
+      "reason": "Wrong JSON value kinds escaped TryParse as InvalidOperationException."
+    },
+    "focused": {
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "class": "SiteRuntimeChangeNotificationTests"
+    },
+    "multiSiteRegression": {
+      "passed": 95,
+      "failed": 0,
+      "skipped": 0,
+      "runner": "in-process xUnit"
+    },
+    "releaseBuild": {
+      "warnings": 0,
+      "errors": 0,
+      "solution": "AegisWAF.slnx"
+    },
+    "javascriptSyntax": "passed",
+    "gitDiffCheck": "passed"
+  },
+  "boundaries": [
+    "Live PostgreSQL LISTEN/NOTIFY malformed-payload injection and reconnect benchmark",
+    "Authenticated browser/published-EXE smoke",
+    "Visual responsive and screen-reader verification",
+    "CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification"
+  ],
+  "recordedAt": "2026-10-30"
+}

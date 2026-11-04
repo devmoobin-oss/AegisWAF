@@ -1,0 +1,31 @@
+{
+  "module": "Module 144",
+  "title": "Multi-Site runtime notification burst coalescing",
+  "date": "2026-10-30",
+  "progress": {
+    "beforePercent": 0,
+    "afterPercent": 100,
+    "targetPercent": 100
+  },
+  "opportunity": "The PostgreSQL LISTEN/NOTIFY listener treated every queued notification as a separate runtime reload even though notification payloads are wake-up hints and each reload reads the authoritative database snapshot.",
+  "implementation": [
+    "Ignore wake-ups that do not contain a parsed queued notification.",
+    "Drain the rest of the current bounded notification burst before activating the runtime snapshot.",
+    "Perform one retryable authoritative reload for the drained burst, preserving the existing timeout, retry, and status behavior.",
+    "Added SiteRuntimeChangeListenerBatchingContractTests to prevent regression."
+  ],
+  "verification": {
+    "tddRed": "1/1 expected failure before implementation",
+    "focusedListenerContracts": "8/8 passed",
+    "multiSiteRegressionContracts": "21/21 passed",
+    "releaseSolutionBuild": "0 warnings / 0 errors",
+    "nodeSyntax": "node --check src/AegisWAF.Gateway/wwwroot/assets/app.js passed",
+    "gitDiffCheck": "passed"
+  },
+  "boundary": [
+    "Live PostgreSQL burst notification and YARP reload latency benchmark",
+    "Cross-process concurrent mutation stress test",
+    "Authenticated browser/published-EXE smoke and visual responsive verification",
+    "CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification"
+  ]
+}

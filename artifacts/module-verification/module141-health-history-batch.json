@@ -1,0 +1,26 @@
+{
+  "module": "Module 141",
+  "title": "Batched Multi-Site health-history persistence",
+  "beforePercent": 0,
+  "afterPercent": 100,
+  "targetPercent": 100,
+  "opportunity": "RecordHealthHistoryAsync issued one INSERT round-trip per upstream before trimming history, increasing latency and timeout risk for multi-upstream Sites.",
+  "implementation": [
+    "Replaced per-observation ExecuteNonQueryAsync calls with one NpgsqlBatch inside the existing transaction.",
+    "Kept parameterized values, the existing bounded retention trim, transaction commit, cancellation, and empty-observation fast path unchanged.",
+    "Added a source contract requiring NpgsqlBatch and rejecting per-row execution."
+  ],
+  "verification": {
+    "tddRed": "1/1 expected failure before implementation",
+    "focusedContracts": "9/9 passed",
+    "releaseSolutionBuild": "0 warnings / 0 errors",
+    "gitDiffCheck": "passed",
+    "databaseIntegration": "Not executed because PostgreSQL is unavailable at 127.0.0.1:5432 in this environment"
+  },
+  "boundary": [
+    "Live PostgreSQL batch execution and query-plan/latency benchmark",
+    "Authenticated browser/published-EXE smoke",
+    "Visual responsive verification",
+    "CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification"
+  ]
+}

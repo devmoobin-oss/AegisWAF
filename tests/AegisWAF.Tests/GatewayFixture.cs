@@ -42,21 +42,15 @@ public sealed class GatewayFixture : IAsyncLifetime
 
     public Api NewClient() => new(_factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false }));
 
-    public async Task<Api> LoginAdmin() { var a = NewClient(); (await a.Login(AdminUser, AdminPassword)).EnsureSuccessStatusCode(); return a; }
-
-    /// <summary>Creates a user through the admin API and completes the forced password change, returning a ready session.</summary>
-    public async Task<(Api Api, string Username, string Password)> CreateUserWithRole(string role)
+    public WebApplicationFactory<Program> CreatePeer()
     {
-        var admin = await LoginAdmin();
-        var name = role.ToLowerInvariant().Replace('_', '-') + "-" + Guid.NewGuid().ToString("N")[..6];
-        var temp = "Temporary-Passw0rd-" + Guid.NewGuid().ToString("N")[..4];
-        (await admin.Send(HttpMethod.Post, "/api/users", new { username = name, displayName = name, password = temp, role })).EnsureSuccessStatusCode();
-        var api = NewClient();
-        (await api.Login(name, temp)).EnsureSuccessStatusCode();
-        var final = "Final-Passw0rd-" + Guid.NewGuid().ToString("N")[..4];
-        (await api.Send(HttpMethod.Post, "/api/auth/change-password", new { currentPassword = temp, newPassword = final })).EnsureSuccessStatusCode();
-        return (api, name, final);
+        var peer = new Factory();
+        _ = peer.Server; // boot a second Gateway process against the same PostgreSQL database
+        return peer;
     }
+
+    /// <summary>There is no login: kept so existing call sites that just want "a" client still compile.</summary>
+    public Task<Api> LoginAdmin() => Task.FromResult(NewClient());
 
     public async Task<long> CountAudit(string action, string outcome, string? actor = null)
     {
@@ -115,11 +109,12 @@ public sealed class Api(HttpClient http)
 
     public Task<HttpResponseMessage> Get(string url) => http.GetAsync(url);
 
-    public Task<HttpResponseMessage> Send(HttpMethod method, string url, object? body = null, bool csrf = true)
+    public Task<HttpResponseMessage> Send(HttpMethod method, string url, object? body = null, bool csrf = true, string? ifMatch = null)
     {
         var req = new HttpRequestMessage(method, url);
         if (body is not null) req.Content = JsonContent.Create(body);
         if (csrf && Csrf is not null) req.Headers.Add("X-CSRF-Token", Csrf);
+        if (!string.IsNullOrWhiteSpace(ifMatch)) req.Headers.TryAddWithoutValidation("If-Match", ifMatch);
         return http.SendAsync(req);
     }
 

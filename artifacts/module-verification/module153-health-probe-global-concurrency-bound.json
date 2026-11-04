@@ -1,0 +1,58 @@
+{
+  "module": 153,
+  "title": "Bound aggregate Multi-Site manual health probe concurrency",
+  "progress": {
+    "before": 0,
+    "after": 100,
+    "target": 100
+  },
+  "opportunity": {
+    "rootCause": "SiteHealthProbe was singleton-scoped but limited concurrency only inside each ProbeAsync call; simultaneous manual health requests could each create an HttpClient/handler and multiply total upstream work without a process-wide admission bound.",
+    "scope": "SiteHealthProbe manual health probe admission and default Waf:Sites configuration"
+  },
+  "implementation": [
+    "Added a configurable global batch semaphore with a default of 16 concurrent Site probe batches and a hard configuration ceiling of 128.",
+    "Acquired the global gate before creating the per-batch handler/client and released it in a finally block on success, cancellation, or failure.",
+    "Preserved the existing maximum of 8 concurrent upstreams within each admitted Site batch and added the default configuration key HealthProbeMaxConcurrentBatches."
+  ],
+  "verification": {
+    "tddRed": {
+      "tests": 1,
+      "failed": 1,
+      "reason": "The new source contract initially failed because SiteHealthProbe had no MaxConcurrentBatches, WaitAsync gate, release, or configuration contract."
+    },
+    "focused": {
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "classes": [
+        "SiteHealthProbeBatchConcurrencyContractTests",
+        "SiteHealthProbeConcurrencyContractTests",
+        "SiteHealthProbeSafetyTests",
+        "SiteHealthProbeBudgetTests"
+      ]
+    },
+    "multiSiteRegressionWithoutPostgres": {
+      "passed": 258,
+      "failed": 0,
+      "skipped": 0,
+      "classes": 95,
+      "runner": "in-process xUnit"
+    },
+    "releaseBuild": {
+      "warnings": 0,
+      "errors": 0,
+      "solution": "AegisWAF.slnx"
+    },
+    "javascriptSyntax": "passed",
+    "gitDiffCheck": "passed"
+  },
+  "boundaries": [
+    "Live loopback probe smoke is unavailable in this environment because socket creation returns AccessDenied in the existing probe tests",
+    "Live external upstream concurrency/latency benchmark and PostgreSQL persistence",
+    "Authenticated browser/published-EXE smoke",
+    "Visual responsive and screen-reader verification",
+    "CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification"
+  ],
+  "recordedAt": "2026-10-30"
+}

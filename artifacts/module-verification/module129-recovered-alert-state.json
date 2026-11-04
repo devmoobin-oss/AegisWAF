@@ -1,0 +1,28 @@
+{
+  "module": "Module 129",
+  "title": "Separate recovered Multi-Site health history from active critical alerts",
+  "recordedAt": "2026-10-28",
+  "progress": {
+    "beforePercent": 0,
+    "afterPercent": 100,
+    "targetPercent": 100
+  },
+  "sourceCommit": "1c90779564f33077eb4703a4cfc381e75c173707",
+  "implementation": [
+    "Excluded recoveryState=recovered from current CriticalSites summary counts while retaining historical alert details.",
+    "Ranked recovered items below current actionable critical/degraded items so the operator view prioritizes active incidents.",
+    "Preserved raw historical alertState and recoveryState for auditability."
+  ],
+  "verification": {
+    "tddRed": "Recovered critical history test initially reported Actual CriticalSites=1 instead of Expected=0.",
+    "focused": "20/20 passed",
+    "regressionWithoutPostgres": "116/116 passed across 55 classes",
+    "releaseBuild": "0 warnings / 0 errors",
+    "gitDiffCheck": "passed",
+    "browserBoundary": "Existing Browser/Multi-Site contracts remained green; no UI source change was required for this server summary correction."
+  },
+  "boundary": [
+    "Live PostgreSQL recovery history and authenticated browser/published-EXE smoke remain externally unverified.",
+    "Loopback socket permissions, visual responsive verification, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification remain outside this local run."
+  ]
+}

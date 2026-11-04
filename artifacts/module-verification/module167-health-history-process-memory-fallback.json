@@ -1,0 +1,22 @@
+{
+  "module": 167,
+  "title": "Multi-Site health history process-memory fallback",
+  "beforePercent": 0,
+  "afterPercent": 100,
+  "targetPercent": 100,
+  "red": "SiteHealthHistoryTests.Merge_* failed 2/2 before SiteHealthHistory.Merge existed.",
+  "focusedTests": "17/17 passed",
+  "releaseBuild": "Release passed: 0 warnings, 0 errors",
+  "fullVstest": "aborted: vstest.console could not connect to the testhost after 90 seconds",
+  "liveDatabaseOutage": "not available in this environment",
+  "artifact": {
+    "path": "D:\\AegisWAF\\dist\\AegisWAF-Desktop-CompletedModules\\AegisWAF.exe",
+    "sha256": "DD7E2E9C31A7D7BD70FC41844D1C175A43708D2D7F234B18E022BEAD57E6AF42",
+    "sizeBytes": 170719595,
+    "sourceCommit": "0dec70e6de352347e822c43256255dc25d36ae31",
+    "manifest": "files=6, signed=false, workingTreeClean=true",
+    "peHeader": "MZ",
+    "authenticode": "NotSigned"
+  },
+  "boundary": "No live PostgreSQL outage execution or authenticated published-EXE smoke claim."
+}

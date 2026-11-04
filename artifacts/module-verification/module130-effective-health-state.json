@@ -1,0 +1,29 @@
+{
+  "module": "Module 130",
+  "title": "Expose one normalized effective Multi-Site health alert state",
+  "recordedAt": "2026-10-28",
+  "progress": {
+    "beforePercent": 0,
+    "afterPercent": 100,
+    "targetPercent": 100
+  },
+  "sourceCommit": "bfb2914",
+  "implementation": [
+    "Added HealthAlertLifecycle.EffectiveAlertState so stale and recovered history cannot be mistaken for a current critical alert.",
+    "Exposed effectiveAlertState on direct trend, acknowledgement, and summary responses while retaining raw alertState and recoveryState for auditability.",
+    "Updated the browser Multi-Site table and the desktop Site view to consume the normalized state with backward-compatible DTO fallbacks."
+  ],
+  "verification": {
+    "tddRed": "The new effective-state tests initially failed to compile because HealthAlertLifecycle.EffectiveAlertState did not exist.",
+    "focused": "11/11 passed",
+    "regressionWithoutPostgres": "121/121 passed across 55 classes",
+    "releaseBuild": "0 warnings / 0 errors",
+    "nodeSyntax": "passed",
+    "impeccableDetector": "0 anti-patterns; four pre-existing advisory design-system color findings remain in app.js",
+    "gitDiffCheck": "passed"
+  },
+  "boundary": [
+    "Live PostgreSQL endpoint serialization, authenticated browser/published-EXE smoke, and visual responsive verification remain externally unverified.",
+    "Full VSTest testhost connectivity, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification remain outside this local run."
+  ]
+}

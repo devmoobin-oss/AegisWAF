@@ -1,0 +1,44 @@
+{
+  "module": 161,
+  "title": "Reject malformed and duplicate persisted Multi-Site egress entries before materialization",
+  "progress": {
+    "beforePercent": 0,
+    "afterPercent": 100,
+    "targetPercent": 100
+  },
+  "opportunity": {
+    "rootCause": "SitePersistenceCodec.FromRow validated persisted egress ports only. Invalid or duplicate hosts and schemes could be materialized into a GatewaySite before the later snapshot activation gate.",
+    "risk": "Malformed database policy can reach API/runtime objects and create inconsistent egress matching or ambiguous policy state before activation validation runs."
+  },
+  "implementation": {
+    "behavior": "Persistence materialization rejects empty or invalid hosts, duplicate normalized hosts, empty/out-of-range/duplicate ports, empty/unsupported schemes, and duplicate schemes; valid hosts and schemes are canonicalized before constructing SiteEgressPolicy."
+  },
+  "tdd": {
+    "red": {
+      "test": "SitePersistenceCodecTests.Persistence_codec_rejects_invalid_or_duplicate_egress_entries_before_materialization",
+      "result": "failed 1/1 because malformed and duplicate persisted egress entries produced no exception"
+    },
+    "green": {
+      "focused": "SitePersistenceCodecTests passed 4/4"
+    }
+  },
+  "verification": {
+    "relatedRegression": "passed 75/75 across configuration, editor, persistence, activation, security, health-trend, UI-contract, and handoff classes",
+    "broaderCrossModule": "81/83; the two failures were live health-probe tests blocked by socket_AccessDenied on loopback listeners, outside this change",
+    "releaseBuild": "passed with 0 warnings and 0 errors",
+    "javascriptSyntax": "node --check passed",
+    "gitDiffCheck": "passed",
+    "publishedArtifact": {
+      "path": "D:\\AegisWAF\\dist\\AegisWAF-Desktop-CompletedModules\\AegisWAF.exe",
+      "sha256": "08A020F9E2C7A0C53FFD29DDEA7EE0397845EDC0358976722121A780D4919453",
+      "bytes": 170713963,
+      "sourceCommit": "c9a58f995f371ab58878cd913801f15e52fcd7e6",
+      "manifest": "passed files=6 signed=false workingTreeClean=true"
+    }
+  },
+  "boundary": [
+    "Live PostgreSQL malformed-row execution and persistence reload were not available in this environment",
+    "Live loopback health-probe tests were blocked by socket_AccessDenied",
+    "Authenticated browser/published-EXE smoke, visual responsive/screen-reader verification, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification remain unverified"
+  ]
+}

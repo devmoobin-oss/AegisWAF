@@ -1,0 +1,27 @@
+{
+  "module": "Module 138",
+  "title": "Bounded single-Site reads for health endpoints",
+  "beforePercent": 0,
+  "afterPercent": 100,
+  "targetPercent": 100,
+  "opportunity": "Four single-Site health endpoints loaded the complete waf_sites table and then searched in memory, creating O(N) database/read allocation for every request.",
+  "implementation": [
+    "Added SiteDatabaseStore.FindByIdAsync with a parameterized WHERE site_id=@site_id query.",
+    "Switched health probe, history, trend, and alert-acknowledge endpoints to the bounded single-Site read while preserving normalization, not-found responses, timeout handling, and database error mapping.",
+    "Kept list and health-summary endpoints on their intentional collection reads; only single-Site endpoints were changed.",
+    "Added a regression contract proving the parameterized read exists and the four targeted endpoints do not call ListAsync."
+  ],
+  "verification": {
+    "tddRed": "2/2 expected failures before implementation",
+    "focusedContracts": "9/9 passed",
+    "releaseSolutionBuild": "0 warnings / 0 errors",
+    "gitDiffCheck": "passed",
+    "broadRegression": "Prior baseline 468/595 passed; 127 failed because PostgreSQL was unavailable at 127.0.0.1:5432 in this environment; no failure was attributed to this bounded-read change"
+  },
+  "boundary": [
+    "Live PostgreSQL query-plan/latency benchmark with a large Site table",
+    "Authenticated browser/published-EXE smoke",
+    "Visual responsive verification",
+    "CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification"
+  ]
+}

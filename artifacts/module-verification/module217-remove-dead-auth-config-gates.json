@@ -1,0 +1,40 @@
+{
+  "module": 217,
+  "title": "Remove dead auth-session/throttle production gates; fix post-auth-removal docs",
+  "status": "100%",
+  "before": "0%",
+  "opportunity": "A prior uncommitted change removed the username/password login system (AuthEndpoints/AuthStore/AuthThrottle/DistributedAuthThrottle/PasswordHasher), but ProductionReadinessPolicy and ProductionHealth still validated Auth:SessionIdleMinutes/Auth:SessionAbsoluteHours/Auth:MaxFailedAttempts/Auth:LockoutMinutes/Auth:Throttle:* and probed for the deleted waf_auth_throttle_buckets table. A Production deployment following docs/PRODUCTION_READINESS.md would be required to configure a login-abuse subsystem that no longer exists, and the health check could report a false 'migration not installed' failure. README.md, docs/SECURITY.md and docs/PRODUCTION_READINESS.md still described the removed login system as current behavior (first-run wizard admin step, bootstrap admin password, roles/permission matrix, session cookies).",
+  "implementation": [
+    "Remove the Auth:SessionIdleMinutes/Auth:SessionAbsoluteHours/Auth:MaxFailedAttempts/Auth:LockoutMinutes and Auth:Throttle:* checks from ProductionReadinessPolicy.Validate.",
+    "Remove the waf_auth_throttle_buckets table probe from PostgresHealthCheck in ProductionHealth.cs.",
+    "Remove the now-unused Auth:Throttle config section from appsettings.json.",
+    "Drop the two ProductionReadinessPolicyTests asserting the removed bounds checks.",
+    "Rewrite README.md (first-run wizard, access model, configuration table, breaking changes) and correct docs/SECURITY.md and docs/PRODUCTION_READINESS.md to describe the current network-perimeter AdminGuard model instead of the removed login system.",
+    "Soften the Desktop Audit nav hint text, which promised 'who logged in' with no login identity to record."
+  ],
+  "tests": {
+    "red": "N/A (dead-code/doc correction, not new behavior; verified by inspection and full regression)",
+    "green": {
+      "fullSolutionSuite": "628 passed, 0 failed, 0 skipped"
+    },
+    "releaseBuild": "0 warnings, 0 errors",
+    "publish": "self-contained single-file win-x64",
+    "manifest": "6 files; hash and length verification passed",
+    "nodeSyntax": "passed",
+    "gitDiffCheck": "passed; existing LF-to-CRLF warnings only"
+  },
+  "artifact": {
+    "path": "D:\\AegisWAF\\dist\\AegisWAF-Desktop-CompletedModules\\AegisWAF.exe",
+    "sha256": "DDC2C0A4B4DEBBA3078808795BC0E2CA95BBD6695A01435AFDFEF3078D24D860",
+    "length": 170560363,
+    "peHeader": "MZ",
+    "authenticode": "NotSigned",
+    "manifestFiles": 6
+  },
+  "sourceCommit": "32c21fa387de497e83d09434dd4c2482828e1b4a",
+  "workingTreeClean": true,
+  "boundaries": [
+    "Live Browser/EXE smoke, external penetration/load/SLO/SIEM/CodeQL validation, and Authenticode signing were not performed.",
+    "Database migrations 006_auth_rbac.sql and 009_distributed_security_limits.sql still create the now-unused users/waf_auth_throttle_buckets tables; migration files are append-only/checksum-verified and were intentionally left untouched in this module."
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "module": "Module 145",
+  "title": "Desktop Multi-Site progressive base-list loading",
+  "date": "2026-10-30",
+  "progress": {
+    "beforePercent": 0,
+    "afterPercent": 100,
+    "targetPercent": 100
+  },
+  "opportunity": "The Browser Multi-Site view rendered the authoritative Site list before the Health summary, but the WPF Desktop view awaited the summary before populating its grid. A slow or unavailable summary could therefore make the Desktop page appear empty even when Site configuration was available.",
+  "implementation": [
+    "Render initial Desktop SiteRow values immediately after GetSitesAsync returns, using the live Site data and no historical trend yet.",
+    "Show the explicit Thai progress message that the Site list is available while the Health trend summary is loading.",
+    "Retain the existing generation/cancellation guard, last-successful-summary fallback, retry action, and final trend re-render.",
+    "Added DesktopMultiSiteProgressiveLoadContractTests."
+  ],
+  "verification": {
+    "tddRed": "1/1 expected failure before implementation",
+    "focusedUiContracts": "11/11 passed",
+    "multiSiteRegressionContracts": "29/29 passed",
+    "releaseSolutionBuild": "0 warnings / 0 errors",
+    "nodeSyntax": "node --check src/AegisWAF.Gateway/wwwroot/assets/app.js passed",
+    "gitDiffCheck": "passed"
+  },
+  "boundary": [
+    "Authenticated WPF published-EXE smoke with a deliberately slow or unavailable summary endpoint",
+    "Real PostgreSQL summary latency and large-Site-count benchmark",
+    "Visual responsive and screen-reader verification",
+    "CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification"
+  ]
+}

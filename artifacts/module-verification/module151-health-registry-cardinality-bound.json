@@ -1,0 +1,56 @@
+{
+  "module": 151,
+  "title": "Bound process-local Multi-Site health registry state by Site cardinality",
+  "progress": {
+    "before": 0,
+    "after": 100,
+    "target": 100
+  },
+  "opportunity": {
+    "rootCause": "SiteHealthRegistry retained one state entry and one weighted-round-robin cursor per Site in unbounded concurrent dictionaries; repeated Site creation/deletion could grow process memory indefinitely.",
+    "scope": "SiteHealthRegistry legacy/manual health state and upstream selection"
+  },
+  "implementation": [
+    "Replaced unbounded per-key concurrent dictionaries with a lock-protected bounded Site bucket registry and configurable maxSites defaulting to 1024.",
+    "Added monotonic recency tracking and least-recently-used eviction when a new Site bucket would exceed the global bound.",
+    "Kept per-upstream health state, reason truncation, unknown-upstream behavior, and weighted round-robin selection semantics intact."
+  ],
+  "verification": {
+    "tddRed": {
+      "tests": 1,
+      "failed": 1,
+      "reason": "The new bounded-registry test initially could not compile because SiteHealthRegistry had no maxSites constructor parameter (CS1739)."
+    },
+    "focused": {
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "classes": [
+        "SiteHealthRegistryCardinalityContractTests",
+        "SiteHealthTests"
+      ]
+    },
+    "multiSiteRegressionWithoutPostgres": {
+      "passed": 254,
+      "failed": 0,
+      "skipped": 0,
+      "classes": 94,
+      "runner": "in-process xUnit"
+    },
+    "releaseBuild": {
+      "warnings": 0,
+      "errors": 0,
+      "solution": "AegisWAF.slnx"
+    },
+    "javascriptSyntax": "passed",
+    "gitDiffCheck": "passed"
+  },
+  "boundaries": [
+    "Long-running memory benchmark with thousands of live Sites",
+    "Live PostgreSQL-backed legacy health execution and concurrent multi-instance behavior",
+    "Authenticated browser/published-EXE smoke",
+    "Visual responsive and screen-reader verification",
+    "CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification"
+  ],
+  "recordedAt": "2026-10-30"
+}

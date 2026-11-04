@@ -1,0 +1,27 @@
+{
+  "module": "Module 134",
+  "title": "Prioritize current actionable alerts over stale peers",
+  "recordedAt": "2026-10-28",
+  "progress": {
+    "beforePercent": 0,
+    "afterPercent": 100,
+    "targetPercent": 100
+  },
+  "sourceCommit": "043e6d5",
+  "implementation": [
+    "Adjusted Multi-Site health ranking so a fresh critical/degraded Site outranks a stale alert of the same severity.",
+    "Preserved the existing stale-first visibility rule for non-actionable states such as stale healthy history.",
+    "Added regression coverage for both current-versus-stale actionable ordering and the existing stale visibility behavior."
+  ],
+  "verification": {
+    "tddRed": "The new ranking test initially returned stale-critical before current-critical.",
+    "focused": "7/7 passed",
+    "siteHealthRegression": "86/88 passed; the two failures were socket_AccessDenied loopback health-probe tests caused by the sandbox boundary.",
+    "releaseBuild": "0 warnings / 0 errors",
+    "gitDiffCheck": "passed"
+  },
+  "boundary": [
+    "Loopback health-probe execution remains unavailable in this sandbox, so two live-socket tests remain environment-blocked.",
+    "Authenticated browser/published-EXE smoke, visual responsive verification, CodeQL/SARIF, external penetration testing, load/SLO, SIEM, Authenticode signing, and production certification remain externally unverified."
+  ]
+}

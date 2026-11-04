@@ -1,0 +1,23 @@
+{
+  "module": 180,
+  "title": "Multi-Site health summary runtime truth",
+  "beforePercent": 0,
+  "afterPercent": 100,
+  "targetPercent": 100,
+  "red": "SiteHealthSummaryRuntimeTruthContractTests initially failed because the summary endpoint and clients did not expose the complete pending-runtime contract.",
+  "focusedTests": "Gateway/DTO/Browser/Desktop contracts passed 4/4; the full targeted Multi-Site regression passed 70/70 with 0 failures and 0 skips",
+  "javascriptSyntax": "node --check src/AegisWAF.Gateway/wwwroot/assets/app.js passed",
+  "releaseBuild": "Release build passed: 0 warnings, 0 errors",
+  "diffCheck": "git diff --check passed",
+  "implementation": "Health summary resolves active runtime snapshots, excludes pending Sites from current Alert counts, projects pendingRestart and activationStatus per item, reports pendingRestartSites, and presents Thai pending-runtime guidance in Browser and Desktop.",
+  "artifact": {
+    "path": "D:\\AegisWAF\\dist\\AegisWAF-Desktop-CompletedModules\\AegisWAF.exe",
+    "sha256": "FFD6FD3C6391C1B6D733D8B21E6748048EE6601BC3DC4EC682C5BE232AB38F92",
+    "sizeBytes": 170740587,
+    "sourceCommit": "85144aa757b264c21af577e03fd766efe48813ea",
+    "manifest": "files=6, signed=false, workingTreeClean=true",
+    "peHeader": "MZ",
+    "authenticode": "NotSigned"
+  },
+  "boundary": "This module does not activate, mutate, or delete Site configuration. Existing role, CSRF, timeout, database fallback, acknowledgement, external CodeQL, penetration, load/SLO, SIEM, Authenticode, and production certification boundaries remain unchanged."
+}
